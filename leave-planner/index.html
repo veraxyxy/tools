@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 请假规划</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-alt: #f0efed;
+  --border: #e8e6e3;
+  --border-light: #f0efed;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #999;
+  --accent: #e8590c;
+  --accent-light: #fff4ef;
+  --mainland-color: #e8590c;
+  --mainland-bg: #fff4ef;
+  --hk-color: #2b8a3e;
+  --hk-bg: #edf7ef;
+  --workday-color: #868e96;
+  --workday-bg: repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(0,0,0,0.03) 3px, rgba(0,0,0,0.03) 6px);
+  --weekend-color: #c92a2a;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-popup: 0 12px 36px rgba(0,0,0,0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== Header ===== */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--accent), #d9480f);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.header-year {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--text-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.btn-export:hover {
+  background: #333;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.btn-export:active { transform: translateY(0); }
+
+.btn-export.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.btn-export svg { width: 16px; height: 16px; }
+
+/* ===== Main Layout ===== */
+.main {
+  display: flex;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  gap: 24px;
+}
+
+/* ===== Calendar Section ===== */
+.calendar-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.month-nav-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  color: var(--text-secondary);
+}
+
+.month-nav-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.month-nav-btn svg { width: 18px; height: 18px; }
+
+.month-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  min-width: 180px;
+  text-align: center;
+}
+
+.month-title span {
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--text-tertiary);
+  margin-left: 6px;
+}
+
+/* ===== Calendar Grid ===== */
+.calendar-container {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.weekday-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.weekday-cell {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.weekday-cell.weekend { color: var(--weekend-color); opacity: 0.6; }
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.day-cell {
+  aspect-ratio: 1.15;
+  padding: 6px 8px;
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+  overflow: hidden;
+}
+
+.day-cell:nth-child(7n) { border-right: none; }
+.day-cell:hover { background: var(--surface-alt); }
+.day-cell.outside { opacity: 0.25; pointer-events: none; }
+.day-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+
+.day-cell.weekend .day-num { color: var(--weekend-color); }
+
+.day-cell.is-workday {
+  background: var(--workday-bg);
+}
+
+.day-cell.has-leave {
+  cursor: pointer;
+}
+
+.day-num {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.day-badges {
+  display: flex;
+  gap: 3px;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.day-badge {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.day-badge.mainland { background: var(--mainland-color); }
+.day-badge.hk { background: var(--hk-color); }
+
+.day-holiday-name {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.2;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-leave-tag {
+  margin-top: auto;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: flex-start;
+}
+
+.day-leave-period {
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+/* ===== Legend ===== */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.legend-item,
+.legend-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legend-toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.legend-toggle:hover {
+  border-color: var(--text-secondary);
+}
+
+.legend-toggle.active {
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.legend-toggle.mainland.active {
+  border-color: rgba(232, 89, 12, 0.25);
+  background: var(--mainland-bg);
+}
+
+.legend-toggle.hk.active {
+  border-color: rgba(43, 138, 62, 0.25);
+  background: var(--hk-bg);
+}
+
+.legend-toggle:not(.active) {
+  opacity: 0.48;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-line {
+  width: 20px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--workday-bg);
+  border: 1px solid var(--border);
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.sidebar-section {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+/* ===== Leave Type Cards ===== */
+.leave-type-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  position: relative;
+  transition: var(--transition);
+}
+
+.leave-type-card:hover { box-shadow: var(--shadow-sm); }
+
+.leave-type-bar {
+  width: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.leave-type-info { flex: 1; min-width: 0; }
+
+.leave-type-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.leave-type-remaining {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.leave-type-remaining small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.leave-type-remaining-num {
+  cursor: pointer;
+  border-bottom: 1.5px dashed transparent;
+  transition: var(--transition);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.leave-type-remaining-num:hover {
+  border-bottom-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.leave-type-remaining-input {
+  width: 52px;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: inherit;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  background: var(--accent-light);
+  outline: none;
+  padding: 0 2px;
+  border-radius: 2px 2px 0 0;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+
+.leave-type-remaining-input::-webkit-outer-spin-button,
+.leave-type-remaining-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.leave-type-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+.leave-type-total-num {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: var(--transition);
+  padding: 0 1px;
+}
+
+.leave-type-total-num:hover {
+  border-bottom-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.leave-type-total-input {
+  width: 36px;
+  border: none;
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  font-family: inherit;
+  text-align: center;
+  background: var(--accent-light);
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.leave-type-total-input::-webkit-outer-spin-button,
+.leave-type-total-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.leave-type-progress {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.leave-type-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.leave-type-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.leave-type-card:hover .leave-type-delete { opacity: 1; }
+.leave-type-delete:hover { background: #fee; color: #c00; }
+
+.leave-type-total-input {
+  width: 50px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: center;
+  background: var(--surface);
+}
+
+.leave-type-total-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.leave-type-edit-hint {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.leave-type-card:hover .leave-type-edit-hint { opacity: 0.7; }
+
+/* ===== Add Leave Type ===== */
+.add-type-btn {
+  width: 100%;
+  padding: 12px;
+  border: 2px dashed var(--border);
+  background: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.add-type-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.add-type-form {
+  display: none;
+  padding: 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  margin-top: 10px;
+}
+
+.add-type-form.show { display: block; }
+
+.form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface);
+  transition: var(--transition);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 89, 12, 0.1);
+}
+
+.form-input-days {
+  width: 80px;
+  flex: none;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover { background: #d9480f; }
+
+.btn-ghost {
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover { background: var(--surface-alt); }
+
+/* ===== Monthly Summary ===== */
+.month-summary-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.month-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+}
+
+.month-summary-item:last-child { border-bottom: none; }
+
+.month-summary-date {
+  font-weight: 600;
+  min-width: 50px;
+  color: var(--text-secondary);
+}
+
+.month-summary-tag {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.month-summary-period {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.reset-btn {
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.reset-btn:hover {
+  border-color: #c92a2a;
+  color: #c92a2a;
+  background: #fff5f5;
+}
+
+/* ===== Popup ===== */
+.popup-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.popup-overlay.show { display: block; }
+
+.popup {
+  position: fixed;
+  z-index: 201;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popup);
+  border: 1px solid var(--border);
+  padding: 18px;
+  min-width: 260px;
+  animation: popupIn 0.15s ease-out;
+}
+
+@keyframes popupIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.popup-date {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.popup-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.popup-type-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.popup-type-btn:hover { transform: translateY(-1px); }
+.popup-type-btn.selected { border-color: currentColor; }
+
+.popup-periods {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+
+.popup-period-btn {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: var(--transition);
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+
+.popup-period-btn.selected {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+}
+
+.popup-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-cancel-leave {
+  color: #c92a2a;
+  background: #fff5f5;
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.btn-cancel-leave:hover { background: #ffe0e0; }
+
+/* ===== Tooltip ===== */
+.tooltip {
+  position: fixed;
+  z-index: 300;
+  background: var(--text-primary);
+  color: white;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.tooltip.show { opacity: 1; }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ===== Responsive ===== */
+@media (max-width: 1100px) {
+  .main { flex-direction: column; }
+  .sidebar { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">假</div>
+    <div>
+      <div class="header-title">请假规划 <span class="header-year">2026</span></div>
+    </div>
+  </div>
+  <button class="btn-export" id="btnExport" onclick="exportImage()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    导出图片
+  </button>
+</header>
+
+<!-- Main -->
+<div class="main">
+  <!-- Calendar -->
+  <div class="calendar-section" id="calendarSection">
+    <div class="month-nav">
+      <button class="month-nav-btn" onclick="changeMonth(-1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="month-title" id="monthTitle"></div>
+      <button class="month-nav-btn" onclick="changeMonth(1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div class="calendar-container" id="calendarContainer">
+      <div class="weekday-header">
+        <div class="weekday-cell">一</div>
+        <div class="weekday-cell">二</div>
+        <div class="weekday-cell">三</div>
+        <div class="weekday-cell">四</div>
+        <div class="weekday-cell">五</div>
+        <div class="weekday-cell weekend">六</div>
+        <div class="weekday-cell weekend">日</div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <div class="legend">
+      <button class="legend-toggle mainland active" id="toggleMainland" onclick="toggleHolidayVisibility('mainland')" aria-pressed="true">
+        <div class="legend-dot" style="background:var(--mainland-color)"></div>
+        内地节假日
+      </button>
+      <button class="legend-toggle hk active" id="toggleHk" onclick="toggleHolidayVisibility('hk')" aria-pressed="true">
+        <div class="legend-dot" style="background:var(--hk-color)"></div>
+        香港公众假期
+      </button>
+      <div class="legend-item">
+        <div class="legend-line"></div>
+        调休补班
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="border:2px solid var(--accent);width:6px;height:6px;background:transparent"></div>
+        今天
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">假期余额</div>
+      <div id="leaveTypeList"></div>
+      <button class="add-type-btn" id="addTypeBtn" onclick="toggleAddForm()">+ 添加假期类型</button>
+      <div class="add-type-form" id="addTypeForm">
+        <div class="form-row">
+          <input class="form-input" id="newTypeName" placeholder="假期名称" maxlength="10">
+          <input class="form-input form-input-days" id="newTypeDays" type="number" min="0.5" step="0.5" placeholder="天数">
+        </div>
+        <div class="form-actions">
+          <button class="btn-sm btn-primary" onclick="addLeaveType()">确认</button>
+          <button class="btn-sm btn-ghost" onclick="toggleAddForm()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">本月请假记录</div>
+      <div id="monthSummary"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">重置所有数据</button>
+  </div>
+</div>
+
+<!-- Popup Overlay -->
+<div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
+<div class="popup" id="popup" style="display:none"></div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ==================== 节假日数据 ====================
+const HOLIDAYS = {
+  // ============================================
+  // 数据来源：
+  // 内地：国务院办公厅《关于2026年部分节假日安排的通知》(国办发明电〔2025〕7号)
+  // 香港：香港特别行政区政府《政府公布二○二六年公众假期》
+  // ============================================
+
+  // === 元旦 1.1-1.3 放假，1.4(周日)补班 ===
+  '2026-01-01': { name: '元旦', region: 'both' },
+  '2026-01-02': { name: '元旦', region: 'mainland' },
+  '2026-01-03': { name: '元旦', region: 'mainland' },
+  '2026-01-04': { name: '元旦调休补班', region: 'mainland', isWorkday: true },
+
+  // === 春节 2.15-2.23 放假(9天)，2.14(周六)、2.28(周六)补班 ===
+  '2026-02-14': { name: '春节调休补班', region: 'mainland', isWorkday: true },
+  '2026-02-15': { name: '除夕前一天', region: 'mainland' },
+  '2026-02-16': { name: '除夕', region: 'mainland' },
+  '2026-02-17': { name: '春节/农历年初一', region: 'both' },
+  '2026-02-18': { name: '春节/农历年初二', region: 'both' },
+  '2026-02-19': { name: '春节/农历年初三', region: 'both' },
+  '2026-02-20': { name: '春节', region: 'mainland' },
+  '2026-02-21': { name: '春节', region: 'mainland' },
+  '2026-02-22': { name: '春节', region: 'mainland' },
+  '2026-02-23': { name: '春节', region: 'mainland' },
+  '2026-02-28': { name: '春节调休补班', region: 'mainland', isWorkday: true },
+
+  // === 清明节 + 香港复活节假期 ===
+  '2026-04-03': { name: '耶稣受难节', region: 'hk' },
+  '2026-04-04': { name: '清明节/耶稣受难节翌日', region: 'both' },
+  '2026-04-05': { name: '清明节', region: 'mainland' },
+  '2026-04-06': { name: '清明节/清明节翌日(港补假)', region: 'both' },
+  '2026-04-07': { name: '复活节星期一翌日(港增补假期)', region: 'hk' },
+
+  // === 劳动节 5.1-5.5 放假(5天)，5.9(周六)补班 ===
+  '2026-05-01': { name: '劳动节', region: 'both' },
+  '2026-05-02': { name: '劳动节', region: 'mainland' },
+  '2026-05-03': { name: '劳动节', region: 'mainland' },
+  '2026-05-04': { name: '劳动节', region: 'mainland' },
+  '2026-05-05': { name: '劳动节', region: 'mainland' },
+  '2026-05-09': { name: '劳动节调休补班', region: 'mainland', isWorkday: true },
+
+  // === 佛诞逢周日，5.25 为香港补假 ===
+  '2026-05-24': { name: '佛诞', region: 'hk' },
+  '2026-05-25': { name: '佛诞翌日(港补假)', region: 'hk' },
+
+  // === 端午节 6.19-6.21 放假(3天)，无补班 ===
+  '2026-06-19': { name: '端午节', region: 'both' },
+  '2026-06-20': { name: '端午节', region: 'mainland' },
+  '2026-06-21': { name: '端午节', region: 'mainland' },
+
+  // === 香港特别行政区成立纪念日 7.1 ===
+  '2026-07-01': { name: '香港回归纪念日', region: 'hk' },
+
+  // === 中秋节 9.25-9.27 放假(3天)，无补班 ===
+  '2026-09-25': { name: '中秋节', region: 'mainland' },
+  '2026-09-26': { name: '中秋节/中秋节翌日(港)', region: 'both' },
+  '2026-09-27': { name: '中秋节', region: 'mainland' },
+
+  // === 国庆节 10.1-10.7 放假(7天)，9.20(周日)、10.10(周六)补班 ===
+  '2026-09-20': { name: '国庆调休补班', region: 'mainland', isWorkday: true },
+  '2026-10-01': { name: '国庆节', region: 'both' },
+  '2026-10-02': { name: '国庆节', region: 'mainland' },
+  '2026-10-03': { name: '国庆节', region: 'mainland' },
+  '2026-10-04': { name: '国庆节', region: 'mainland' },
+  '2026-10-05': { name: '国庆节', region: 'mainland' },
+  '2026-10-06': { name: '国庆节', region: 'mainland' },
+  '2026-10-07': { name: '国庆节', region: 'mainland' },
+  '2026-10-10': { name: '国庆调休补班', region: 'mainland', isWorkday: true },
+
+  // === 重阳节逢周日，10.19 为香港补假 ===
+  '2026-10-18': { name: '重阳节', region: 'hk' },
+  '2026-10-19': { name: '重阳节翌日(港补假)', region: 'hk' },
+
+  // === 圣诞节香港公众假期 12.25、12.26 ===
+  '2026-12-25': { name: '圣诞节', region: 'hk' },
+  '2026-12-26': { name: '圣诞节后第一个周日', region: 'hk' },
+};
+
+// ==================== 颜色池 ====================
+const COLOR_POOL = [
+  '#e8590c', '#2b8a3e', '#1971c2', '#9c36b5',
+  '#e67700', '#0c8599', '#c2255c', '#5c940d',
+  '#845ef7', '#f06595', '#20c997', '#fab005'
+];
+
+// ==================== 状态管理 ====================
+let currentMonth = new Date().getMonth(); // 默认当前月
+let currentYear = 2026;
+let leaveTypes = [];
+let leaveRecords = {};
+let holidayVisibility = { mainland: true, hk: true };
+
+// ==================== 存储管理 ====================
+const STORAGE_KEY = 'leave_planner_2026';
+
+function getDefaultLeaveTypes() {
+  return [
+    { id: 'lt_1', name: '年假', totalDays: 10, color: COLOR_POOL[0] },
+    { id: 'lt_2', name: '调休', totalDays: 5, color: COLOR_POOL[1] },
+    { id: 'lt_3', name: '育儿假', totalDays: 10, color: COLOR_POOL[2] },
+  ];
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      leaveTypes = data.leaveTypes || getDefaultLeaveTypes();
+      leaveRecords = data.leaveRecords || {};
+      holidayVisibility = {
+        mainland: data.holidayVisibility?.mainland !== false,
+        hk: data.holidayVisibility?.hk !== false,
+      };
+    } else {
+      leaveTypes = getDefaultLeaveTypes();
+      leaveRecords = {};
+      holidayVisibility = { mainland: true, hk: true };
+    }
+  } catch (e) {
+    leaveTypes = getDefaultLeaveTypes();
+    leaveRecords = {};
+    holidayVisibility = { mainland: true, hk: true };
+  }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    version: 2,
+    leaveTypes,
+    leaveRecords,
+    holidayVisibility
+  }));
+}
+
+// ==================== 工具函数 ====================
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function dateStr(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+
+function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+function getFirstDayOfWeek(y, m) {
+  let d = new Date(y, m, 1).getDay();
+  return d === 0 ? 6 : d - 1; // 转换为周一=0
+}
+
+function isWeekend(y, m, d) {
+  const day = new Date(y, m, d).getDay();
+  return day === 0 || day === 6;
+}
+
+function getUsedDays(typeId) {
+  let total = 0;
+  for (const key in leaveRecords) {
+    if (leaveRecords[key].typeId === typeId) {
+      total += leaveRecords[key].period === 'full' ? 1 : 0.5;
+    }
+  }
+  return total;
+}
+
+function getNextColor() {
+  const usedColors = leaveTypes.map(t => t.color);
+  for (const c of COLOR_POOL) {
+    if (!usedColors.includes(c)) return c;
+  }
+  return COLOR_POOL[leaveTypes.length % COLOR_POOL.length];
+}
+
+function getHolidayDisplayInfo(holiday) {
+  if (!holiday) return null;
+
+  if (holiday.isWorkday) {
+    return {
+      name: holiday.name,
+      showMainland: true,
+      showHk: false,
+      isWorkday: true,
+    };
+  }
+
+  const showMainland = holidayVisibility.mainland && (holiday.region === 'mainland' || holiday.region === 'both');
+  const showHk = holidayVisibility.hk && (holiday.region === 'hk' || holiday.region === 'both');
+
+  if (!showMainland && !showHk) return null;
+
+  let name = holiday.name;
+  if (holiday.region === 'both' && holiday.name.includes('/')) {
+    const [mainlandName, hkName] = holiday.name.split('/');
+    if (showMainland && !showHk) name = mainlandName;
+    if (!showMainland && showHk) name = hkName;
+  }
+
+  return {
+    name,
+    showMainland,
+    showHk,
+    isWorkday: false,
+  };
+}
+
+function renderHolidayVisibilityControls() {
+  const mainlandBtn = document.getElementById('toggleMainland');
+  const hkBtn = document.getElementById('toggleHk');
+
+  mainlandBtn.classList.toggle('active', holidayVisibility.mainland);
+  hkBtn.classList.toggle('active', holidayVisibility.hk);
+  mainlandBtn.setAttribute('aria-pressed', String(holidayVisibility.mainland));
+  hkBtn.setAttribute('aria-pressed', String(holidayVisibility.hk));
+}
+
+function toggleHolidayVisibility(region) {
+  holidayVisibility[region] = !holidayVisibility[region];
+  saveData();
+  renderCalendar();
+  renderHolidayVisibilityControls();
+}
+
+// ==================== 日历渲染 ====================
+function renderCalendar() {
+  const monthNames = ['1 月', '2 月', '3 月', '4 月', '5 月', '6 月',
+                       '7 月', '8 月', '9 月', '10 月', '11 月', '12 月'];
+  document.getElementById('monthTitle').innerHTML =
+    `${currentYear} 年 <span>${monthNames[currentMonth]}</span>`;
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const prevMonthDays = getDaysInMonth(currentYear, currentMonth - 1 < 0 ? 11 : currentMonth - 1);
+
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'day-cell';
+
+    let year, month, day;
+    if (i < firstDay) {
+      // 上月日期
+      day = prevMonthDays - firstDay + 1 + i;
+      month = currentMonth - 1;
+      year = currentYear;
+      if (month < 0) { month = 11; year--; }
+      cell.classList.add('outside');
+    } else if (i >= firstDay + daysInMonth) {
+      // 下月日期
+      day = i - firstDay - daysInMonth + 1;
+      month = currentMonth + 1;
+      year = currentYear;
+      if (month > 11) { month = 0; year++; }
+      cell.classList.add('outside');
+    } else {
+      day = i - firstDay + 1;
+      month = currentMonth;
+      year = currentYear;
+    }
+
+    const ds = dateStr(year, month, day);
+    cell.dataset.date = ds;
+
+    // 今天标记
+    const today = new Date();
+    if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+      cell.classList.add('today');
+    }
+
+    // 周末
+    if (isWeekend(year, month, day)) {
+      cell.classList.add('weekend');
+    }
+
+    // 节假日
+    const holiday = HOLIDAYS[ds];
+    const holidayDisplay = getHolidayDisplayInfo(holiday);
+    if (holiday && holiday.isWorkday) {
+      cell.classList.add('is-workday');
+    }
+
+    // 日期数字
+    const numDiv = document.createElement('div');
+    numDiv.className = 'day-num';
+    numDiv.textContent = day;
+    cell.appendChild(numDiv);
+
+    // 节假日徽标
+    if (holidayDisplay && !holidayDisplay.isWorkday) {
+      const badges = document.createElement('div');
+      badges.className = 'day-badges';
+      if (holidayDisplay.showMainland) {
+        const b = document.createElement('div');
+        b.className = 'day-badge mainland';
+        badges.appendChild(b);
+      }
+      if (holidayDisplay.showHk) {
+        const b = document.createElement('div');
+        b.className = 'day-badge hk';
+        badges.appendChild(b);
+      }
+      cell.appendChild(badges);
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'day-holiday-name';
+      nameDiv.textContent = holidayDisplay.name;
+      cell.appendChild(nameDiv);
+    }
+
+    if (holiday && holiday.isWorkday) {
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'day-holiday-name';
+      nameDiv.textContent = '补班';
+      nameDiv.style.color = 'var(--workday-color)';
+      cell.appendChild(nameDiv);
+    }
+
+    // 请假标记
+    const record = leaveRecords[ds];
+    if (record) {
+      const lt = leaveTypes.find(t => t.id === record.typeId);
+      if (lt) {
+        cell.classList.add('has-leave');
+        cell.style.backgroundColor = lt.color + '12';
+
+        const tag = document.createElement('div');
+        tag.className = 'day-leave-tag';
+        tag.style.background = lt.color + '22';
+        tag.style.color = lt.color;
+        const periodText = record.period === 'full' ? '' : (record.period === 'am' ? '上午' : '下午');
+        tag.innerHTML = lt.name + (periodText ? ` <span class="day-leave-period">${periodText}</span>` : '');
+        cell.appendChild(tag);
+      }
+    }
+
+    // 点击事件
+    if (!cell.classList.contains('outside')) {
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPopup(ds, cell);
+      });
+
+      // hover tooltip for holidays
+      if (holidayDisplay || (holiday && holiday.isWorkday)) {
+        const tooltipText = holiday && holiday.isWorkday
+          ? holiday.name + ' (补班)'
+          : holidayDisplay.name;
+        cell.addEventListener('mouseenter', (e) => showTooltip(e, tooltipText));
+        cell.addEventListener('mouseleave', hideTooltip);
+      }
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+function changeMonth(dir) {
+  currentMonth += dir;
+  if (currentMonth > 11) { currentMonth = 0; }
+  if (currentMonth < 0) { currentMonth = 11; }
+  renderAll();
+}
+
+// ==================== Tooltip ====================
+function showTooltip(e, text) {
+  const tip = document.getElementById('tooltip');
+  tip.textContent = text;
+  tip.classList.add('show');
+  const rect = e.target.getBoundingClientRect();
+  tip.style.left = rect.left + rect.width / 2 - tip.offsetWidth / 2 + 'px';
+  tip.style.top = rect.top - 32 + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('show');
+}
+
+// ==================== 假期类型管理 ====================
+function renderLeaveTypes() {
+  const list = document.getElementById('leaveTypeList');
+  list.innerHTML = '';
+
+  leaveTypes.forEach(lt => {
+    const used = getUsedDays(lt.id);
+    const remaining = lt.totalDays - used;
+    const pct = lt.totalDays > 0 ? (used / lt.totalDays) * 100 : 0;
+
+    const card = document.createElement('div');
+    card.className = 'leave-type-card';
+    card.innerHTML = `
+      <div class="leave-type-bar" style="background:${lt.color}"></div>
+      <div class="leave-type-info">
+        <div class="leave-type-name">
+          ${lt.name}
+          <span class="leave-type-remaining">
+            <span class="leave-type-remaining-num" data-id="${lt.id}" data-field="remaining" title="点击修改剩余天数">${remaining}</span><small>天</small>
+          </span>
+        </div>
+        <div class="leave-type-detail">
+          共 <span class="leave-type-total-num" data-id="${lt.id}" data-field="total" title="点击修改总天数">${lt.totalDays}</span> 天，已用 ${used} 天
+        </div>
+        <div class="leave-type-progress">
+          <div class="leave-type-progress-bar" style="width:${Math.min(pct, 100)}%;background:${lt.color}"></div>
+        </div>
+      </div>
+      <button class="leave-type-delete" onclick="deleteLeaveType('${lt.id}')" title="删除">×</button>
+    `;
+
+    // 点击剩余天数 → inline 编辑
+    const remainingEl = card.querySelector('.leave-type-remaining-num');
+    remainingEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startInlineEdit(remainingEl, remaining, (newVal) => {
+        if (newVal < 0) return false;
+        // 反算总天数 = 新剩余 + 已用
+        lt.totalDays = newVal + used;
+        saveData();
+        renderAll();
+        return true;
+      });
+    });
+
+    // 点击总天数 → inline 编辑
+    const totalEl = card.querySelector('.leave-type-total-num');
+    totalEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startInlineEdit(totalEl, lt.totalDays, (newVal) => {
+        if (newVal <= 0) return false;
+        if (newVal < used) {
+          alert('已使用 ' + used + ' 天，总天数不能少于此值');
+          return false;
+        }
+        lt.totalDays = newVal;
+        saveData();
+        renderAll();
+        return true;
+      });
+    });
+
+    list.appendChild(card);
+  });
+}
+
+// inline 编辑通用函数
+function startInlineEdit(el, currentValue, onConfirm) {
+  const isLarge = el.classList.contains('leave-type-remaining-num');
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.value = currentValue;
+  input.min = '0';
+  input.step = '0.5';
+  input.className = isLarge ? 'leave-type-remaining-input' : 'leave-type-total-input';
+
+  const originalText = el.textContent;
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const num = parseFloat(input.value);
+    if (isNaN(num)) {
+      // 还原
+      const span = document.createElement('span');
+      span.className = isLarge ? 'leave-type-remaining-num' : 'leave-type-total-num';
+      span.textContent = originalText;
+      input.replaceWith(span);
+      return;
+    }
+    if (!onConfirm(num)) {
+      input.focus();
+    }
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') {
+      input.removeEventListener('blur', commit);
+      renderAll(); // 还原
+    }
+  });
+}
+
+function toggleAddForm() {
+  const form = document.getElementById('addTypeForm');
+  form.classList.toggle('show');
+  if (form.classList.contains('show')) {
+    document.getElementById('newTypeName').focus();
+  }
+}
+
+function addLeaveType() {
+  const name = document.getElementById('newTypeName').value.trim();
+  const days = parseFloat(document.getElementById('newTypeDays').value);
+
+  if (!name) { document.getElementById('newTypeName').focus(); return; }
+  if (!days || days <= 0) { document.getElementById('newTypeDays').focus(); return; }
+
+  leaveTypes.push({
+    id: 'lt_' + Date.now(),
+    name,
+    totalDays: days,
+    color: getNextColor()
+  });
+
+  document.getElementById('newTypeName').value = '';
+  document.getElementById('newTypeDays').value = '';
+  document.getElementById('addTypeForm').classList.remove('show');
+
+  saveData();
+  renderAll();
+}
+
+function deleteLeaveType(id) {
+  const lt = leaveTypes.find(t => t.id === id);
+  if (!lt) return;
+
+  const recordCount = Object.values(leaveRecords).filter(r => r.typeId === id).length;
+  const msg = recordCount > 0
+    ? `删除「${lt.name}」将同时清除 ${recordCount} 条请假记录，确认删除？`
+    : `确认删除「${lt.name}」？`;
+
+  if (!confirm(msg)) return;
+
+  leaveTypes = leaveTypes.filter(t => t.id !== id);
+  for (const key in leaveRecords) {
+    if (leaveRecords[key].typeId === id) delete leaveRecords[key];
+  }
+
+  saveData();
+  renderAll();
+}
+
+// ==================== 月度汇总 ====================
+function renderMonthSummary() {
+  const container = document.getElementById('monthSummary');
+  const records = [];
+
+  for (const key in leaveRecords) {
+    const [y, m] = key.split('-').map(Number);
+    if (y === currentYear && m - 1 === currentMonth) {
+      const lt = leaveTypes.find(t => t.id === leaveRecords[key].typeId);
+      if (lt) {
+        records.push({ date: key, record: leaveRecords[key], type: lt });
+      }
+    }
+  }
+
+  records.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-state">本月暂无请假记录</div>';
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'month-summary-list';
+
+  records.forEach(({ date, record, type }) => {
+    const d = date.split('-')[2];
+    const periodMap = { full: '全天', am: '上午', pm: '下午' };
+    const item = document.createElement('div');
+    item.className = 'month-summary-item';
+    item.innerHTML = `
+      <span class="month-summary-date">${parseInt(d)} 日</span>
+      <span class="month-summary-tag" style="background:${type.color}18;color:${type.color}">${type.name}</span>
+      <span class="month-summary-period">${periodMap[record.period]}</span>
+    `;
+    list.appendChild(item);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(list);
+}
+
+// ==================== 请假弹窗 ====================
+let popupDate = null;
+
+function openPopup(ds, cell) {
+  popupDate = ds;
+  const popup = document.getElementById('popup');
+  const overlay = document.getElementById('popupOverlay');
+  const existing = leaveRecords[ds];
+
+  let html = `<div class="popup-title">选择请假类型 · <span class="popup-date">${ds.replace(/-/g, '/')}</span></div>`;
+
+  if (leaveTypes.length === 0) {
+    html += '<div class="empty-state" style="padding:12px 0">请先添加假期类型</div>';
+    html += `<div class="popup-actions">
+      <button class="btn-sm btn-ghost" onclick="closePopup()">关闭</button>
+    </div>`;
+  } else {
+    html += '<div class="popup-types" id="popupTypes">';
+    leaveTypes.forEach(lt => {
+      const selected = existing && existing.typeId === lt.id;
+      html += `<button class="popup-type-btn${selected ? ' selected' : ''}"
+        style="color:${lt.color};${selected ? 'border-color:' + lt.color + ';background:' + lt.color + '10' : ''}"
+        onclick="selectType('${lt.id}', this)"
+        data-type-id="${lt.id}">${lt.name}</button>`;
+    });
+    html += '</div>';
+
+    html += '<div class="popup-periods" id="popupPeriods">';
+    const curPeriod = existing ? existing.period : 'full';
+    ['full', 'am', 'pm'].forEach(p => {
+      const label = p === 'full' ? '全天' : (p === 'am' ? '上午' : '下午');
+      html += `<button class="popup-period-btn${curPeriod === p ? ' selected' : ''}"
+        onclick="selectPeriod('${p}', this)" data-period="${p}">${label}</button>`;
+    });
+    html += '</div>';
+
+    html += '<div class="popup-actions">';
+    if (existing) {
+      html += `<button class="btn-cancel-leave" onclick="cancelLeave()">取消请假</button>`;
+    }
+    html += `<button class="btn-sm btn-ghost" onclick="closePopup()">关闭</button>`;
+    html += `<button class="btn-sm btn-primary" onclick="confirmLeave()">确认</button>`;
+    html += '</div>';
+  }
+
+  popup.innerHTML = html;
+  popup.style.display = 'block';
+  overlay.classList.add('show');
+
+  // 定位弹窗
+  const rect = cell.getBoundingClientRect();
+  let top = rect.bottom + 8;
+  let left = rect.left;
+
+  // 边界检测
+  if (top + 220 > window.innerHeight) top = rect.top - 220;
+  if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+  if (left < 10) left = 10;
+
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+}
+
+function closePopup() {
+  document.getElementById('popup').style.display = 'none';
+  document.getElementById('popupOverlay').classList.remove('show');
+  popupDate = null;
+}
+
+let selectedTypeId = null;
+let selectedPeriod = 'full';
+
+function selectType(id, btn) {
+  selectedTypeId = id;
+  document.querySelectorAll('.popup-type-btn').forEach(b => {
+    b.classList.remove('selected');
+    b.style.borderColor = '';
+    b.style.background = '';
+  });
+  btn.classList.add('selected');
+  const lt = leaveTypes.find(t => t.id === id);
+  if (lt) {
+    btn.style.borderColor = lt.color;
+    btn.style.background = lt.color + '10';
+  }
+}
+
+function selectPeriod(p, btn) {
+  selectedPeriod = p;
+  document.querySelectorAll('.popup-period-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function confirmLeave() {
+  if (!popupDate) return;
+
+  // 获取当前选中的类型
+  const typeBtn = document.querySelector('.popup-type-btn.selected');
+  const periodBtn = document.querySelector('.popup-period-btn.selected');
+
+  if (!typeBtn) {
+    // 如果没选类型，用第一个
+    const firstType = leaveTypes[0];
+    if (!firstType) return;
+    selectedTypeId = firstType.id;
+  } else {
+    selectedTypeId = typeBtn.dataset.typeId;
+  }
+
+  selectedPeriod = periodBtn ? periodBtn.dataset.period : 'full';
+
+  // 检查余额
+  const lt = leaveTypes.find(t => t.id === selectedTypeId);
+  if (!lt) return;
+  const used = getUsedDays(selectedTypeId);
+  const addDays = selectedPeriod === 'full' ? 1 : 0.5;
+
+  // 如果是编辑现有记录，先扣除原有天数
+  let existingDays = 0;
+  if (leaveRecords[popupDate] && leaveRecords[popupDate].typeId === selectedTypeId) {
+    existingDays = leaveRecords[popupDate].period === 'full' ? 1 : 0.5;
+  }
+
+  if (used - existingDays + addDays > lt.totalDays) {
+    alert(`${lt.name}余额不足！剩余 ${lt.totalDays - used + existingDays} 天`);
+    return;
+  }
+
+  leaveRecords[popupDate] = { typeId: selectedTypeId, period: selectedPeriod };
+  saveData();
+  closePopup();
+  renderAll();
+}
+
+function cancelLeave() {
+  if (!popupDate) return;
+  delete leaveRecords[popupDate];
+  saveData();
+  closePopup();
+  renderAll();
+}
+
+// ==================== 导出图片 ====================
+async function exportImage() {
+  const btn = document.getElementById('btnExport');
+  btn.classList.add('loading');
+  btn.textContent = '导出中...';
+
+  try {
+    const el = document.getElementById('calendarSection');
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      backgroundColor: '#f7f7f5',
+      useCORS: true,
+      logging: false
+    });
+
+    const link = document.createElement('a');
+    link.download = `请假规划_2026年${currentMonth + 1}月.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (e) {
+    alert('导出失败，请重试');
+    console.error(e);
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>导出图片`;
+}
+
+// ==================== 渲染入口 ====================
+function renderAll() {
+  renderHolidayVisibilityControls();
+  renderCalendar();
+  renderLeaveTypes();
+  renderMonthSummary();
+}
+
+// 重置数据
+function resetAll() {
+  if (!confirm('确认重置所有数据？假期类型将恢复默认，所有请假记录将被清除。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  leaveTypes = getDefaultLeaveTypes();
+  leaveRecords = {};
+  holidayVisibility = { mainland: true, hk: true };
+  saveData();
+  renderAll();
+}
+
+// 初始化
+loadData();
+
+// 设置当前月为2026年4月（当前日期附近）
+currentMonth = 3; // 4月
+renderAll();
+
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') changeMonth(-1);
+  if (e.key === 'ArrowRight') changeMonth(1);
+  if (e.key === 'Escape') closePopup();
+});
+</script>
+</body>
+</html>
