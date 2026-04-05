@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#f3f5fb">
+    <title>行理 · 小包行程助手</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="header-left" id="headerBackWrap">
+                <button class="btn-icon" id="headerBack" onclick="goBack()" aria-label="返回">←</button>
+            </div>
+            <div class="header-center">
+                <div class="header-eyebrow" id="headerEyebrow">物品库 → 小包 → 行程</div>
+                <h1 class="header-title" id="headerTitle">行理</h1>
+            </div>
+            <div class="header-right" id="headerRight"></div>
+        </header>
+
+        <main class="pages">
+            <section class="page active" data-page="home">
+                <div class="hero-card home-hero-card" id="homeHero">
+                    <h2 class="hero-title">行理</h2>
+                    <p class="hero-desc">组合小包，生成行程单，再也不怕落东西。</p>
+                    <div class="hero-actions">
+                        <button class="btn-primary" onclick="openCreateTripModal()">📝 新建行程</button>
+                        <button class="btn-secondary" onclick="openMainPage('kits')">🧰 浏览小包</button>
+                    </div>
+                </div>
+
+                <div class="home-quick-stats" id="homeStats"></div>
+
+                <section class="section">
+                    <div class="section-head">
+                        <h3 class="section-title">进行中</h3>
+                        <span class="section-meta" id="activeTripMeta"></span>
+                    </div>
+                    <div id="activeTripSection"></div>
+                </section>
+
+                <section class="section">
+                    <div class="section-head">
+                        <h3 class="section-title">最近行程</h3>
+                    </div>
+                    <div class="stack-list" id="recentTripList"></div>
+                </section>
+
+                <section class="section">
+                    <button class="history-toggle" onclick="toggleHomeHistory()">
+                        <span>历史行程</span>
+                        <span class="history-toggle-meta" id="historyToggleMeta">暂无</span>
+                    </button>
+                    <div class="stack-list" id="historyTripList"></div>
+                </section>
+            </section>
+
+            <section class="page" data-page="list">
+                <div id="listSummary"></div>
+                <div class="mode-switch" id="listModeSwitch"></div>
+                <div class="action-row" id="listActionBar"></div>
+                <div id="listSubBar"></div>
+                <div class="stack-list" id="listContent"></div>
+            </section>
+
+            <section class="page" data-page="kits">
+                <div class="page-note" id="moduleContextBanner"></div>
+                <div class="search-bar search-bar-large">
+                    <input id="moduleSearchInput" type="text" placeholder="搜索小包名称、用途或标签" oninput="updateModuleSearch(this.value)">
+                </div>
+                <div class="filter-row" id="moduleFilterRow"></div>
+                <div class="section-head compact">
+                    <h3 class="section-title">官方小包</h3>
+                    <button class="section-link" onclick="openCreateModuleModal()">新建我的小包</button>
+                </div>
+                <div class="kit-grid" id="officialModuleGrid"></div>
+
+                <div class="section-head compact section-gap-top">
+                    <h3 class="section-title">我的小包</h3>
+                    <span class="section-meta" id="myModuleMeta"></span>
+                </div>
+                <div class="kit-grid" id="myModuleGrid"></div>
+            </section>
+
+            <section class="page" data-page="items">
+                <div class="page-note" id="itemContextBanner"></div>
+                <div class="search-bar search-bar-large">
+                    <input id="itemSearchInput" type="text" placeholder="搜索物品名称" oninput="updateItemSearch(this.value)">
+                </div>
+                <div class="filter-row" id="itemFilterRow"></div>
+                <div class="library-summary-row" id="itemLibrarySummary"></div>
+                <div class="item-library-grid" id="itemLibraryGrid"></div>
+            </section>
+
+            <section class="page" data-page="me">
+                <div class="me-page">
+                    <div class="me-avatar" id="meAvatar">👤</div>
+                    <div class="me-name" id="meName">我的行理</div>
+                    <div class="me-stats" id="meStats"></div>
+                </div>
+                <div class="me-menu">
+                    <button class="me-menu-item" onclick="startOnboarding()">
+                        <span class="me-menu-icon">📖</span>
+                        <span>新手引导</span>
+                        <span class="me-menu-arrow">›</span>
+                    </button>
+                    <button class="me-menu-item" onclick="resetOfficialModules()">
+                        <span class="me-menu-icon">🔄</span>
+                        <span>恢复官方小包</span>
+                        <span class="me-menu-arrow">›</span>
+                    </button>
+                    <button class="me-menu-item danger" onclick="clearAllData()">
+                        <span class="me-menu-icon">🗑️</span>
+                        <span>清除所有数据</span>
+                        <span class="me-menu-arrow">›</span>
+                    </button>
+                </div>
+                <div class="me-footer">
+                    <div class="me-footer-text">行理 · 小包行程助手 v1.0</div>
+                    <div class="me-footer-text">数据保存在本机浏览器中</div>
+                </div>
+            </section>
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-nav="home" onclick="openMainPage('home')">
+                <span class="nav-icon">🏠</span>
+                <span>首页</span>
+            </button>
+            <button class="nav-item" data-nav="kits" onclick="openMainPage('kits')">
+                <span class="nav-icon">🧰</span>
+                <span>小包</span>
+            </button>
+            <button class="nav-item" data-nav="items" onclick="openMainPage('items')">
+                <span class="nav-icon">📦</span>
+                <span>物品库</span>
+            </button>
+            <button class="nav-item" data-nav="me" onclick="openMainPage('me')">
+                <span class="nav-icon">👤</span>
+                <span>我的</span>
+            </button>
+        </nav>
+    </div>
+
+    <div class="modal-overlay" id="onboardingModal">
+        <div class="modal onboarding-modal">
+            <div class="modal-body" id="onboardingBody">
+                <div class="onboarding-step" id="onboardingStep"></div>
+                <div class="onboarding-dots" id="onboardingDots"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="onboardingSkip" onclick="finishOnboarding()">跳过</button>
+                <button class="btn-primary" id="onboardingNext" onclick="nextOnboardingStep()">下一步</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="createTripModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>新建行程单</h3>
+                <button class="btn-close" onclick="closeModal('createTripModal')">✕</button>
+            </div>
+            <div class="modal-body large">
+                <div class="info-card" id="tripBuilderSummary">勾选你这次要带的小包，系统会按天数和人数预估可智能调整的衣物数量。</div>
+                <div class="form-row vertical">
+                    <label for="createTripName">行程名称</label>
+                    <input id="createTripName" type="text" placeholder="例如：五一露营 / 周末带娃过夜">
+                </div>
+                <div class="inline-form-grid">
+                    <div class="form-row vertical compact-row">
+                        <label>天数</label>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="stepValue('tripDays', -1)">−</button>
+                            <input id="tripDays" type="number" min="1" max="90" value="2">
+                            <button class="stepper-btn" onclick="stepValue('tripDays', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="form-row vertical compact-row">
+                        <label>人数</label>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="stepValue('tripPeople', -1)">−</button>
+                            <input id="tripPeople" type="number" min="1" max="20" value="1">
+                            <button class="stepper-btn" onclick="stepValue('tripPeople', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="builder-header">
+                    <div>
+                        <div class="builder-title">勾选这次需要的小包</div>
+                        <div class="builder-meta" id="tripBuilderCount">已选 0 个小包</div>
+                    </div>
+                    <button class="inline-button" onclick="openMainPage('kits');closeModal('createTripModal')">先去维护小包</button>
+                </div>
+                <div class="picker-grid" id="tripBuilderModuleGrid"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('createTripModal')">取消</button>
+                <button class="btn-primary" onclick="confirmCreateTrip()">创建行程</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="moduleDetailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="moduleDetailTitle">小包详情</h3>
+                <button class="btn-close" onclick="closeModal('moduleDetailModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="kit-detail-hero">
+                    <div class="kit-detail-icon" id="moduleDetailIcon">🧰</div>
+                    <div class="kit-detail-copy">
+                        <div class="kit-detail-subtitle" id="moduleDetailSubtitle"></div>
+                        <p class="kit-detail-desc" id="moduleDetailDesc"></p>
+                    </div>
+                </div>
+                <div class="tag-row" id="moduleDetailTags"></div>
+                <div class="info-card subtle" id="moduleDetailSummary"></div>
+                <div class="stack-list compact" id="moduleDetailItems"></div>
+            </div>
+            <div class="modal-footer between footer-tight">
+                <button class="btn-ghost" id="moduleEditBtn" onclick="openEditCurrentModule()">编辑小包</button>
+                <div class="modal-footer-actions">
+                    <button class="btn-primary" id="modulePrimaryBtn" onclick="useCurrentModule()">用于新行程</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="libraryItemModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="libraryItemModalTitle">新增物品</h3>
+                <button class="btn-close" onclick="closeModal('libraryItemModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row vertical">
+                    <label for="libraryItemName">物品名称</label>
+                    <input id="libraryItemName" type="text" placeholder="例如：粉底液 / 宝宝奶嘴 / 转换插头">
+                </div>
+                <div class="form-row vertical" id="libraryBulkPanel">
+                    <label for="libraryItemBulkInput">批量添加（可选）</label>
+                    <textarea id="libraryItemBulkInput" rows="4" placeholder="可直接粘贴多件物品，支持空格、逗号、换行分隔，例如：身份证 护照&#10;牙刷，牙膏"></textarea>
+                    <div class="field-hint">批量添加会默认使用同一分类、同一默认数量和同一归属小包；保存后你也可以再逐个单独修改。</div>
+                </div>
+                <div class="form-row vertical">
+                    <label for="libraryItemQty">默认数量</label>
+                    <input id="libraryItemQty" type="number" min="1" value="1">
+                </div>
+                <div class="form-row vertical">
+                    <label for="libraryItemCategory">分类</label>
+                    <select id="libraryItemCategory"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="libraryItemBag">默认归属小包</label>
+                    <select id="libraryItemBag"></select>
+                </div>
+                <div class="info-card subtle" id="libraryItemSmartHint">衣物类和宝宝高频消耗物品会默认参与智能填充。</div>
+            </div>
+            <div class="modal-footer between">
+                <button class="btn-ghost danger" id="libraryDeleteBtn" onclick="deleteLibraryItem()">删除</button>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" onclick="closeModal('libraryItemModal')">取消</button>
+                    <button class="btn-primary" onclick="saveLibraryItem()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="manualItemModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>添加行程物品</h3>
+                <button class="btn-close" onclick="closeModal('manualItemModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row vertical">
+                    <label for="manualItemName">物品名称</label>
+                    <input id="manualItemName" type="text" placeholder="例如：备用袜子 / 宝宝围嘴">
+                </div>
+                <div class="form-row vertical">
+                    <label for="manualItemBulkInput">批量添加（可选）</label>
+                    <textarea id="manualItemBulkInput" rows="4" placeholder="可直接粘贴多件物品，支持空格、逗号、换行分隔，例如：纸巾 口罩\n充电器，数据线"></textarea>
+                </div>
+                <div class="form-row vertical">
+                    <label for="manualItemQty">基础数量</label>
+                    <input id="manualItemQty" type="number" min="1" value="1">
+                </div>
+                <div class="form-row vertical">
+                    <label for="manualItemCategory">分类</label>
+                    <select id="manualItemCategory"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="manualItemBag">放入哪个小包</label>
+                    <select id="manualItemBag"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="manualItemNotes">备注</label>
+                    <textarea id="manualItemNotes" rows="3" placeholder="例如：路上随手拿，放在最外层"></textarea>
+                </div>
+                <div class="info-card subtle" id="manualItemSmartHint">如果这是一件衣物，系统会按行程天数和人数自动建议数量。</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('manualItemModal')">取消</button>
+                <button class="btn-primary" onclick="saveManualTripItem()">添加到行程</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="tripItemModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="tripItemModalTitle">编辑物品</h3>
+                <button class="btn-close" onclick="closeModal('tripItemModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-card subtle" id="tripItemSmartMeta"></div>
+                <div class="form-row vertical">
+                    <label for="tripItemQty">数量</label>
+                    <input id="tripItemQty" type="number" min="1" value="1">
+                </div>
+                <div class="form-row vertical">
+                    <label for="tripItemCategory">分类</label>
+                    <select id="tripItemCategory"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="tripItemBag">归属小包</label>
+                    <select id="tripItemBag"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="tripItemNotes">备注</label>
+                    <textarea id="tripItemNotes" rows="3" placeholder="例如：放在证件包最外层"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer between">
+                <button class="btn-ghost danger" onclick="deleteCurrentTripItem()">删除</button>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" onclick="closeModal('tripItemModal')">取消</button>
+                    <button class="btn-primary" onclick="saveCurrentTripItem()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="createModuleModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="moduleBuilderModalTitle">新建我的小包</h3>
+                <button class="btn-close" onclick="closeModal('createModuleModal')">✕</button>
+            </div>
+            <div class="modal-body large">
+                <div class="info-card subtle builder-hint-card" id="moduleBuilderHint">从物品库里按住并滑过卡片即可连续多选；也可以手动输入新物品并立即加入当前小包。</div>
+                <div class="form-row vertical">
+                    <label for="moduleBuilderName">小包名称</label>
+                    <input id="moduleBuilderName" type="text" placeholder="例如：洗漱包 / 化妆包 / 宝宝基础包">
+                </div>
+                <div class="inline-form-grid">
+                    <div class="form-row vertical compact-row">
+                        <label for="moduleBuilderIcon">图标</label>
+                        <input id="moduleBuilderIcon" type="text" value="🧰" maxlength="2">
+                    </div>
+                    <div class="form-row vertical compact-row">
+                        <label for="moduleBuilderDesc">说明</label>
+                        <textarea id="moduleBuilderDesc" rows="3" placeholder="例如：过夜默认会带的洗漱基础物品"></textarea>
+                    </div>
+                </div>
+
+                <div class="quick-add-panel">
+                    <div class="builder-title">手动输入新物品，并加入当前小包</div>
+                    <div class="quick-add-grid">
+                        <div class="form-row vertical compact-row">
+                            <label for="moduleQuickItemName">物品名称</label>
+                            <input id="moduleQuickItemName" type="text" placeholder="例如：宝宝奶嘴 / 发绳">
+                        </div>
+                        <div class="form-row vertical compact-row">
+                            <label for="moduleQuickItemQty">默认数量</label>
+                            <input id="moduleQuickItemQty" type="number" min="1" value="1">
+                        </div>
+                    </div>
+                    <div class="form-row vertical compact-row">
+                        <label for="moduleQuickItemCategory">分类</label>
+                        <select id="moduleQuickItemCategory"></select>
+                    </div>
+                    <div class="quick-add-actions">
+                        <button class="btn-secondary wide" onclick="addBuilderCustomItem()">添加到物品库并选入当前小包</button>
+                    </div>
+                </div>
+
+                <div class="builder-header">
+                    <div>
+                        <div class="builder-title">从物品库滑选物品</div>
+                        <div class="builder-meta" id="moduleBuilderCount">已选 0 件</div>
+                    </div>
+                    <button class="inline-button" id="moduleBuilderClearBtn" onclick="clearModuleBuilderSelection()">清空选择</button>
+                </div>
+                <div class="search-bar mini search-bar-builder">
+                    <input id="moduleBuilderSearch" type="text" placeholder="搜索物品，例如粉扑 / 奶瓶 / 充电器" oninput="updateModuleBuilderSearch(this.value)">
+                </div>
+                <div class="picker-grid" id="moduleBuilderItems"></div>
+            </div>
+            <div class="modal-footer between">
+                <button class="btn-ghost danger" id="moduleBuilderDeleteBtn" onclick="deleteCurrentModuleDraft()">删除小包</button>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" onclick="closeModal('createModuleModal')">取消</button>
+                    <button class="btn-primary" id="moduleBuilderSaveBtn" onclick="saveCustomModule()">保存到我的小包</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

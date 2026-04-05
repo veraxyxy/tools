@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>出行打包助手</title>
+    <style>
+/* ============================
+   出行打包助手 - 样式表
+   ============================ */
+
+:root {
+    --primary: #FF6B35;
+    --primary-light: #FF8C5A;
+    --primary-dark: #E55A2B;
+    --secondary: #4ECDC4;
+    --secondary-light: #7EDDD6;
+    --accent: #FFE66D;
+    --success: #2ECC71;
+    --warning: #F39C12;
+    --danger: #E74C3C;
+    --bg: #F5F5F7;
+    --bg-card: #FFFFFF;
+    --bg-hover: #F0F0F2;
+    --text: #1A1A2E;
+    --text-secondary: #6B7280;
+    --text-muted: #9CA3AF;
+    --border: #E5E7EB;
+    --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding-bottom: calc(60px + var(--safe-bottom));
+}
+
+/* ========== 顶部导航 ========== */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.header-title {
+    font-size: 17px;
+    font-weight: 600;
+    flex: 1;
+    text-align: center;
+}
+
+.header-left, .header-right {
+    width: 44px;
+    flex-shrink: 0;
+}
+
+.header-right {
+    text-align: right;
+}
+
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: none;
+    font-size: 20px;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:active {
+    background: var(--bg-hover);
+}
+
+/* ========== 底部导航 ========== */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 60px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 16px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: color 0.2s;
+    position: relative;
+}
+
+.nav-item .nav-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.nav-item.active {
+    color: var(--primary);
+}
+
+.nav-item .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    background: var(--danger);
+    color: white;
+    font-size: 9px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========== 页面切换 ========== */
+.page {
+    display: none;
+    padding: 16px;
+    animation: pageIn 0.25s ease;
+}
+
+.page.active {
+    display: block;
+}
+
+@keyframes pageIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ========== 首页 ========== */
+.home-hero {
+    text-align: center;
+    padding: 32px 0 24px;
+}
+
+.hero-icon {
+    font-size: 56px;
+    margin-bottom: 12px;
+}
+
+.hero-desc {
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+
+.section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+/* ========== 表单卡片 ========== */
+.form-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+}
+
+.form-row:last-child {
+    border-bottom: none;
+}
+
+.form-row label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* 步进器 */
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.stepper-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.stepper-btn:active {
+    background: var(--border);
+}
+
+.stepper input {
+    width: 40px;
+    height: 36px;
+    border: none;
+    background: none;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    outline: none;
+}
+
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+/* 场景选择器 */
+.scene-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.scene-chip {
+    padding: 6px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg-card);
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.scene-chip.active {
+    border-color: var(--primary);
+    background: #FFF5F0;
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.scene-chip:active {
+    transform: scale(0.95);
+}
+
+/* ========== 按钮 ========== */
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-danger {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--danger);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.btn-danger:active {
+    opacity: 0.9;
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-confirm {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-confirm:active {
+    opacity: 0.9;
+}
+
+/* ========== 已保存清单列表 ========== */
+.saved-lists {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.saved-list-card {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saved-list-card:active {
+    transform: scale(0.98);
+    background: var(--bg-hover);
+}
+
+.saved-list-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.saved-list-icon.scene-business { background: #EBF5FF; }
+.saved-list-icon.scene-family { background: #FFF0F5; }
+.saved-list-icon.scene-camping { background: #F0FFF4; }
+.saved-list-icon.scene-longtrip { background: #FFFFF0; }
+.saved-list-icon.scene-custom { background: #F5F0FF; }
+
+.saved-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.saved-list-name {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.saved-list-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.saved-list-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.saved-list-actions button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.saved-list-actions button:active {
+    background: var(--border);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.empty-hint {
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* ========== 工具栏 ========== */
+.toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.toolbar-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.toolbar-btn:active {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ========== 统计条 ========== */
+.stats-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.stat-item {
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow);
+}
+
+.stat-pending {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+/* ========== 物品列表 ========== */
+.item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.item-card {
+    display: flex;
+    align-items: center;
+    padding: 14px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    gap: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.item-card:active {
+    background: var(--bg-hover);
+}
+
+.item-card.packed {
+    opacity: 0.5;
+}
+
+.item-card.packed .item-name {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.item-check {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+    color: transparent;
+}
+
+.item-check.checked {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.item-name {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.item-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    display: flex;
+    gap: 8px;
+}
+
+.item-qty {
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+/* 分类标签 */
+.category-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    background: #EBF5FF;
+    color: #3B82F6;
+}
+
+.category-tag.cat-hygiene { background: #E0F2FE; color: #0284C7; }
+.category-tag.cat-makeup { background: #FCE7F3; color: #DB2777; }
+.category-tag.cat-skincare { background: #F3E8FF; color: #7C3AED; }
+.category-tag.cat-small-bag { background: #FEF3C7; color: #D97706; }
+.category-tag.cat-big-bag { background: #DBEAFE; color: #2563EB; }
+.category-tag.cat-misc { background: #F3F4F6; color: #6B7280; }
+.category-tag.cat-docs { background: #D1FAE5; color: #059669; }
+.category-tag.cat-electronics { background: #E0E7FF; color: #4F46E5; }
+.category-tag.cat-medicine { background: #FEE2E2; color: #DC2626; }
+.category-tag.cat-clothing { background: #FFE4E6; color: #E11D48; }
+
+/* ========== 弹窗 ========== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    background: var(--bg-card);
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+    animation: modalUp 0.3s ease;
+}
+
+.modal-bottom {
+    border-radius: 20px 20px 0 0;
+}
+
+@keyframes modalUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 12px;
+}
+
+.modal-header h3 {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.btn-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--bg);
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.modal-body {
+    padding: 12px 20px;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.modal-body .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.modal-body .form-row label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.modal-body input,
+.modal-body textarea,
+.modal-body select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.modal-body input:focus,
+.modal-body textarea:focus,
+.modal-body select:focus {
+    border-color: var(--primary);
+}
+
+.modal-body textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
+    line-height: 1.6;
+}
+
+.modal-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    line-height: 1.6;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    padding-bottom: calc(16px + var(--safe-bottom));
+    border-top: 1px solid var(--border);
+}
+
+/* ========== 视图切换 ========== */
+.view-switcher {
+    display: flex;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+}
+
+.switch-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.switch-btn.active {
+    background: var(--primary);
+    color: white;
+    font-weight: 500;
+}
+
+/* ========== 打包进度 ========== */
+.pack-progress {
+    margin-bottom: 16px;
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--secondary), var(--success));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: block;
+    text-align: center;
+}
+
+/* ========== 包列表 ========== */
+.bag-group {
+    margin-bottom: 16px;
+}
+
+.bag-group-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border-radius: var(--radius) var(--radius) 0 0;
+    gap: 10px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+}
+
+.bag-group-header:active {
+    background: var(--bg-hover);
+}
+
+.bag-icon {
+    font-size: 20px;
+}
+
+.bag-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.bag-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.bag-expand-icon {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.bag-group.expanded .bag-expand-icon {
+    transform: rotate(90deg);
+}
+
+.bag-group-items {
+    display: none;
+    padding: 4px 0;
+}
+
+.bag-group.expanded .bag-group-items {
+    display: block;
+}
+
+/* ========== 包管理列表 ========== */
+.bag-manage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bag-manage-card {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    gap: 12px;
+}
+
+.bag-manage-card .bag-icon {
+    font-size: 24px;
+}
+
+.bag-manage-info {
+    flex: 1;
+}
+
+.bag-manage-name {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.bag-manage-count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.bag-manage-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.bag-manage-actions button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+/* ========== Action Sheet ========== */
+.action-sheet-title {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
+.action-sheet-body {
+    margin-bottom: 16px;
+}
+
+.action-sheet-body .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.action-sheet-body .form-row label {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.action-sheet-body input,
+.action-sheet-body select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    outline: none;
+}
+
+.action-sheet-buttons {
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+/* ========== 图标选择器 ========== */
+.icon-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.icon-chip {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.icon-chip.active {
+    border-color: var(--primary);
+    background: #FFF5F0;
+}
+
+/* ========== Toggle 开关 ========== */
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.toggle input {
+    display: none;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border);
+    border-radius: 14px;
+    transition: all 0.3s;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle input:checked + .toggle-slider {
+    background: var(--primary);
+}
+
+.toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+/* ========== 通知 ========== */
+.notification {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    background: var(--text);
+    color: white;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 300;
+    animation: notifyIn 0.3s ease;
+    box-shadow: var(--shadow-lg);
+    white-space: nowrap;
+}
+
+@keyframes notifyIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ========== 导入导出 ========== */
+.io-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.io-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: none;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: center;
+}
+
+.io-btn:active {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ========== 搜索框 ========== */
+.search-bar {
+    margin-bottom: 12px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: var(--bg-card);
+    outline: none;
+}
+
+.search-bar {
+    position: relative;
+}
+
+.search-bar::before {
+    content: '🔍';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+}
+
+/* ========== 行程选择器（天×夜） ========== */
+.trip-duration-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.duration-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+.duration-unit {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg);
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.duration-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 0 6px 0 2px;
+    white-space: nowrap;
+}
+
+.duration-sep {
+    font-size: 14px;
+    color: var(--text-muted);
+    padding: 0 2px;
+}
+
+/* ========== 场景选择行 ========== */
+.scene-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.scene-row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.btn-add-scene {
+    width: 34px;
+    height: 34px;
+    border: 1.5px dashed var(--primary);
+    border-radius: 50%;
+    background: #FFF5F0;
+    color: var(--primary);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.btn-add-scene:active {
+    transform: scale(0.92);
+    background: var(--primary);
+    color: white;
+}
+
+/* ========== 场景模板网格 ========== */
+.scene-template-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.scene-template-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 12px;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: 8px;
+}
+
+.scene-template-card:active {
+    transform: scale(0.96);
+    background: var(--bg-hover);
+}
+
+.scene-template-icon {
+    font-size: 32px;
+}
+
+.scene-template-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+}
+
+.scene-template-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* ========== 批量操作栏 ========== */
+.batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--text);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+}
+
+.batch-select-all {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: white;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 4px;
+    font-size: 11px;
+    color: transparent;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.batch-count {
+    flex: 1;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+}
+
+.btn-batch-delete {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 16px;
+    background: var(--danger);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-batch-cancel {
+    padding: 6px 14px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 16px;
+    background: none;
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* ========== 统计栏动作按钮 ========== */
+.stat-action {
+    cursor: pointer;
+    color: var(--primary);
+    font-weight: 500;
+    border: none;
+    background: none;
+    font-size: 13px;
+    padding: 0;
+    box-shadow: none;
+}
+
+/* ========== 清单卡片选择模式 ========== */
+.item-card.batch-selected {
+    background: #FFF5F0;
+    border: 1.5px solid var(--primary);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 350px) {
+    .scene-selector {
+        justify-content: flex-start;
+    }
+    .toolbar-btn {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+}
+
+</style>
+</head>
+<body>
+    <!-- ========== 顶部导航 ========== -->
+    <header class="app-header">
+        <div class="header-left" id="headerBack" style="display:none;">
+            <button class="btn-icon" onclick="goBack()">←</button>
+        </div>
+        <h1 class="header-title" id="headerTitle">出行打包助手</h1>
+        <div class="header-right" id="headerRight"></div>
+    </header>
+
+    <!-- ========== 页面容器 ========== -->
+    <main class="pages" id="pages">
+
+        <!-- ========== 首页 ========== -->
+        <section class="page active" data-page="home">
+            <div class="home-hero">
+                <div class="hero-icon">🎒</div>
+                <p class="hero-desc">轻松打包，不再遗漏</p>
+            </div>
+
+            <!-- 快速创建 -->
+            <div class="section">
+                <h2 class="section-title">创建新清单</h2>
+                <div class="form-card">
+                    <!-- 天数 × 夜数 -->
+                    <div class="form-row trip-duration-row">
+                        <label>行程</label>
+                        <div class="duration-stepper">
+                            <div class="duration-unit">
+                                <button class="stepper-btn" onclick="stepValue('tripDays',-1)">−</button>
+                                <input type="number" id="tripDays" value="3" min="1" max="90">
+                                <button class="stepper-btn" onclick="stepValue('tripDays',1)">+</button>
+                                <span class="duration-label">天</span>
+                            </div>
+                            <span class="duration-sep">×</span>
+                            <div class="duration-unit">
+                                <button class="stepper-btn" onclick="stepValue('tripNights',-1)">−</button>
+                                <input type="number" id="tripNights" value="2" min="0" max="89">
+                                <button class="stepper-btn" onclick="stepValue('tripNights',1)">+</button>
+                                <span class="duration-label">夜</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 人数 -->
+                    <div class="form-row">
+                        <label>人数</label>
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="stepValue('tripPeople',-1)">−</button>
+                            <input type="number" id="tripPeople" value="1" min="1" max="20">
+                            <button class="stepper-btn" onclick="stepValue('tripPeople',1)">+</button>
+                        </div>
+                    </div>
+                    <!-- 场景选择 -->
+                    <div class="form-row scene-row">
+                        <label>场景</label>
+                        <div class="scene-row-right">
+                            <div class="scene-selector" id="sceneSelector"></div>
+                            <button class="btn-add-scene" onclick="openAddSceneModal()">+</button>
+                        </div>
+                    </div>
+                    <button class="btn-primary btn-block" onclick="generateList()">
+                        生成智能清单
+                    </button>
+                </div>
+            </div>
+
+            <!-- 场景模板（保存为模板的清单） -->
+            <div class="section" id="templateSection" style="display:none;">
+                <h2 class="section-title">场景模板</h2>
+                <div class="scene-template-grid" id="sceneTemplateGrid"></div>
+            </div>
+
+            <!-- 我的清单 -->
+            <div class="section">
+                <h2 class="section-title">我的清单</h2>
+                <div class="saved-lists" id="savedLists">
+                    <div class="empty-state" id="emptyState">
+                        <div class="empty-icon">📋</div>
+                        <p>还没有保存的清单</p>
+                        <p class="empty-hint">创建一个新清单开始吧</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== 清单编辑页 ========== -->
+        <section class="page" data-page="editor">
+            <div class="toolbar" id="editorToolbar">
+                <button class="toolbar-btn" onclick="openBatchImport()">📋 导入</button>
+                <button class="toolbar-btn" onclick="addItem()">+ 添加</button>
+                <button class="toolbar-btn" onclick="openSceneSave()">💾 保存</button>
+            </div>
+            <!-- 批量操作栏（隐藏，默认不显示） -->
+            <div class="batch-bar" id="batchBar" style="display:none;">
+                <label class="batch-select-all" onclick="toggleSelectAll()">
+                    <span class="checkbox" id="selectAllCheck"></span>
+                    全选
+                </label>
+                <span class="batch-count" id="batchCount">已选 0 件</span>
+                <button class="btn-batch-delete" onclick="doBatchDelete()">删除</button>
+                <button class="btn-batch-cancel" onclick="exitBatchMode()">取消</button>
+            </div>
+
+            <!-- 统计 -->
+            <div class="stats-bar">
+                <span class="stat-item" id="statTotal">共 0 件</span>
+                <span class="stat-item stat-pending" id="statPending">未装 0 件</span>
+                <button class="stat-item stat-action" id="batchModeBtn" onclick="enterBatchMode()">批量管理</button>
+            </div>
+
+            <!-- 清单列表 -->
+            <div class="item-list" id="itemList"></div>
+        </section>
+
+        <!-- ========== 收拾模式 ========== -->
+        <section class="page" data-page="packing">
+            <!-- 切换视图 -->
+            <div class="view-switcher">
+                <button class="switch-btn active" data-view="bags" onclick="switchPackingView('bags')">按包查看</button>
+                <button class="switch-btn" data-view="remaining" onclick="switchPackingView('remaining')">未装箱</button>
+                <button class="switch-btn" data-view="all" onclick="switchPackingView('all')">全部</button>
+            </div>
+            <!-- 进度条 -->
+            <div class="pack-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="packProgressFill"></div>
+                </div>
+                <span class="progress-text" id="packProgressText">0/0 已装箱</span>
+            </div>
+            <!-- 包列表 -->
+            <div class="bag-list" id="bagList"></div>
+        </section>
+
+        <!-- ========== 包管理页 ========== -->
+        <section class="page" data-page="bags">
+            <div class="toolbar">
+                <button class="toolbar-btn" onclick="addBag()">+ 新增包</button>
+            </div>
+            <div class="bag-manage-list" id="bagManageList"></div>
+        </section>
+
+        <!-- ========== 清单选择页（收拾前先选清单） ========== -->
+        <section class="page" data-page="listpick">
+            <div class="section">
+                <h2 class="section-title">选择要收拾的清单</h2>
+                <div class="saved-lists" id="pickLists"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========== 批量导入弹窗 ========== -->
+    <div class="modal-overlay" id="batchImportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>批量导入物品</h3>
+                <button class="btn-close" onclick="closeModal('batchImportModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">每行一个物品名称，会自动匹配已有分类。<br>格式：物品名 或 物品名 | 分类名</p>
+                <textarea id="batchImportText" rows="10" placeholder="充电线&#10;护照&#10;护肤品 | 护肤包&#10;洗面奶 | 洗漱包"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('batchImportModal')">取消</button>
+                <button class="btn-confirm" onclick="doBatchImport()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 添加物品弹窗 ========== -->
+    <div class="modal-overlay" id="addItemModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>添加物品</h3>
+                <button class="btn-close" onclick="closeModal('addItemModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>物品名称</label>
+                    <input type="text" id="newItemName" placeholder="例如：防晒霜">
+                </div>
+                <div class="form-row">
+                    <label>数量</label>
+                    <input type="number" id="newItemQty" value="1" min="1">
+                </div>
+                <div class="form-row">
+                    <label>分类</label>
+                    <select id="newItemCategory"></select>
+                </div>
+                <div class="form-row">
+                    <label>分配到包</label>
+                    <select id="newItemBag"></select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('addItemModal')">取消</button>
+                <button class="btn-confirm" onclick="doAddItem()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 保存清单弹窗 ========== -->
+    <div class="modal-overlay" id="saveListModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>保存清单</h3>
+                <button class="btn-close" onclick="closeModal('saveListModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>清单名称</label>
+                    <input type="text" id="saveListName" placeholder="例如：3天2晚上海出差">
+                </div>
+                <div class="form-row">
+                    <label>保存为场景模板</label>
+                    <label class="toggle">
+                        <input type="checkbox" id="saveAsTemplate">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p class="modal-hint" id="saveOverwriteHint" style="display:none;color:var(--warning);">
+                    已存在同名清单，保存后将覆盖
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('saveListModal')">取消</button>
+                <button class="btn-confirm" onclick="doSaveList()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 新增包弹窗 ========== -->
+    <div class="modal-overlay" id="addBagModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>新增包</h3>
+                <button class="btn-close" onclick="closeModal('addBagModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>包名称</label>
+                    <input type="text" id="newBagName" placeholder="例如：运动包">
+                </div>
+                <div class="form-row">
+                    <label>图标</label>
+                    <div class="icon-picker" id="iconPicker">
+                        <button class="icon-chip active" data-icon="👜">👜</button>
+                        <button class="icon-chip" data-icon="🎒">🎒</button>
+                        <button class="icon-chip" data-icon="💼">💼</button>
+                        <button class="icon-chip" data-icon="🧳">🧳</button>
+                        <button class="icon-chip" data-icon="📦">📦</button>
+                        <button class="icon-chip" data-icon="🛍️">🛍️</button>
+                        <button class="icon-chip" data-icon="👝">👝</button>
+                        <button class="icon-chip" data-icon="🎀">🎀</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('addBagModal')">取消</button>
+                <button class="btn-confirm" onclick="doAddBag()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 添加自定义场景弹窗 ========== -->
+    <div class="modal-overlay" id="addSceneModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>添加自定义场景</h3>
+                <button class="btn-close" onclick="closeModal('addSceneModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>场景名称</label>
+                    <input type="text" id="newSceneName" placeholder="例如：海边度假">
+                </div>
+                <div class="form-row">
+                    <label>图标</label>
+                    <div class="icon-picker" id="sceneIconPicker">
+                        <button class="icon-chip active" data-icon="🏖️">🏖️</button>
+                        <button class="icon-chip" data-icon="🏔️">🏔️</button>
+                        <button class="icon-chip" data-icon="🚗">🚗</button>
+                        <button class="icon-chip" data-icon="🚄">🚄</button>
+                        <button class="icon-chip" data-icon="🎪">🎪</button>
+                        <button class="icon-chip" data-icon="⛷️">⛷️</button>
+                        <button class="icon-chip" data-icon="🎠">🎠</button>
+                        <button class="icon-chip" data-icon="🏕️">🏕️</button>
+                    </div>
+                </div>
+                <p class="modal-hint">自定义场景创建后，可以作为模板保存物品清单</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal('addSceneModal')">取消</button>
+                <button class="btn-confirm" onclick="doAddScene()">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 物品操作弹窗 ========== -->
+    <div class="modal-overlay" id="itemActionModal">
+        <div class="modal modal-bottom">
+            <div class="modal-body">
+                <h3 id="itemActionTitle" class="action-sheet-title"></h3>
+                <div class="action-sheet-body">
+                    <div class="form-row">
+                        <label>数量</label>
+                        <input type="number" id="editItemQty" min="1">
+                    </div>
+                    <div class="form-row">
+                        <label>分类</label>
+                        <select id="editItemCategory"></select>
+                    </div>
+                    <div class="form-row">
+                        <label>分配到包</label>
+                        <select id="editItemBag"></select>
+                    </div>
+                </div>
+                <div class="action-sheet-buttons">
+                    <button class="btn-confirm btn-block" onclick="doEditItem()">保存修改</button>
+                    <button class="btn-danger btn-block" onclick="doDeleteItem()">删除物品</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+/* ============================
+   出行打包助手 - 核心逻辑 v2
+   ============================ */
+
+// ==================== 数据定义 ====================
+
+const DEFAULT_CATEGORIES = [
+    { id: 'hygiene', name: '洗漱用品', cssClass: 'cat-hygiene' },
+    { id: 'makeup', name: '化妆用品', cssClass: 'cat-makeup' },
+    { id: 'skincare', name: '护肤用品', cssClass: 'cat-skincare' },
+    { id: 'small-bag', name: '随身小包', cssClass: 'cat-small-bag' },
+    { id: 'big-bag', name: '随身大包', cssClass: 'cat-big-bag' },
+    { id: 'misc', name: '杂物', cssClass: 'cat-misc' },
+    { id: 'docs', name: '证件', cssClass: 'cat-docs' },
+    { id: 'electronics', name: '电子设备', cssClass: 'cat-electronics' },
+    { id: 'medicine', name: '药品', cssClass: 'cat-medicine' },
+    { id: 'clothing', name: '衣物', cssClass: 'cat-clothing' },
+];
+
+const DEFAULT_BAGS = [
+    { id: 'bag-hygiene', name: '洗漱包', icon: '🧴', isDefault: true },
+    { id: 'bag-makeup', name: '化妆包', icon: '💄', isDefault: true },
+    { id: 'bag-skincare', name: '护肤包', icon: '🧪', isDefault: true },
+    { id: 'bag-small', name: '随身小包', icon: '👛', isDefault: true },
+    { id: 'bag-big', name: '随身大包', icon: '👜', isDefault: true },
+    { id: 'bag-misc', name: '杂物包', icon: '📦', isDefault: true },
+    { id: 'bag-docs', name: '证件包', icon: '📁', isDefault: true },
+    { id: 'bag-electronics', name: '电子设备包', icon: '🔌', isDefault: true },
+    { id: 'bag-medicine', name: '药品包', icon: '💊', isDefault: true },
+    { id: 'bag-clothing', name: '衣物包', icon: '👕', isDefault: true },
+];
+
+const CATEGORY_BAG_MAP = {
+    'hygiene': 'bag-hygiene', 'makeup': 'bag-makeup', 'skincare': 'bag-skincare',
+    'small-bag': 'bag-small', 'big-bag': 'bag-big', 'misc': 'bag-misc',
+    'docs': 'bag-docs', 'electronics': 'bag-electronics', 'medicine': 'bag-medicine',
+    'clothing': 'bag-clothing',
+};
+
+// 预设场景（含图标）
+const DEFAULT_SCENES = [
+    { id: '出差', name: '出差', icon: '💼', isCustom: false },
+    { id: '带娃旅行', name: '带娃旅行', icon: '👶', isCustom: false },
+    { id: '露营', name: '露营', icon: '⛺', isCustom: false },
+    { id: '长途旅行', name: '长途旅行', icon: '✈️', isCustom: false },
+];
+
+const SCENE_STYLES = {
+    '出差': { icon: '💼', cls: 'scene-business' },
+    '带娃旅行': { icon: '👶', cls: 'scene-family' },
+    '露营': { icon: '⛺', cls: 'scene-camping' },
+    '长途旅行': { icon: '✈️', cls: 'scene-longtrip' },
+};
+
+// ==================== 场景物品模板 ====================
+
+const SCENE_ITEMS = {
+    '出差': [
+        { name: '身份证', c: 'docs' }, { name: '护照（出国）', c: 'docs' },
+        { name: '工作证/门禁卡', c: 'docs' }, { name: '名片', c: 'docs' },
+        { name: '发票/报销单据', c: 'docs' }, { name: '车票/机票行程单', c: 'docs' },
+        { name: '笔记本电脑', c: 'electronics' }, { name: '充电器（电脑）', c: 'electronics' },
+        { name: '充电器（手机）', c: 'electronics' }, { name: '充电宝', c: 'electronics' },
+        { name: '数据线', c: 'electronics', q: 2 }, { name: '耳机', c: 'electronics' },
+        { name: '鼠标', c: 'electronics' }, { name: '转换插头（出国）', c: 'electronics' },
+        { name: 'U盘', c: 'electronics' },
+        { name: '正装/衬衫', c: 'clothing' }, { name: '休闲衬衫/T恤', c: 'clothing', q: 2, pd: true },
+        { name: '裤子/裙子', c: 'clothing', pd: true }, { name: '内衣', c: 'clothing', pd: true },
+        { name: '袜子', c: 'clothing', pd: true }, { name: '皮带', c: 'clothing' },
+        { name: '外套/西装', c: 'clothing' }, { name: '睡衣', c: 'clothing' },
+        { name: '牙刷牙膏', c: 'hygiene' }, { name: '洗面奶', c: 'hygiene' },
+        { name: '毛巾', c: 'hygiene' }, { name: '梳子', c: 'hygiene' }, { name: '剃须刀', c: 'hygiene' },
+        { name: '面霜', c: 'skincare' }, { name: '防晒霜', c: 'skincare' },
+        { name: '雨伞', c: 'misc' }, { name: '纸巾', c: 'misc' }, { name: '湿巾', c: 'misc' },
+        { name: '保温杯', c: 'misc' }, { name: '零食', c: 'misc' },
+        { name: '钱包', c: 'small-bag' }, { name: '手机', c: 'small-bag' },
+        { name: '钥匙', c: 'small-bag' }, { name: '口罩', c: 'small-bag', q: 3 },
+    ],
+    '带娃旅行': [
+        { name: '身份证（大人）', c: 'docs', pp: true }, { name: '户口本/出生证明（小孩）', c: 'docs' },
+        { name: '护照（出国）', c: 'docs' }, { name: '车票/机票', c: 'docs' },
+        { name: '手机', c: 'electronics' }, { name: '充电器（手机）', c: 'electronics', q: 2 },
+        { name: '充电宝', c: 'electronics' }, { name: '数据线', c: 'electronics', q: 2 },
+        { name: '耳机', c: 'electronics' }, { name: '平板/Kindle（小孩）', c: 'electronics' },
+        { name: 'T恤/衬衫（大人）', c: 'clothing', q: 2, pd: true, pp: true },
+        { name: '裤子（大人）', c: 'clothing', pd: true, pp: true },
+        { name: '内衣（大人）', c: 'clothing', pd: true, pp: true },
+        { name: '袜子（大人）', c: 'clothing', pd: true, pp: true },
+        { name: '外套（大人）', c: 'clothing', pp: true }, { name: '睡衣（大人）', c: 'clothing', pp: true },
+        { name: 'T恤/上衣（小孩）', c: 'clothing', q: 2, pd: true },
+        { name: '裤子（小孩）', c: 'clothing', q: 2, pd: true },
+        { name: '内衣（小孩）', c: 'clothing', q: 2, pd: true },
+        { name: '袜子（小孩）', c: 'clothing', q: 2, pd: true },
+        { name: '外套（小孩）', c: 'clothing' }, { name: '睡衣（小孩）', c: 'clothing' },
+        { name: '备用衣物（小孩）', c: 'clothing', q: 2 },
+        { name: '牙刷牙膏', c: 'hygiene', pp: true }, { name: '儿童牙刷牙膏', c: 'hygiene' },
+        { name: '洗面奶', c: 'hygiene' }, { name: '毛巾', c: 'hygiene', q: 2 },
+        { name: '浴巾', c: 'hygiene' },
+        { name: '面霜', c: 'skincare' }, { name: '防晒霜（儿童）', c: 'skincare' },
+        { name: '防晒霜（大人）', c: 'skincare' }, { name: '驱蚊液', c: 'skincare' },
+        { name: '纸尿裤', c: 'skincare', q: 5, pd: true },
+        { name: '退烧药（儿童）', c: 'medicine' }, { name: '退烧药（大人）', c: 'medicine' },
+        { name: '创可贴', c: 'medicine' }, { name: '温度计', c: 'medicine' },
+        { name: '消毒湿巾', c: 'medicine' }, { name: '晕车药', c: 'medicine' },
+        { name: '雨伞', c: 'misc' }, { name: '纸巾', c: 'misc', q: 2 },
+        { name: '湿巾', c: 'misc', q: 2 }, { name: '塑料袋/垃圾袋', c: 'misc', q: 5 },
+        { name: '零食/辅食', c: 'misc' }, { name: '水杯（儿童）', c: 'misc' },
+        { name: '奶瓶/保温杯', c: 'misc' }, { name: '小玩具/绘本', c: 'misc', q: 3 },
+        { name: '钱包', c: 'small-bag' }, { name: '钥匙', c: 'small-bag' },
+        { name: '口罩', c: 'small-bag', q: 5 }, { name: '湿巾（随身）', c: 'small-bag' },
+    ],
+    '露营': [
+        { name: '身份证', c: 'docs' }, { name: '驾驶证', c: 'docs' },
+        { name: '手机', c: 'electronics' }, { name: '充电宝', c: 'electronics' },
+        { name: '充电器', c: 'electronics' }, { name: '数据线', c: 'electronics', q: 2 },
+        { name: '手电筒/头灯', c: 'electronics', pp: true },
+        { name: '露营灯', c: 'electronics' }, { name: '蓝牙音箱', c: 'electronics' },
+        { name: '速干T恤', c: 'clothing', q: 2, pd: true },
+        { name: '冲锋衣/防风外套', c: 'clothing', pp: true },
+        { name: '运动裤/短裤', c: 'clothing', pd: true },
+        { name: '内衣', c: 'clothing', pd: true }, { name: '袜子（厚）', c: 'clothing', q: 2, pd: true },
+        { name: '帽子', c: 'clothing' }, { name: '拖鞋/凉鞋', c: 'clothing' }, { name: '睡衣', c: 'clothing' },
+        { name: '牙刷牙膏', c: 'hygiene', pp: true }, { name: '洗面奶', c: 'hygiene' },
+        { name: '毛巾', c: 'hygiene', pp: true },
+        { name: '香皂/沐浴露（旅行装）', c: 'hygiene' }, { name: '洗发水（旅行装）', c: 'hygiene' },
+        { name: '防晒霜', c: 'skincare' }, { name: '驱蚊液/防蚊手环', c: 'skincare', q: 2 },
+        { name: '芦荟胶（晒后修复）', c: 'skincare' },
+        { name: '创可贴', c: 'medicine' }, { name: '碘伏棉签', c: 'medicine' },
+        { name: '止痛药', c: 'medicine' }, { name: '感冒药', c: 'medicine' },
+        { name: '肠胃药', c: 'medicine' }, { name: '防蚊叮药膏', c: 'medicine' },
+        { name: '帐篷', c: 'misc' }, { name: '睡袋', c: 'misc', pp: true },
+        { name: '防潮垫', c: 'misc', pp: true }, { name: '折叠椅', c: 'misc', pp: true },
+        { name: '野餐垫', c: 'misc' }, { name: '打火机/火柴', c: 'misc' },
+        { name: '折叠刀/多功能刀', c: 'misc' }, { name: '垃圾袋', c: 'misc', q: 10 },
+        { name: '纸巾/湿巾', c: 'misc', q: 3 }, { name: '饮用水', c: 'misc' },
+        { name: '食材/速食', c: 'misc' }, { name: '锅具/餐具', c: 'misc' },
+        { name: '保温箱/冰袋', c: 'misc' }, { name: '绳索/扎带', c: 'misc' },
+    ],
+    '长途旅行': [
+        { name: '身份证', c: 'docs' }, { name: '护照', c: 'docs' },
+        { name: '签证（出国）', c: 'docs' }, { name: '酒店预订确认单', c: 'docs' },
+        { name: '车票/机票', c: 'docs' }, { name: '保险单', c: 'docs' },
+        { name: '学生证（景点优惠）', c: 'docs' }, { name: '国际驾照（自驾）', c: 'docs' },
+        { name: '手机', c: 'electronics' }, { name: '充电器（手机）', c: 'electronics' },
+        { name: '充电宝', c: 'electronics' }, { name: '数据线', c: 'electronics', q: 2 },
+        { name: '耳机', c: 'electronics' }, { name: '相机', c: 'electronics' },
+        { name: '相机充电器/备用电池', c: 'electronics' }, { name: '转换插头', c: 'electronics' },
+        { name: '自拍杆', c: 'electronics' },
+        { name: 'T恤/衬衫', c: 'clothing', q: 2, pd: true }, { name: '裤子/裙子', c: 'clothing', pd: true },
+        { name: '内衣', c: 'clothing', pd: true }, { name: '袜子', c: 'clothing', pd: true },
+        { name: '外套/风衣', c: 'clothing' }, { name: '睡衣', c: 'clothing' },
+        { name: '泳衣（海边）', c: 'clothing' }, { name: '拖鞋', c: 'clothing' },
+        { name: '运动鞋', c: 'clothing' },
+        { name: '牙刷牙膏', c: 'hygiene' }, { name: '洗面奶', c: 'hygiene' },
+        { name: '毛巾', c: 'hygiene' }, { name: '沐浴露（旅行装）', c: 'hygiene' },
+        { name: '洗发水（旅行装）', c: 'hygiene' }, { name: '梳子', c: 'hygiene' },
+        { name: '剃须刀', c: 'hygiene' },
+        { name: '面霜', c: 'skincare' }, { name: '防晒霜', c: 'skincare' },
+        { name: '唇膏', c: 'skincare' }, { name: '面膜', c: 'skincare', q: 3, pd: true },
+        { name: '化妆品套装', c: 'makeup' }, { name: '卸妆水/卸妆巾', c: 'makeup' },
+        { name: '感冒药', c: 'medicine' }, { name: '肠胃药', c: 'medicine' },
+        { name: '退烧药', c: 'medicine' }, { name: '创可贴', c: 'medicine' },
+        { name: '晕车药', c: 'medicine' }, { name: '维生素', c: 'medicine' },
+        { name: '雨伞/雨衣', c: 'misc' }, { name: '纸巾/湿巾', c: 'misc', q: 3 },
+        { name: '垃圾袋', c: 'misc', q: 5 }, { name: '零食', c: 'misc' },
+        { name: '水杯/保温杯', c: 'misc' }, { name: 'U型枕', c: 'misc' },
+        { name: '眼罩/耳塞', c: 'misc' }, { name: '行李锁', c: 'misc' },
+        { name: '压缩袋', c: 'misc', q: 3 },
+        { name: '钱包', c: 'small-bag' }, { name: '钥匙', c: 'small-bag' },
+        { name: '口罩', c: 'small-bag', q: 5 },
+    ],
+};
+
+// ==================== 应用状态 ====================
+
+let S = {
+    scene: '出差',
+    items: [],
+    bags: [],
+    editIdx: -1,
+    listId: null,
+    packView: 'bags',
+    // 批量选择
+    selectedItems: new Set(),
+    batchMode: false,
+    // 自定义场景
+    customScenes: [],
+    // 夜晚数
+    tripNights: 2,
+};
+
+// ==================== 初始化 ====================
+
+function init() {
+    loadCustomScenes();
+    setupSceneSelector();
+    setupIconPicker();
+    setupSceneIconPicker();
+    setupModalOverlays();
+    renderHome();
+}
+
+function loadCustomScenes() {
+    try {
+        S.customScenes = JSON.parse(localStorage.getItem('packHelper_customScenes') || '[]');
+    } catch { S.customScenes = []; }
+}
+
+function saveCustomScenes() {
+    localStorage.setItem('packHelper_customScenes', JSON.stringify(S.customScenes));
+}
+
+function getAllScenes() {
+    return [...DEFAULT_SCENES, ...S.customScenes];
+}
+
+// ==================== 场景选择器 ====================
+
+function setupSceneSelector() {
+    buildSceneSelector();
+    // 双击最后一个 chip → 添加自定义场景
+    const el = document.getElementById('sceneSelector');
+    el.addEventListener('dblclick', e => {
+        const chip = e.target.closest('.scene-chip');
+        if (chip) openAddSceneModal();
+    });
+}
+
+function buildSceneSelector() {
+    const el = document.getElementById('sceneSelector');
+    el.innerHTML = getAllScenes().map(sc =>
+        '<button class="scene-chip' + (sc.id === S.scene ? ' active' : '') + '" data-scene="' + sc.id + '" data-icon="' + sc.icon + '">' +
+        (sc.icon || '') + ' ' + sc.name + '</button>'
+    ).join('');
+
+    el.onclick = e => {
+        const chip = e.target.closest('.scene-chip');
+        if (!chip) return;
+        el.querySelectorAll('.scene-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        S.scene = chip.dataset.scene;
+    };
+}
+
+function setupSceneIconPicker() {
+    document.getElementById('sceneIconPicker').addEventListener('click', e => {
+        const chip = e.target.closest('.icon-chip');
+        if (!chip) return;
+        document.querySelectorAll('#sceneIconPicker .icon-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+    });
+}
+
+function openAddSceneModal() {
+    document.getElementById('newSceneName').value = '';
+    document.querySelectorAll('#sceneIconPicker .icon-chip').forEach((c, i) => c.classList.toggle('active', i === 0));
+    showModal('addSceneModal');
+    setTimeout(() => document.getElementById('newSceneName').focus(), 300);
+}
+
+function doAddScene() {
+    const name = document.getElementById('newSceneName').value.trim();
+    if (!name) { document.getElementById('newSceneName').style.borderColor = 'var(--danger)'; return; }
+    const icon = (document.querySelector('#sceneIconPicker .icon-chip.active') || {}).dataset?.icon || '🏖️';
+    const id = 'custom-' + gid();
+    S.customScenes.push({ id, name, icon, isCustom: true });
+    saveCustomScenes();
+    S.scene = id;
+    buildSceneSelector();
+    closeModal('addSceneModal');
+    toast('已添加场景：' + name);
+}
+
+// ==================== 步进器 ====================
+
+function stepValue(id, d) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let v = parseInt(el.value) || (id === 'tripNights' ? 0 : 1);
+    const min = parseInt(el.min) || 0;
+    const max = parseInt(el.max) || 90;
+    v = Math.max(min, Math.min(max, v + d));
+    el.value = v;
+    // 同步：天数变化时自动调整夜数（夜 = 天 - 1）
+    if (id === 'tripDays') {
+        const days = parseInt(el.value) || 1;
+        const nightsEl = document.getElementById('tripNights');
+        if (nightsEl) nightsEl.value = Math.max(0, days - 1);
+    }
+}
+
+// ==================== 首页渲染 ====================
+
+function renderHome() {
+    renderSavedLists();
+    renderSceneTemplates();
+}
+
+function renderSceneTemplates() {
+    const lists = getLists().filter(l => l.isTemplate);
+    const section = document.getElementById('templateSection');
+    const grid = document.getElementById('sceneTemplateGrid');
+    if (!lists.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    grid.innerHTML = lists.map(list => {
+        const st = SCENE_STYLES[list.scene] || { icon: '📋', cls: 'scene-custom' };
+        return '<div class="scene-template-card" onclick="loadTemplate(\'' + list.id + '\')">' +
+            '<span class="scene-template-icon">' + st.icon + '</span>' +
+            '<span class="scene-template-name">' + esc(list.name) + '</span>' +
+            '<span class="scene-template-meta">' + (list.days || '?') + '天 · ' + (list.items?.length || 0) + '件</span>' +
+            '</div>';
+    }).join('');
+}
+
+function loadTemplate(id) {
+    const list = getLists().find(l => l.id === id);
+    if (!list) return;
+    // 用模板创建新清单，预填天数和人数
+    document.getElementById('tripDays').value = list.days || 3;
+    document.getElementById('tripNights').value = list.nights !== undefined ? list.nights : ((list.days || 3) - 1);
+    document.getElementById('tripPeople').value = list.people || 1;
+    // 设置场景
+    const sceneId = list.scene;
+    S.scene = sceneId;
+    buildSceneSelector();
+    // 生成清单
+    generateList();
+}
+
+// ==================== 生成清单 ====================
+
+function generateList() {
+    const days = parseInt(document.getElementById('tripDays').value) || 3;
+    const nights = parseInt(document.getElementById('tripNights')?.value) ?? (days - 1);
+    const people = parseInt(document.getElementById('tripPeople').value) || 1;
+    const sceneId = S.scene;
+    const scene = getAllScenes().find(s => s.id === sceneId);
+    const sceneName = scene ? scene.name : S.scene;
+
+    // 如果有该场景的物品模板，使用模板；否则用出差模板
+    const template = SCENE_ITEMS[sceneName] || SCENE_ITEMS['出差'];
+
+    const items = [];
+    const seen = new Set();
+
+    template.forEach(t => {
+        if (seen.has(t.name)) return;
+        seen.add(t.name);
+        let qty = t.q || 1;
+        if (t.pd) qty *= nights > 0 ? nights : days;  // per night/day
+        if (t.pp) qty *= people;
+        if (nights <= 0 && t.pd) qty = 1;
+
+        items.push({
+            id: gid(), name: t.name, category: t.c || 'misc',
+            qty, packed: false, bag: CATEGORY_BAG_MAP[t.c] || 'bag-misc',
+        });
+    });
+
+    S.items = items;
+    S.bags = JSON.parse(JSON.stringify(DEFAULT_BAGS));
+    S.listId = null;
+    S.selectedItems.clear();
+    S.batchMode = false;
+    nav('editor');
+    renderEditor();
+    toast(sceneName + '清单已生成（' + days + '天' + (nights > 0 ? nights + '夜' : '') + '/' + people + '人），共 ' + items.length + ' 件');
+}
+
+// ==================== 编辑器渲染 ====================
+
+function renderEditor() {
+    const box = document.getElementById('itemList');
+    const total = S.items.length;
+    const packed = S.items.filter(i => i.packed).length;
+
+    document.getElementById('statTotal').textContent = '共 ' + total + ' 件';
+    document.getElementById('statPending').textContent = '未装 ' + (total - packed) + ' 件';
+
+    if (!total) {
+        box.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>清单是空的</p><p class="empty-hint">批量导入或逐个添加物品吧</p></div>';
+        return;
+    }
+
+    box.innerHTML = S.items.map((it, idx) => {
+        const cat = catInfo(it.category);
+        const sel = S.selectedItems.has(idx);
+        return '<div class="item-card' + (it.packed ? ' packed' : '') + (sel ? ' batch-selected' : '') + '" ' +
+            'onclick="onItemClick(' + idx + ')">' +
+            '<div class="item-check' + (it.packed ? ' checked' : '') + '" ' +
+            'onclick="event.stopPropagation();' + (S.batchMode ? 'toggleBatchItem(' + idx + ')' : 'togglePack(' + idx + ')') + '">' +
+            (S.batchMode ? (sel ? '✓' : '') : (it.packed ? '✓' : '')) + '</div>' +
+            '<div class="item-info"><span class="item-name">' + esc(it.name) + '</span>' +
+            '<div class="item-meta"><span class="category-tag ' + cat.cssClass + '">' + cat.name + '</span>' +
+            '<span>' + bagName(it.bag) + '</span></div></div>' +
+            '<span class="item-qty">×' + it.qty + '</span></div>';
+    }).join('');
+}
+
+function onItemClick(idx) {
+    if (S.batchMode) {
+        toggleBatchItem(idx);
+    } else {
+        openItemAction(idx);
+    }
+}
+
+// ==================== 批量选择模式 ====================
+
+function enterBatchMode() {
+    S.batchMode = true;
+    S.selectedItems.clear();
+    document.getElementById('batchBar').style.display = 'flex';
+    document.getElementById('batchModeBtn').style.display = 'none';
+    document.getElementById('editorToolbar').style.display = 'none';
+    updateBatchCount();
+    renderEditor();
+}
+
+function exitBatchMode() {
+    S.batchMode = false;
+    S.selectedItems.clear();
+    document.getElementById('batchBar').style.display = 'none';
+    document.getElementById('batchModeBtn').style.display = '';
+    document.getElementById('editorToolbar').style.display = '';
+    renderEditor();
+}
+
+function toggleBatchItem(idx) {
+    if (S.selectedItems.has(idx)) {
+        S.selectedItems.delete(idx);
+    } else {
+        S.selectedItems.add(idx);
+    }
+    updateBatchCount();
+    renderEditor();
+}
+
+function toggleSelectAll() {
+    if (S.selectedItems.size === S.items.length) {
+        S.selectedItems.clear();
+    } else {
+        S.items.forEach((_, i) => S.selectedItems.add(i));
+    }
+    updateBatchCount();
+    renderEditor();
+}
+
+function updateBatchCount() {
+    const n = S.selectedItems.size;
+    document.getElementById('batchCount').textContent = '已选 ' + n + ' 件';
+    const check = document.getElementById('selectAllCheck');
+    if (S.items.length === 0) {
+        check.textContent = '';
+    } else if (S.selectedItems.size === S.items.length) {
+        check.textContent = '✓';
+        check.style.background = 'var(--success)';
+        check.style.borderColor = 'var(--success)';
+        check.style.color = 'white';
+    } else if (S.selectedItems.size > 0) {
+        check.textContent = '';
+        check.style.background = '';
+        check.style.borderColor = '';
+        check.style.color = '';
+    } else {
+        check.textContent = '';
+        check.style.background = '';
+        check.style.borderColor = '';
+        check.style.color = '';
+    }
+}
+
+function doBatchDelete() {
+    const count = S.selectedItems.size;
+    if (!count) return;
+    if (!confirm('确定删除选中的 ' + count + ' 件物品？')) return;
+    // 从大到小排序删除，避免索引偏移
+    const idxs = [...S.selectedItems].sort((a, b) => b - a);
+    idxs.forEach(i => S.items.splice(i, 1));
+    exitBatchMode();
+    toast('已删除 ' + count + ' 件物品');
+}
+
+// ==================== 物品操作 ====================
+
+function togglePack(idx) {
+    S.items[idx].packed = !S.items[idx].packed;
+    renderEditor();
+}
+
+function addItem() {
+    S.editIdx = -1;
+    document.getElementById('newItemName').value = '';
+    document.getElementById('newItemQty').value = 1;
+    fillCatSelect('newItemCategory');
+    fillBagSelect('newItemBag');
+    showModal('addItemModal');
+    setTimeout(() => document.getElementById('newItemName').focus(), 300);
+}
+
+function doAddItem() {
+    const name = document.getElementById('newItemName').value.trim();
+    if (!name) { document.getElementById('newItemName').style.borderColor = 'var(--danger)'; return; }
+    S.items.push({
+        id: gid(), name,
+        category: document.getElementById('newItemCategory').value,
+        qty: parseInt(document.getElementById('newItemQty').value) || 1,
+        packed: false,
+        bag: document.getElementById('newItemBag').value,
+    });
+    closeModal('addItemModal');
+    renderEditor();
+    toast('已添加：' + name);
+}
+
+function openItemAction(idx) {
+    S.editIdx = idx;
+    const it = S.items[idx];
+    document.getElementById('itemActionTitle').textContent = it.name;
+    document.getElementById('editItemQty').value = it.qty;
+    fillCatSelect('editItemCategory', it.category);
+    fillBagSelect('editItemBag', it.bag);
+    showModal('itemActionModal');
+}
+
+function doEditItem() {
+    if (S.editIdx < 0) return;
+    S.items[S.editIdx].qty = parseInt(document.getElementById('editItemQty').value) || 1;
+    S.items[S.editIdx].category = document.getElementById('editItemCategory').value;
+    S.items[S.editIdx].bag = document.getElementById('editItemBag').value;
+    closeModal('itemActionModal');
+    renderEditor();
+    toast('已更新');
+}
+
+function doDeleteItem() {
+    if (S.editIdx < 0) return;
+    const name = S.items[S.editIdx].name;
+    S.items.splice(S.editIdx, 1);
+    closeModal('itemActionModal');
+    renderEditor();
+    toast('已删除：' + name);
+}
+
+// ==================== 批量导入 ====================
+
+function openBatchImport() {
+    document.getElementById('batchImportText').value = '';
+    showModal('batchImportModal');
+    setTimeout(() => document.getElementById('batchImportText').focus(), 300);
+}
+
+function doBatchImport() {
+    const text = document.getElementById('batchImportText').value.trim();
+    if (!text) return;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, dupes = 0;
+
+    lines.forEach(line => {
+        let name, category;
+        if (line.includes('|')) {
+            const p = line.split('|').map(s => s.trim());
+            name = p[0]; category = matchCat(p[1]);
+        } else {
+            name = line; category = guessCat(name);
+        }
+        if (!name) return;
+        if (S.items.some(i => i.name === name)) { dupes++; return; }
+        S.items.push({ id: gid(), name, category, qty: 1, packed: false, bag: CATEGORY_BAG_MAP[category] || 'bag-misc' });
+        added++;
+    });
+
+    closeModal('batchImportModal');
+    renderEditor();
+    toast('导入了 ' + added + ' 件' + (dupes ? '，' + dupes + ' 件重复已跳过' : ''));
+}
+
+// ==================== 智能分类 ====================
+
+function guessCat(name) {
+    const n = name.toLowerCase();
+    const rules = [
+        [['身份证','护照','签证','驾照','工作证','门禁','名片','发票','行程','保险','户口','出生','学生证','预订','确认单'], 'docs'],
+        [['充电','电池','数据线','耳机','手机','电脑','pad','平板','相机','转换插','U盘','鼠标','手电','头灯','露营灯','音箱','自拍'], 'electronics'],
+        [['衬衫','T恤','裤','裙','内衣','内裤','袜','外套','西装','风衣','睡衣','泳衣','拖鞋','鞋','冲锋衣','速干','帽子'], 'clothing'],
+        [['牙刷','牙膏','洗面','梳','剃须','沐浴','洗发','香皂','浴巾','毛巾'], 'hygiene'],
+        [['面霜','防晒','唇膏','面膜','芦荟','驱蚊','护肤','纸尿裤','隔离'], 'skincare'],
+        [['口红','粉底','眼影','化妆','卸妆','睫毛','腮红','眉笔'], 'makeup'],
+        [['感冒药','退烧','创可贴','肠胃','晕车','维生素','温度计','碘伏','止痛','消毒'], 'medicine'],
+        [['钱包','钥匙','口罩','随身'], 'small-bag'],
+        [['雨伞','雨衣','纸巾','湿巾','垃圾袋','塑料袋','零食','水杯','保温杯','U型枕','眼罩','耳塞','行李锁','压缩袋','打火机','绳索','扎带'], 'misc'],
+    ];
+    for (const [kws, cat] of rules) {
+        if (kws.some(k => n.includes(k.toLowerCase()))) return cat;
+    }
+    return 'misc';
+}
+
+function matchCat(text) {
+    if (!text) return 'misc';
+    const t = text.toLowerCase();
+    const found = DEFAULT_CATEGORIES.find(c => c.name.includes(t) || c.id.includes(t) || t.includes(c.name));
+    return found ? found.id : 'misc';
+}
+
+// ==================== 包管理 ====================
+
+function setupIconPicker() {
+    document.getElementById('iconPicker').addEventListener('click', e => {
+        const chip = e.target.closest('.icon-chip');
+        if (!chip) return;
+        document.querySelectorAll('#iconPicker .icon-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+    });
+}
+
+function addBag() {
+    document.getElementById('newBagName').value = '';
+    document.querySelectorAll('#iconPicker .icon-chip').forEach((c, i) => c.classList.toggle('active', i === 0));
+    showModal('addBagModal');
+    setTimeout(() => document.getElementById('newBagName').focus(), 300);
+}
+
+function doAddBag() {
+    const name = document.getElementById('newBagName').value.trim();
+    if (!name) { document.getElementById('newBagName').style.borderColor = 'var(--danger)'; return; }
+    const icon = (document.querySelector('#iconPicker .icon-chip.active') || {}).dataset?.icon || '👜';
+    S.bags.push({ id: 'bag-' + gid(), name, icon, isDefault: false });
+    closeModal('addBagModal');
+    renderBagManage();
+    toast('已创建包：' + name);
+}
+
+function deleteBag(id) {
+    const bag = S.bags.find(b => b.id === id);
+    if (bag && bag.isDefault) { toast('预设包无法删除'); return; }
+    S.bags = S.bags.filter(b => b.id !== id);
+    S.items.forEach(i => { if (i.bag === id) i.bag = 'bag-misc'; });
+    renderBagManage();
+    toast('包已删除，物品已移至杂物包');
+}
+
+function renderBagManage() {
+    document.getElementById('bagManageList').innerHTML = S.bags.map(b => {
+        const cnt = S.items.filter(i => i.bag === b.id).length;
+        return '<div class="bag-manage-card"><span class="bag-icon">' + b.icon + '</span>' +
+            '<div class="bag-manage-info"><span class="bag-manage-name">' + esc(b.name) + '</span>' +
+            '<span class="bag-manage-count">' + cnt + ' 件物品</span></div>' +
+            '<div class="bag-manage-actions">' +
+            (!b.isDefault ? '<button onclick="deleteBag(\'' + b.id + '\')">🗑️</button>' : '') +
+            '</div></div>';
+    }).join('');
+}
+
+// ==================== 收拾模式 ====================
+
+function switchPackingView(view) {
+    S.packView = view;
+    document.querySelectorAll('.switch-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    renderPacking();
+}
+
+function renderPacking() {
+    const total = S.items.length;
+    const packed = S.items.filter(i => i.packed).length;
+    const pct = total > 0 ? (packed / total * 100) : 0;
+    document.getElementById('packProgressFill').style.width = pct + '%';
+    document.getElementById('packProgressText').textContent = packed + '/' + total + ' 已装箱';
+
+    if (S.packView === 'remaining') { renderRemaining(); }
+    else if (S.packView === 'all') { renderPackingAll(); }
+    else { renderBagsView(); }
+}
+
+function renderBagsView() {
+    const box = document.getElementById('bagList');
+    let html = '';
+
+    S.bags.forEach(bag => {
+        const items = S.items.filter(i => i.bag === bag.id);
+        const pCnt = items.filter(i => i.packed).length;
+        html += '<div class="bag-group' + (items.length ? ' expanded' : '') + '">' +
+            '<div class="bag-group-header" onclick="this.parentElement.classList.toggle(\'expanded\')">' +
+            '<span class="bag-icon">' + bag.icon + '</span>' +
+            '<span class="bag-name">' + esc(bag.name) + '</span>' +
+            '<span class="bag-count">' + pCnt + '/' + items.length + '</span>' +
+            '<span class="bag-expand-icon">▶</span></div>' +
+            '<div class="bag-group-items">' +
+            (items.length === 0 ? '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;">暂无物品</div>' :
+            items.map(it => {
+                const ri = S.items.indexOf(it);
+                return packItemCard(it, ri);
+            }).join('')) + '</div></div>';
+    });
+
+    const un = S.items.filter(i => !S.bags.some(b => b.id === i.bag));
+    if (un.length) {
+        html += '<div class="bag-group expanded"><div class="bag-group-header" onclick="this.parentElement.classList.toggle(\'expanded\')">' +
+            '<span class="bag-icon">❓</span><span class="bag-name">未分配</span>' +
+            '<span class="bag-count">' + un.filter(i => i.packed).length + '/' + un.length + '</span>' +
+            '<span class="bag-expand-icon">▶</span></div><div class="bag-group-items">' +
+            un.map(it => packItemCard(it, S.items.indexOf(it))).join('') + '</div></div>';
+    }
+
+    box.innerHTML = html;
+}
+
+function renderRemaining() {
+    const box = document.getElementById('bagList');
+    const rem = S.items.filter(i => !i.packed);
+    if (!rem.length) {
+        box.innerHTML = '<div class="empty-state"><div class="empty-icon">🎉</div><p>全部装好了！</p></div>';
+        return;
+    }
+    box.innerHTML = rem.map(it => {
+        const ri = S.items.indexOf(it);
+        const cat = catInfo(it.category);
+        return '<div class="item-card" onclick="togglePackThenRender(' + ri + ')">' +
+            '<div class="item-check"></div><div class="item-info">' +
+            '<span class="item-name">' + esc(it.name) + '</span>' +
+            '<div class="item-meta"><span class="category-tag ' + cat.cssClass + '">' + cat.name + '</span>' +
+            '<span>' + bagName(it.bag) + '</span><span>×' + it.qty + '</span></div></div></div>';
+    }).join('');
+}
+
+function renderPackingAll() {
+    const box = document.getElementById('bagList');
+    box.innerHTML = S.items.map((it, idx) => packItemCard(it, idx)).join('');
+}
+
+function packItemCard(it, ri) {
+    const cat = catInfo(it.category);
+    return '<div class="item-card' + (it.packed ? ' packed' : '') + '" onclick="togglePackThenRender(' + ri + ')">' +
+        '<div class="item-check' + (it.packed ? ' checked' : '') + '">' + (it.packed ? '✓' : '') + '</div>' +
+        '<div class="item-info"><span class="item-name">' + esc(it.name) + '</span>' +
+        '<div class="item-meta"><span class="category-tag ' + cat.cssClass + '">' + cat.name + '</span>' +
+        '<span>' + bagName(it.bag) + '</span><span>×' + it.qty + '</span></div></div></div>';
+}
+
+function togglePackThenRender(idx) {
+    S.items[idx].packed = !S.items[idx].packed;
+    renderPacking();
+}
+
+// ==================== 保存/加载 ====================
+
+function openSceneSave() {
+    if (!S.items.length) { toast('清单为空'); return; }
+    document.getElementById('saveListName').value = '';
+    document.getElementById('saveAsTemplate').checked = false;
+    document.getElementById('saveOverwriteHint').style.display = 'none';
+    showModal('saveListModal');
+    setTimeout(() => document.getElementById('saveListName').focus(), 300);
+}
+
+function doSaveList() {
+    const name = document.getElementById('saveListName').value.trim();
+    if (!name) { document.getElementById('saveListName').style.borderColor = 'var(--danger)'; return; }
+
+    const lists = getLists();
+    const nights = parseInt(document.getElementById('tripNights')?.value) ?? ((parseInt(document.getElementById('tripDays')?.value) || 3) - 1);
+    const data = {
+        id: S.listId || 'list-' + gid(),
+        name,
+        scene: S.scene,
+        days: parseInt(document.getElementById('tripDays').value) || 3,
+        nights,
+        people: parseInt(document.getElementById('tripPeople').value) || 1,
+        items: JSON.parse(JSON.stringify(S.items)),
+        bags: JSON.parse(JSON.stringify(S.bags)),
+        isTemplate: document.getElementById('saveAsTemplate').checked,
+        createdAt: S.listId ? (lists.find(l => l.id === S.listId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    };
+
+    const ei = lists.findIndex(l => l.name === name);
+    if (ei >= 0) lists[ei] = data; else lists.unshift(data);
+
+    localStorage.setItem('packHelper_lists', JSON.stringify(lists));
+    S.listId = data.id;
+    closeModal('saveListModal');
+    renderHome();
+    toast('已保存' + (data.isTemplate ? '（模板）' : ''));
+}
+
+function renderSavedLists() {
+    const lists = getLists().filter(l => !l.isTemplate);
+    const box = document.getElementById('savedLists');
+    const empty = document.getElementById('emptyState');
+
+    Array.from(box.children).forEach(ch => { if (ch.id !== 'emptyState') ch.remove(); });
+
+    if (!lists.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    lists.forEach(list => {
+        const st = SCENE_STYLES[list.scene] || { icon: '📋', cls: 'scene-custom' };
+        const card = document.createElement('div');
+        card.className = 'saved-list-card';
+        card.innerHTML =
+            '<div class="saved-list-icon ' + st.cls + '">' + st.icon + '</div>' +
+            '<div class="saved-list-info" onclick="loadList(\'' + list.id + '\')">' +
+            '<div class="saved-list-name">' + esc(list.name) + '</div>' +
+            '<div class="saved-list-meta">' + (list.scene || '自定义') + ' · ' + (list.days || '?') + '天' +
+            ((list.nights !== undefined && list.nights > 0) ? list.nights + '夜' : '') +
+            ' · ' + (list.people || '?') + '人 · ' + (list.items?.length || 0) + '件' + '</div></div>' +
+            '<div class="saved-list-actions">' +
+            '<button onclick="event.stopPropagation();loadListForPacking(\'' + list.id + '\')" title="收拾">🎒</button>' +
+            '<button onclick="event.stopPropagation();duplicateList(\'' + list.id + '\')" title="复制">📋</button>' +
+            '<button onclick="event.stopPropagation();exportList(\'' + list.id + '\')" title="导出">📤</button>' +
+            '<button onclick="event.stopPropagation();deleteList(\'' + list.id + '\')" title="删除">🗑️</button>' +
+            '</div>';
+        box.appendChild(card);
+    });
+}
+
+function loadList(id) {
+    const list = getLists().find(l => l.id === id);
+    if (!list) return;
+    S.items = JSON.parse(JSON.stringify(list.items));
+    S.bags = JSON.parse(JSON.stringify(list.bags || DEFAULT_BAGS));
+    S.scene = list.scene;
+    S.listId = list.id;
+    S.selectedItems.clear();
+    S.batchMode = false;
+    nav('editor');
+    renderEditor();
+    toast('已加载：' + list.name);
+}
+
+function loadListForPacking(id) {
+    const list = getLists().find(l => l.id === id);
+    if (!list) return;
+    S.items = JSON.parse(JSON.stringify(list.items));
+    S.bags = JSON.parse(JSON.stringify(list.bags || DEFAULT_BAGS));
+    S.scene = list.scene;
+    S.listId = list.id;
+    nav('packing');
+    renderPacking();
+    toast('开始收拾：' + list.name);
+}
+
+function duplicateList(id) {
+    const lists = getLists();
+    const list = lists.find(l => l.id === id);
+    if (!list) return;
+    const dup = JSON.parse(JSON.stringify(list));
+    dup.id = 'list-' + gid();
+    dup.name = list.name + '（副本）';
+    dup.isTemplate = false;
+    dup.createdAt = new Date().toISOString();
+    dup.updatedAt = new Date().toISOString();
+    lists.unshift(dup);
+    localStorage.setItem('packHelper_lists', JSON.stringify(lists));
+    renderHome();
+    toast('已复制');
+}
+
+function deleteList(id) {
+    if (!confirm('确定删除？')) return;
+    let lists = getLists().filter(l => l.id !== id);
+    localStorage.setItem('packHelper_lists', JSON.stringify(lists));
+    renderHome();
+    toast('已删除');
+}
+
+function exportList(id) {
+    const list = getLists().find(l => l.id === id);
+    if (!list) return;
+    const text = list.items.map(i => i.name + (i.bag ? ' | ' + bagName(i.bag) : '')).join('\n');
+    dl(text, list.name + '.txt', 'text/plain');
+    toast('已导出');
+}
+
+function importFromFile() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,.txt';
+    inp.onchange = e => {
+        const f = e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+            try {
+                if (f.name.endsWith('.json')) {
+                    const d = JSON.parse(ev.target.result);
+                    if (d.items) { S.items = d.items; if (d.bags) S.bags = d.bags; }
+                } else {
+                    ev.target.result.split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+                        let name, cat;
+                        if (line.includes('|')) { const p = line.split('|').map(s => s.trim()); name = p[0]; cat = matchCat(p[1]); }
+                        else { name = line; cat = guessCat(name); }
+                        if (name && !S.items.some(i => i.name === name))
+                            S.items.push({ id: gid(), name, category: cat, qty: 1, packed: false, bag: CATEGORY_BAG_MAP[cat] || 'bag-misc' });
+                    });
+                }
+                renderEditor();
+                toast('导入成功');
+            } catch { toast('导入失败'); }
+        };
+        r.readAsText(f);
+    };
+    inp.click();
+}
+
+function exportToJSON() {
+    const nights = parseInt(document.getElementById('tripNights')?.value) ?? ((parseInt(document.getElementById('tripDays')?.value) || 3) - 1);
+    dl(JSON.stringify({ items: S.items, bags: S.bags, scene: S.scene, days: parseInt(document.getElementById('tripDays').value) || 3, nights, people: parseInt(document.getElementById('tripPeople').value) || 1, exportedAt: new Date().toISOString() }, null, 2),
+        'pack-list-' + Date.now() + '.json', 'application/json');
+    toast('已导出 JSON');
+}
+
+// ==================== 导航 ====================
+
+function nav(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelector('[data-page="' + page + '"]').classList.add('active');
+
+    const back = document.getElementById('headerBack');
+    const title = document.getElementById('headerTitle');
+    const right = document.getElementById('headerRight');
+
+    if (page === 'home') {
+        back.style.display = 'none';
+        title.textContent = '出行打包助手';
+        right.innerHTML = '<button class="btn-icon" onclick="importFromFile()" title="导入">📥</button>';
+        renderHome();
+    } else if (page === 'editor') {
+        back.style.display = 'block';
+        title.textContent = '编辑清单';
+        right.innerHTML = '<button class="btn-icon" onclick="nav(\'listpick\')" title="收拾">🎒</button>';
+        exitBatchMode();
+        renderEditor();
+    } else if (page === 'packing') {
+        back.style.display = 'block';
+        title.textContent = '收拾模式';
+        right.innerHTML = '<button class="btn-icon" onclick="nav(\'editor\')" title="返回编辑">✏️</button>';
+        renderPacking();
+    } else if (page === 'bags') {
+        back.style.display = 'block';
+        title.textContent = '包管理';
+        right.innerHTML = '';
+        renderBagManage();
+    } else if (page === 'listpick') {
+        back.style.display = 'block';
+        title.textContent = '选择清单';
+        right.innerHTML = '';
+        renderPickLists();
+    }
+}
+
+function goBack() {
+    const p = document.querySelector('.page.active').dataset.page;
+    if (p === 'listpick') { nav('editor'); return; }
+    if (p === 'bags' || p === 'packing') { nav('editor'); return; }
+    if (p === 'editor') {
+        if (S.items.length && !confirm('返回首页？未保存数据将丢失。')) return;
+        nav('home'); return;
+    }
+    nav('home');
+}
+
+function renderPickLists() {
+    const lists = getLists().filter(l => !l.isTemplate);
+    const box = document.getElementById('pickLists');
+    if (!lists.length) {
+        box.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>还没有清单</p><p class="empty-hint">先去创建或加载一个清单吧</p></div>';
+        return;
+    }
+    box.innerHTML = lists.map(list => {
+        const st = SCENE_STYLES[list.scene] || { icon: '📋', cls: 'scene-custom' };
+        const packed = list.items ? list.items.filter(i => i.packed).length : 0;
+        const total = list.items ? list.items.length : 0;
+        return '<div class="saved-list-card" onclick="loadListForPacking(\'' + list.id + '\')">' +
+            '<div class="saved-list-icon ' + st.cls + '">' + st.icon + '</div>' +
+            '<div class="saved-list-info">' +
+            '<div class="saved-list-name">' + esc(list.name) + '</div>' +
+            '<div class="saved-list-meta">' + (list.days || '?') + '天 · ' + (list.people || '?') + '人 · ' + packed + '/' + total + '已装' + '</div></div>' +
+            '<div style="font-size:20px;">🎒</div></div>';
+    }).join('');
+}
+
+// ==================== 弹窗 ====================
+
+function setupModalOverlays() {
+    document.querySelectorAll('.modal-overlay').forEach(ov => {
+        ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('active'); });
+    });
+}
+
+function showModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ==================== 工具函数 ====================
+
+function gid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+function getLists() { try { return JSON.parse(localStorage.getItem('packHelper_lists') || '[]'); } catch { return []; } }
+function catInfo(id) { return DEFAULT_CATEGORIES.find(c => c.id === id) || { id: 'misc', name: '杂物', cssClass: 'cat-misc' }; }
+function bagName(id) { const b = S.bags.find(b => b.id === id); return b ? b.name : '未分配'; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function fillCatSelect(id, sel) {
+    document.getElementById(id).innerHTML = DEFAULT_CATEGORIES.map(c =>
+        '<option value="' + c.id + '"' + (c.id === sel ? ' selected' : '') + '>' + c.name + '</option>'
+    ).join('');
+}
+
+function fillBagSelect(id, sel) {
+    document.getElementById(id).innerHTML = S.bags.map(b =>
+        '<option value="' + b.id + '"' + (b.id === sel ? ' selected' : '') + '>' + b.icon + ' ' + b.name + '</option>'
+    ).join('');
+}
+
+function dl(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function toast(msg) {
+    const el = document.createElement('div');
+    el.className = 'notification';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2500);
+}
+
+// ==================== 启动 ====================
+
+init();
+
+</script>
+</body>
+</html>
