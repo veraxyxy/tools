@@ -74,6 +74,7 @@
                     <input id="moduleSearchInput" type="text" placeholder="搜索小包名称、用途或标签" oninput="updateModuleSearch(this.value)">
                 </div>
                 <div class="filter-row" id="moduleFilterRow"></div>
+                <div class="kit-view-toggle" id="kitViewToggle"></div>
                 <div class="section-head compact">
                     <h3 class="section-title">官方小包</h3>
                     <button class="section-link" onclick="openCreateModuleModal()">新建我的小包</button>
@@ -261,6 +262,14 @@
                     <label for="libraryItemBag">默认归属小包</label>
                     <select id="libraryItemBag"></select>
                 </div>
+                <div class="form-row vertical">
+                    <label>物品标签</label>
+                    <div class="item-tags" id="libraryItemTagsDisplay"></div>
+                    <div class="tag-input-row">
+                        <input id="libraryItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
+                        <button class="tag-add-btn" onclick="addLibraryItemTag()">添加</button>
+                    </div>
+                </div>
                 <div class="info-card subtle" id="libraryItemSmartHint">衣物类和宝宝高频消耗物品会默认参与智能填充。</div>
             </div>
             <div class="modal-footer between">
@@ -336,6 +345,14 @@
                 <div class="form-row vertical">
                     <label for="tripItemNotes">备注</label>
                     <textarea id="tripItemNotes" rows="3" placeholder="例如：放在证件包最外层"></textarea>
+                </div>
+                <div class="form-row vertical">
+                    <label>物品标签</label>
+                    <div class="item-tags" id="tripItemTagsDisplay"></div>
+                    <div class="tag-input-row">
+                        <input id="tripItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
+                        <button class="tag-add-btn" onclick="addTripItemTag()">添加</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer between">

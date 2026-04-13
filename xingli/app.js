@@ -435,6 +435,9 @@ let S = {
         visited: new Set(),
     },
     tripBuilderSelection: new Set(),
+    kitView: 'compact',
+    collapsedBags: new Set(),
+    currentEditingTags: [],
 };
 
 function init() {
@@ -481,6 +484,9 @@ function bindFormEvents() {
 
     document.getElementById('moduleQuickItemName')?.addEventListener('input', updateModuleQuickItemCategory);
     document.getElementById('moduleQuickItemCategory')?.addEventListener('change', updateModuleQuickItemCategory);
+
+    document.getElementById('libraryItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLibraryItemTag(); } });
+    document.getElementById('tripItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTripItemTag(); } });
 }
 
 function nav(page) {
@@ -736,6 +742,7 @@ function renderTripEmpty() {
 function renderTripPlanItemCard(item) {
     const cat = catInfo(item.category);
     const sourceText = formatItemSource(item);
+    const tagsHtml = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
     const smartBadge = item.smartRule !== 'fixed'
         ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? '数量已手调' : smartRuleShort(item.smartRule)) + '</span>'
         : '';
@@ -750,6 +757,7 @@ function renderTripPlanItemCard(item) {
         (sourceText ? '<span class="item-pill">' + esc(sourceText) + '</span>' : '') +
         '</div>' +
         (item.notes ? '<div class="item-notes">备注：' + esc(item.notes) + '</div>' : '') +
+        (tagsHtml ? '<div class="item-subline">' + tagsHtml + '</div>' : '') +
         '</div>' +
         '<div class="item-qty">×' + item.qty + '</div>' +
         '</div>';
@@ -782,20 +790,42 @@ function renderBagsPackView(trip) {
 
     if (!groups.length) return renderTripEmpty();
 
+    // Auto-expand bags that have partial progress
+    groups.forEach(group => {
+        if (!S.collapsedBags.has(group.bag.id)) {
+            const packed = group.items.filter(item => item.packed).length;
+            if (packed === 0) S.collapsedBags.add(group.bag.id);
+        }
+    });
+
     return groups.map(group => {
         const packed = group.items.filter(item => item.packed).length;
-        return '<div class="bag-group">' +
-            '<div class="bag-group-header">' +
+        const collapsed = S.collapsedBags.has(group.bag.id) ? ' collapsed' : '';
+        return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '">' +
+            '<div class="bag-group-header" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">' +
             '<span>' + group.bag.icon + ' ' + esc(group.bag.name) + '</span>' +
+            '<div style="display:flex;align-items:center;gap:8px">' +
             '<span class="section-meta">' + packed + '/' + group.items.length + '</span>' +
-            '</div>' +
+            '<span class="bag-toggle">▼</span>' +
+            '</div></div>' +
             '<div class="bag-group-items">' + group.items.map(renderPackItemCard).join('') + '</div>' +
             '</div>';
     }).join('');
 }
 
+function toggleBagCollapse(bagId) {
+    if (S.collapsedBags.has(bagId)) {
+        S.collapsedBags.delete(bagId);
+    } else {
+        S.collapsedBags.add(bagId);
+    }
+    const el = document.getElementById('bag-' + bagId);
+    if (el) el.classList.toggle('collapsed', S.collapsedBags.has(bagId));
+}
+
 function renderPackItemCard(item) {
     const cat = catInfo(item.category);
+    const tagsHtml = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
     return '<div class="list-item-card' + (item.packed ? ' packed' : '') + '" onclick="togglePackItem(\'' + item.id + '\')">' +
         '<button class="check-button ' + (item.packed ? 'checked' : '') + '">✓</button>' +
         '<div class="list-item-main">' +
@@ -803,6 +833,7 @@ function renderPackItemCard(item) {
         '<div class="item-subline">' +
         '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
         '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + '</span>' +
+        (tagsHtml ? tagsHtml : '') +
         '</div>' +
         '</div>' +
         '<div class="item-qty">×' + item.qty + '</div>' +
@@ -830,6 +861,7 @@ function openTrip(id, mode = 'plan') {
     S.currentTripId = id;
     S.currentTrip = deepClone(trip);
     S.tripMode = mode;
+    S.collapsedBags = new Set();
     nav('list');
 }
 
@@ -880,6 +912,11 @@ function renderModuleLibrary() {
     const officialBox = document.getElementById('officialModuleGrid');
     const myBox = document.getElementById('myModuleGrid');
     const myMeta = document.getElementById('myModuleMeta');
+    const toggle = document.getElementById('kitViewToggle');
+
+    toggle.innerHTML =
+        '<button class="kit-view-btn ' + (S.kitView === 'compact' ? 'active' : '') + '" onclick="setKitView(\'compact\')">精简</button>' +
+        '<button class="kit-view-btn ' + (S.kitView === 'normal' ? 'active' : '') + '" onclick="setKitView(\'normal\')">详情</button>';
 
     banner.classList.toggle('visible', S.currentModuleAction === 'add' && !!S.currentTrip);
     banner.textContent = S.currentModuleAction === 'add' && S.currentTrip
@@ -905,12 +942,12 @@ function renderModuleLibrary() {
     });
 
     officialBox.innerHTML = official.length
-        ? official.map(renderOfficialModuleCard).join('')
+        ? official.map(m => renderOfficialModuleCard(m, S.kitView)).join('')
         : '<div class="empty-panel"><div class="empty-hint">没有匹配的官方小包。</div></div>';
 
     myMeta.textContent = mine.length ? `${mine.length} 个可复用小包` : '还没有';
     myBox.innerHTML = mine.length
-        ? mine.map(renderMyModuleCard).join('')
+        ? mine.map(m => renderMyModuleCard(m, S.kitView)).join('')
         : '<div class="empty-panel"><div class="empty-title">还没有我的小包</div><div class="empty-hint">可以从官方小包起步，也可以从物品库滑选后新建。</div></div>';
 }
 
@@ -920,9 +957,18 @@ function renderModuleFilters() {
     ).join('');
 }
 
-function renderOfficialModuleCard(module) {
+function renderOfficialModuleCard(module, view = 'normal') {
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
+    if (view === 'compact') {
+        return '<div class="kit-card compact recommended" onclick="openModuleDetail(\'official\',\'' + module.id + '\')">' +
+            '<div class="kit-card-top">' +
+            '<div class="kit-card-icon">' + module.icon + '</div>' +
+            '<div class="kit-card-name">' + esc(module.name) + '</div>' +
+            '</div>' +
+            '<div class="kit-card-count"><span class="kit-card-count-icon">📦</span>' + preview.length + '件</div>' +
+            '</div>';
+    }
     return '<div class="kit-card recommended" onclick="openModuleDetail(\'official\',\'' + module.id + '\')">' +
         '<div class="kit-card-top">' +
         '<div class="kit-card-icon">' + module.icon + '</div>' +
@@ -937,9 +983,18 @@ function renderOfficialModuleCard(module) {
         '</div>';
 }
 
-function renderMyModuleCard(module) {
+function renderMyModuleCard(module, view = 'normal') {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
+    if (view === 'compact') {
+        return '<div class="kit-card compact" onclick="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
+            '<div class="kit-card-top">' +
+            '<div class="kit-card-icon">' + esc(module.icon || '🧰') + '</div>' +
+            '<div class="kit-card-name">' + esc(module.name) + '</div>' +
+            '</div>' +
+            '<div class="kit-card-count"><span class="kit-card-count-icon">📦</span>' + preview.length + '件</div>' +
+            '</div>';
+    }
     return '<div class="kit-card" onclick="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
         '<div class="kit-card-top">' +
         '<div class="kit-card-icon">' + esc(module.icon || '🧰') + '</div>' +
@@ -951,6 +1006,11 @@ function renderMyModuleCard(module) {
         '<div class="kit-card-desc">' + esc(module.desc || '你自己维护的可复用小包模块') + '</div>' +
         '<div class="kit-card-meta">' + preview.length + ' 件物品 · ' + smartCount + ' 项可智能填充</div>' +
         '</div>';
+}
+
+function setKitView(view) {
+    S.kitView = view;
+    renderModuleLibrary();
 }
 
 function openModuleDetail(source, id) {
@@ -1081,10 +1141,12 @@ function renderLibraryCard(item) {
     const addButton = S.currentTrip
         ? '<button class="library-action primary" onclick="event.stopPropagation();addLibraryItemToCurrentTrip(\'' + item.id + '\')">+ 加入</button>'
         : '';
+    const tagsHtml = (item.tags || []).map(tag => '<span class="library-item-tag">' + esc(tag) + '</span>').join('');
     return '<div class="library-card ' + (item.source === 'user' ? 'user-built' : '') + '" onclick="openLibraryItemModal(\'' + item.id + '\')">' +
         '<div class="library-card-body">' +
         '<div class="library-name">' + esc(item.name) + '</div>' +
         '<div class="library-meta">' + esc(cat.name) + ' · ' + esc(bagName(item.bag, DEFAULT_BAGS)) + ' · ×' + item.defaultQty + '</div>' +
+        (tagsHtml ? '<div class="library-item-tags">' + tagsHtml + '</div>' : '') +
         '</div>' +
         (addButton ? '<div class="library-actions">' + addButton + '</div>' : '') +
         '</div>';
@@ -1314,9 +1376,38 @@ function openLibraryItemModal(itemId = null) {
     document.getElementById('libraryItemBulkInput').value = '';
     document.getElementById('libraryBulkPanel').style.display = item ? 'none' : 'block';
     document.getElementById('libraryDeleteBtn').style.visibility = item?.source === 'user' ? 'visible' : 'hidden';
+
+    S.currentEditingTags = Array.isArray(item?.tags) ? [...item.tags] : [];
+    renderLibraryItemTags();
+    document.getElementById('libraryItemTagInput').value = '';
+
     updateLibrarySmartHint();
     showModal('libraryItemModal');
     setTimeout(() => document.getElementById('libraryItemName').focus(), 50);
+}
+
+function renderLibraryItemTags() {
+    const el = document.getElementById('libraryItemTagsDisplay');
+    if (!el) return;
+    el.innerHTML = S.currentEditingTags.map(tag =>
+        '<span class="item-tag-pill">' + esc(tag) +
+        '<span class="item-tag-remove" onclick="removeLibraryItemTag(\'' + esc(tag) + '\')">✕</span></span>'
+    ).join('');
+}
+
+function addLibraryItemTag() {
+    const input = document.getElementById('libraryItemTagInput');
+    const val = input?.value.trim();
+    if (!val) return;
+    if (S.currentEditingTags.includes(val)) { toast('该标签已存在'); return; }
+    S.currentEditingTags.push(val);
+    renderLibraryItemTags();
+    if (input) input.value = '';
+}
+
+function removeLibraryItemTag(tag) {
+    S.currentEditingTags = S.currentEditingTags.filter(t => t !== tag);
+    renderLibraryItemTags();
 }
 
 function updateLibrarySmartHint() {
@@ -1367,6 +1458,12 @@ function saveLibraryItem() {
             ? items.find(item => item.id === S.libraryModalEditId)
             : items.find(item => item.name === name);
         const nextItem = buildLibraryItemDraft(name, qty, category, bag, existing);
+        // Carry tags over from editing session for the primary edited item
+        if (S.libraryModalEditId && index === 0) {
+            nextItem.tags = [...S.currentEditingTags];
+        } else if (!existing) {
+            nextItem.tags = [];
+        }
         if (existing) {
             const idx = items.findIndex(item => item.id === existing.id);
             if (idx >= 0) items[idx] = nextItem;
@@ -1482,8 +1579,37 @@ function openTripItemModal(itemId) {
     fillCatSelect('tripItemCategory', item.category);
     fillBagSelect('tripItemBag', item.bag, S.currentTrip.bags || DEFAULT_BAGS);
     document.getElementById('tripItemNotes').value = item.notes || '';
+
+    S.currentEditingTags = Array.isArray(item.tags) ? [...item.tags] : [];
+    renderTripItemTags();
+    document.getElementById('tripItemTagInput').value = '';
+
     updateTripItemSmartMeta();
     showModal('tripItemModal');
+}
+
+function renderTripItemTags() {
+    const el = document.getElementById('tripItemTagsDisplay');
+    if (!el) return;
+    el.innerHTML = S.currentEditingTags.map(tag =>
+        '<span class="item-tag-pill">' + esc(tag) +
+        '<span class="item-tag-remove" onclick="removeTripItemTag(\'' + esc(tag) + '\')">✕</span></span>'
+    ).join('');
+}
+
+function addTripItemTag() {
+    const input = document.getElementById('tripItemTagInput');
+    const val = input?.value.trim();
+    if (!val) return;
+    if (S.currentEditingTags.includes(val)) { toast('该标签已存在'); return; }
+    S.currentEditingTags.push(val);
+    renderTripItemTags();
+    if (input) input.value = '';
+}
+
+function removeTripItemTag(tag) {
+    S.currentEditingTags = S.currentEditingTags.filter(t => t !== tag);
+    renderTripItemTags();
 }
 
 function updateTripItemSmartMeta() {
@@ -1514,6 +1640,7 @@ function saveCurrentTripItem() {
     item.category = document.getElementById('tripItemCategory').value;
     item.bag = document.getElementById('tripItemBag').value;
     item.notes = document.getElementById('tripItemNotes').value.trim();
+    item.tags = [...S.currentEditingTags];
     if (item.smartRule !== 'fixed') {
         const suggested = computeSmartQty(item.smartBaseQty || 1, item.smartRule, S.currentTrip.days, S.currentTrip.people);
         item.smartLocked = item.qty !== suggested;
@@ -1959,6 +2086,7 @@ function createTripItemFromDef(def, days, people, sourceModuleName) {
         packed: false,
         notes: '',
         sourceModules: sourceModuleName ? [sourceModuleName] : [],
+        tags: Array.isArray(def.tags) ? [...def.tags] : [],
     });
 }
 
@@ -1976,6 +2104,7 @@ function createTripItemFromModuleItem(item, days, people, sourceModuleName) {
         packed: false,
         notes: '',
         sourceModules: sourceModuleName ? [sourceModuleName] : [],
+        tags: Array.isArray(item.tags) ? [...item.tags] : [],
     });
 }
 
@@ -1993,6 +2122,7 @@ function createTripItemFromAsset(asset, days, people) {
         packed: false,
         notes: '',
         sourceModules: [],
+        tags: Array.isArray(asset.tags) ? [...asset.tags] : [],
     });
 }
 
@@ -2578,6 +2708,7 @@ function normalizeTripItem(item) {
         smartBaseQty: Math.max(1, parseInt(item.smartBaseQty) || parseInt(item.defaultQty) || parseInt(item.qty) || 1),
         smartLocked: Boolean(item.smartLocked),
         sourceModules: Array.isArray(item.sourceModules) ? uniqueStrings(item.sourceModules) : (item.sourceModule ? [item.sourceModule] : []),
+        tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : [],
     };
 }
 
@@ -2608,6 +2739,7 @@ function normalizeLibraryItem(item) {
         smartRule: smartConfig ? 'formula' : (item?.smartRule || inferSmartRule(name, category)),
         smartConfig,
         source: item?.source === 'user' ? 'user' : 'system',
+        tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : [],
     };
 }
 

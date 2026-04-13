@@ -254,6 +254,22 @@ input, select, textarea { appearance: none; }
 .tag-row { margin-top: 8px; }
 .tag { background: var(--surface-2); color: var(--ink-2); }
 
+/* Compact kit card */
+.kit-card.compact { min-height: auto; padding: 12px; display: flex; align-items: center; gap: 10px; }
+.kit-card.compact .kit-card-top { margin-bottom: 0; flex: 1; min-width: 0; align-items: center; }
+.kit-card.compact .kit-card-icon { width: 36px; height: 36px; border-radius: 10px; font-size: 18px; flex-shrink: 0; }
+.kit-card.compact .kit-card-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kit-card.compact .kit-card-desc,
+.kit-card.compact .kit-card-meta,
+.kit-card.compact .tag-row,
+.kit-card.compact .kit-badge { display: none; }
+.kit-card.compact .kit-card-count {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 700; color: var(--ink-3);
+    flex-shrink: 0;
+}
+.kit-card-count-icon { font-size: 13px; }
+
 .kit-detail-hero { display: flex; align-items: flex-start; gap: 12px; }
 .kit-detail-icon { width: 58px; height: 58px; border-radius: 20px; font-size: 29px; }
 
@@ -293,6 +309,23 @@ input, select, textarea { appearance: none; }
 .list-item-card.packed .list-item-name { text-decoration: line-through; color: var(--ink-3); }
 
 .item-notes { font-size: 12px; margin-top: 4px; }
+
+/* Item tags */
+.item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.item-tag-pill { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); }
+.item-tag-remove { cursor: pointer; opacity: 0.5; line-height: 1; font-size: 12px; }
+.item-tag-remove:hover { opacity: 1; }
+.tag-input-row { display: flex; gap: 8px; margin-top: 8px; }
+.tag-input { flex: 1; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; font-size: 13px; background: var(--card); color: var(--ink); outline: none; }
+.tag-input:focus { border-color: var(--primary); }
+.tag-add-btn { padding: 8px 14px; border-radius: 14px; border: none; background: var(--primary-soft); color: var(--primary); font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.library-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.library-item-tag { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: var(--secondary-soft); color: #1d7fbf; font-weight: 600; }
+
+/* Kit view toggle */
+.kit-view-toggle { display: flex; justify-content: flex-end; gap: 4px; margin-bottom: 8px; }
+.kit-view-btn { padding: 5px 12px; border-radius: 999px; border: none; font-size: 12px; font-weight: 700; background: var(--surface-2); color: var(--ink-2); cursor: pointer; transition: all 0.15s; }
+.kit-view-btn.active { background: var(--primary); color: #fff; }
 .item-qty { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--ink-2); }
 .item-pill { background: var(--surface-2); color: var(--ink-2); }
 .item-pill.cat-hygiene { background: #e0f2fe; color: #0284c7; }
@@ -307,8 +340,12 @@ input, select, textarea { appearance: none; }
 .item-pill.cat-clothing { background: #ffe4e6; color: #e11d48; }
 
 .bag-group { overflow: hidden; }
-.bag-group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.bag-group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: var(--surface); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none; }
+.bag-group-header:active { opacity: 0.7; }
 .bag-group-items { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.bag-group.collapsed .bag-group-items { display: none; }
+.bag-toggle { font-size: 14px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
+.bag-group.collapsed .bag-toggle { transform: rotate(-90deg); }
 
 /* ===== Bottom nav ===== */
 .bottom-nav {
@@ -366,8 +403,8 @@ input, select, textarea { appearance: none; }
 .footer-tight { align-items: center; }
 
 /* ===== Picker ===== */
-.picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; touch-action: none; user-select: none; -webkit-user-select: none; }
-.picker-item { position: relative; min-height: 120px; padding: 12px; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+.picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.picker-item { position: relative; min-height: 120px; padding: 12px; border-radius: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .picker-item.selected {
     background: linear-gradient(135deg, #fff0f3, #fff7ed);
     box-shadow: 0 4px 16px rgba(255, 107, 138, 0.15); border-color: rgba(255, 107, 138, 0.3);
