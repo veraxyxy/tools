@@ -329,6 +329,17 @@ input, select, textarea { appearance: none; }
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* Show '暂无内容' when card is empty */
+.section-card:empty::after {
+    content: '暂无内容';
+    color: var(--ink-3);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
 }
 /* Section card content wrapper for stacking */
 .section-card > .saved-list-card,
@@ -351,7 +362,7 @@ input, select, textarea { appearance: none; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100px;
+    min-height: 60px;
     text-align: center;
     margin: 10px;
 }
