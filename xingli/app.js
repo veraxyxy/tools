@@ -674,10 +674,10 @@ function renderHome() {
         : '暂无';
 
     const historyBox = document.getElementById('historyTripList');
-    historyBox.style.display = S.homeHistoryExpanded && history.length ? 'flex' : 'none';
-    historyBox.innerHTML = history.length
+    const showHistory = S.homeHistoryExpanded && history.length;
+    historyBox.innerHTML = showHistory
         ? history.map(renderTripCard).join('')
-        : '';
+        : (history.length ? '' : '<div class="empty-panel"><div class="empty-icon">📋</div><div class="empty-title">暂无历史行程</div><div class="empty-hint">完成的行程会自动归档到这里</div></div>');
 }
 
 function renderHomeEmpty() {
