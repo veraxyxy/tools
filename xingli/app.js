@@ -667,7 +667,7 @@ function renderHome() {
 
     document.getElementById('recentTripList').innerHTML = recent.length
         ? recent.map(renderTripCard).join('')
-        : (isNewUser ? '' : '<div class="empty-panel"><div class="empty-hint">还没有行程，点上方 ＋ 新建一个。</div></div>');
+        : (isNewUser ? '' : '<div class="empty-panel"><div class="empty-icon">📋</div><div class="empty-title">暂无最近行程</div><div class="empty-hint">创建行程后会出现在这里</div></div>');
 
     document.getElementById('historyToggleMeta').textContent = history.length
         ? (S.homeHistoryExpanded ? '收起' : `展开 ${history.length} 条`)
@@ -884,7 +884,6 @@ function renderBagsPackView(trip) {
             '<div class="bag-group-header" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">' +
             '<span>' + group.bag.icon + ' ' + esc(group.bag.name) + '</span>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span class="section-meta">' + packed + '/' + group.items.length + '</span>' +
             '<span class="bag-toggle">▼</span>' +
             '</div></div>' +
             '<div class="bag-group-items">' + group.items.map(renderPackItemCard).join('') + '</div>' +
