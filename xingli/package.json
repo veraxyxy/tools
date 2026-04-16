@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
+    "build": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser",
+    "dev": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser --watch",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -12,6 +14,8 @@
   "description": "",
   "devDependencies": {
     "@jest/globals": "^30.3.0",
+    "esbuild": "^0.28.0",
+    "esbuild-jest": "^0.5.0",
     "jest": "^30.3.0"
   }
 }

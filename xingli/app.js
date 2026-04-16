@@ -1,491 +1,30 @@
-const DEFAULT_CATEGORIES = [
-    { id: 'hygiene', name: '洗漱用品', cssClass: 'cat-hygiene' },
-    { id: 'makeup', name: '化妆用品', cssClass: 'cat-makeup' },
-    { id: 'skincare', name: '护肤用品', cssClass: 'cat-skincare' },
-    { id: 'small-bag', name: '随身小物', cssClass: 'cat-small-bag' },
-    { id: 'big-bag', name: '大件收纳', cssClass: 'cat-big-bag' },
-    { id: 'misc', name: '杂物', cssClass: 'cat-misc' },
-    { id: 'docs', name: '证件', cssClass: 'cat-docs' },
-    { id: 'electronics', name: '电子设备', cssClass: 'cat-electronics' },
-    { id: 'medicine', name: '药品', cssClass: 'cat-medicine' },
-    { id: 'clothing', name: '衣物', cssClass: 'cat-clothing' },
-];
-
-const DEFAULT_BAGS = [
-    { id: 'bag-hygiene', name: '洗漱包', icon: '🧴' },
-    { id: 'bag-makeup', name: '化妆包', icon: '💄' },
-    { id: 'bag-docs', name: '证件包', icon: '📁' },
-    { id: 'bag-clothing', name: '衣服包', icon: '👕' },
-    { id: 'bag-baby', name: '宝宝基础包', icon: '🍼' },
-    { id: 'bag-baby-vaccine', name: '疫苗插件包', icon: '💉' },
-    { id: 'bag-baby-feeding', name: '喂养插件包', icon: '🧃' },
-    { id: 'bag-baby-overnight', name: '过夜插件包', icon: '🌙' },
-    { id: 'bag-baby-outdoor', name: '户外插件包', icon: '⛰️' },
-    { id: 'bag-electronics', name: '电子包', icon: '🔌' },
-    { id: 'bag-small', name: '随身小包', icon: '👛' },
-    { id: 'bag-big', name: '大件收纳包', icon: '🧳' },
-    { id: 'bag-medicine', name: '药品包', icon: '💊' },
-    { id: 'bag-misc', name: '杂物包', icon: '📦' },
-];
-
-const CATEGORY_BAG_MAP = {
-    hygiene: 'bag-hygiene',
-    makeup: 'bag-makeup',
-    skincare: 'bag-hygiene',
-    'small-bag': 'bag-small',
-    'big-bag': 'bag-big',
-    misc: 'bag-misc',
-    docs: 'bag-docs',
-    electronics: 'bag-electronics',
-    medicine: 'bag-medicine',
-    clothing: 'bag-clothing',
-};
-
-const MODULE_FILTERS = [
-    { id: 'all', name: '全部' },
-    { id: 'starter', name: '基础' },
-    { id: 'travel', name: '出行' },
-    { id: 'family', name: '宝宝' },
-    { id: 'daily', name: '随身' },
-    { id: 'custom', name: '我的' },
-];
-
-const STORAGE_KEYS = {
-    records: 'packHelper_lists',
-    itemLibrary: 'packHelper_itemLibrary',
-    officialModules: 'packHelper_officialModules',
-    onboarded: 'packHelper_onboarded',
-};
-
-const BABY_MODULE_IDS = {
-    base: 'module-baby-base',
-    vaccine: 'module-baby-vaccine',
-    feeding: 'module-baby-feeding',
-    overnight: 'module-baby-overnight',
-    outdoor: 'module-baby-outdoor',
-};
-
-const OFFICIAL_MODULES = [
-    {
-        id: 'module-hygiene',
-        name: '洗漱包',
-        icon: '🧴',
-        purpose: 'starter',
-        desc: '过夜和中短途都能直接复用的基础洗漱模块。',
-        tags: ['基础', '过夜', '高频'],
-        items: [
-            { name: '牙刷牙膏', c: 'hygiene' },
-            { name: '洗面奶', c: 'hygiene' },
-            { name: '梳子', c: 'hygiene' },
-            { name: '漱口水', c: 'hygiene' },
-            { name: '牙线', c: 'hygiene' },
-            { name: '毛巾', c: 'hygiene', smart: 'perPerson' },
-            { name: '洗发水分装瓶', c: 'hygiene' },
-            { name: '护发素分装瓶', c: 'hygiene' },
-            { name: '沐浴露分装瓶', c: 'hygiene' },
-            { name: '折叠牙刷杯', c: 'hygiene' },
-        ],
-    },
-    {
-        id: 'module-makeup',
-        name: '化妆包',
-        icon: '💄',
-        purpose: 'starter',
-        desc: '把妆面需要的固定物品收成一个小包，出行时按需勾选。',
-        tags: ['妆面', '固定搭配', '高频'],
-        items: [
-            { name: '口红', c: 'makeup' },
-            { name: '唇釉', c: 'makeup' },
-            { name: '粉底液', c: 'makeup' },
-            { name: '粉扑', c: 'makeup' },
-            { name: '气垫', c: 'makeup' },
-            { name: '眼影盘', c: 'makeup' },
-            { name: '眉笔', c: 'makeup' },
-            { name: '眼线笔', c: 'makeup' },
-            { name: '睫毛膏', c: 'makeup' },
-            { name: '腮红', c: 'makeup' },
-            { name: '散粉', c: 'makeup' },
-            { name: '高光', c: 'makeup' },
-            { name: '修容', c: 'makeup' },
-            { name: '遮瑕', c: 'makeup' },
-            { name: '定妆喷雾', c: 'makeup' },
-            { name: '美妆蛋', c: 'makeup' },
-            { name: '化妆刷', c: 'makeup' },
-        ],
-    },
-    {
-        id: 'module-docs',
-        name: '证件包',
-        icon: '📁',
-        purpose: 'daily',
-        desc: '所有需要临出门确认的证件、支付和预订单据统一归位。',
-        tags: ['证件', '支付', '随手带'],
-        items: [
-            { name: '身份证', c: 'docs' },
-            { name: '护照', c: 'docs' },
-            { name: '驾驶证', c: 'docs' },
-            { name: '银行卡', c: 'small-bag' },
-            { name: '现金', c: 'small-bag' },
-            { name: '车票/机票', c: 'docs' },
-            { name: '酒店预订确认单', c: 'docs' },
-            { name: '行程单', c: 'docs' },
-        ],
-    },
-    {
-        id: 'module-clothing',
-        name: '衣服包',
-        icon: '👕',
-        purpose: 'travel',
-        desc: '这类物品会按行程天数和人数自动给出建议数量。',
-        tags: ['智能填充', '衣物', '按天数'],
-        items: [
-            { name: 'T恤/上衣', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '衬衫', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '裤子/裙子', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '内衣', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '内裤', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '袜子', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: '睡衣', c: 'clothing', smart: 'perPerson' },
-            { name: '轻薄外套', c: 'clothing', smart: 'perPerson' },
-            { name: '运动鞋', c: 'clothing', smart: 'perPerson' },
-            { name: '拖鞋', c: 'clothing', smart: 'perPerson' },
-        ],
-    },
-    {
-        id: BABY_MODULE_IDS.base,
-        name: '宝宝基础包',
-        icon: '🍼',
-        purpose: 'family',
-        group: 'baby',
-        role: 'base',
-        defaultOn: true,
-        desc: '所有带娃行程的默认底盘，会在选择任一宝宝插件包时自动带上。',
-        tags: ['宝宝', '默认开启', '基础底盘'],
-        items: [
-            { name: '尿不湿', c: 'misc', q: 2, bag: 'bag-baby' },
-            { name: '湿巾（婴儿专用）', c: 'misc', q: 1, bag: 'bag-baby' },
-            { name: '棉柔巾', c: 'misc', q: 1, bag: 'bag-baby' },
-            { name: '隔尿垫', c: 'misc', q: 1, bag: 'bag-baby' },
-            { name: '备用衣裤', c: 'clothing', q: 1, bag: 'bag-baby' },
-            { name: '安抚奶嘴', c: 'misc', q: 1, bag: 'bag-baby' },
-        ],
-    },
-    {
-        id: BABY_MODULE_IDS.vaccine,
-        name: '疫苗插件包',
-        icon: '💉',
-        purpose: 'family',
-        group: 'baby',
-        role: 'addon',
-        desc: '带宝宝去打疫苗、体检这类半天外出时叠加的证件和应急插件。',
-        tags: ['宝宝', '插件', '短时外出'],
-        items: [
-            { name: '疫苗本', c: 'docs', bag: 'bag-baby-vaccine' },
-            { name: '退烧贴', c: 'medicine', q: 2, bag: 'bag-baby-vaccine' },
-            { name: '医保卡', c: 'docs', bag: 'bag-baby-vaccine' },
-        ],
-    },
-    {
-        id: BABY_MODULE_IDS.feeding,
-        name: '喂养插件包',
-        icon: '🧃',
-        purpose: 'family',
-        group: 'baby',
-        role: 'addon',
-        desc: '奶粉、奶瓶和辅食相关物品集中成包，按喂养需求随时叠加。',
-        tags: ['宝宝', '插件', '喂养'],
-        items: [
-            { name: '奶粉格', c: 'misc', bag: 'bag-baby-feeding' },
-            { name: '奶瓶', c: 'misc', q: 2, bag: 'bag-baby-feeding' },
-            { name: '保温杯', c: 'misc', bag: 'bag-baby-feeding' },
-            { name: '辅食碗', c: 'misc', bag: 'bag-baby-feeding' },
-            { name: '围兜', c: 'misc', q: 1, bag: 'bag-baby-feeding' },
-        ],
-    },
-    {
-        id: BABY_MODULE_IDS.overnight,
-        name: '过夜插件包',
-        icon: '🌙',
-        purpose: 'family',
-        group: 'baby',
-        role: 'addon',
-        desc: '只在带宝宝外住时打开，补足洗奶瓶、洗澡和夜间换洗相关物品。',
-        tags: ['宝宝', '插件', '过夜'],
-        items: [
-            { name: '便携烧水壶', c: 'misc', bag: 'bag-baby-overnight' },
-            { name: '奶瓶刷', c: 'misc', bag: 'bag-baby-overnight' },
-            { name: '折叠澡盆', c: 'misc', bag: 'bag-baby-overnight' },
-            { name: '睡衣', c: 'clothing', q: 1, bag: 'bag-baby-overnight' },
-        ],
-    },
-    {
-        id: BABY_MODULE_IDS.outdoor,
-        name: '户外插件包',
-        icon: '⛰️',
-        purpose: 'family',
-        group: 'baby',
-        role: 'addon',
-        desc: '爬山、露营、公园久待时叠加，重点补防护和户外补给。',
-        tags: ['宝宝', '插件', '户外'],
-        items: [
-            { name: '驱蚊液', c: 'skincare', bag: 'bag-baby-outdoor' },
-            { name: '防晒霜', c: 'skincare', bag: 'bag-baby-outdoor' },
-            { name: '便携马桶', c: 'misc', bag: 'bag-baby-outdoor' },
-            { name: '大量零食', c: 'misc', q: 2, bag: 'bag-baby-outdoor' },
-        ],
-    },
-    {
-        id: 'module-electronics',
-        name: '电子包',
-        icon: '🔌',
-        purpose: 'travel',
-        desc: '长短途都能直接拿走的充电、拍摄和办公电子模块。',
-        tags: ['电子', '充电', '办公'],
-        items: [
-            { name: '手机', c: 'electronics' },
-            { name: '充电器（手机）', c: 'electronics' },
-            { name: '数据线', c: 'electronics', q: 2 },
-            { name: '充电宝', c: 'electronics' },
-            { name: '耳机', c: 'electronics' },
-            { name: 'Apple Watch 充电器', c: 'electronics' },
-            { name: 'iPad', c: 'electronics' },
-            { name: 'iPad 充电器', c: 'electronics' },
-            { name: '笔记本电脑', c: 'electronics' },
-            { name: '充电器（电脑）', c: 'electronics' },
-            { name: '转换插头', c: 'electronics' },
-        ],
-    },
-    {
-        id: 'module-camping',
-        name: '露营基础包',
-        icon: '⛺',
-        purpose: 'travel',
-        desc: '户外露营的完整装备，包含起居、烹饪、照明、清洁等21类必备物品。',
-        tags: ['露营', '户外', '完整装备'],
-        items: [
-            { name: '牙刷牙膏', c: 'hygiene' },
-            { name: '牙线', c: 'hygiene' },
-            { name: '洗面奶', c: 'hygiene' },
-            { name: '毛巾', c: 'hygiene' },
-            { name: '遮阳伞', c: 'misc' },
-            { name: '防晒霜', c: 'skincare' },
-            { name: '墨镜', c: 'small-bag' },
-            { name: '帽子', c: 'clothing' },
-            { name: '保温箱', c: 'big-bag' },
-            { name: '冰袋（已放冰箱）', c: 'misc' },
-            { name: '杯子', c: 'misc' },
-            { name: '帐篷', c: 'big-bag' },
-            { name: '睡袋', c: 'big-bag' },
-            { name: '拖鞋', c: 'clothing' },
-            { name: '驱蚊水', c: 'skincare' },
-            { name: '无比滴', c: 'skincare' },
-            { name: '焚火台', c: 'misc' },
-            { name: '防火布', c: 'misc' },
-            { name: '卡式炉', c: 'misc' },
-            { name: '烧烤炉', c: 'misc' },
-            { name: '铁板', c: 'misc' },
-            { name: '竹炭', c: 'misc' },
-            { name: '气罐', c: 'misc' },
-            { name: '火柴', c: 'misc' },
-            { name: '火枪', c: 'misc' },
-            { name: '钛杯', c: 'misc' },
-            { name: '马克杯', c: 'misc' },
-            { name: '钢碗', c: 'misc' },
-            { name: '筷子', c: 'misc' },
-            { name: '茶具', c: 'misc' },
-            { name: '一次性筷子餐具', c: 'misc' },
-            { name: '天幕', c: 'big-bag' },
-            { name: '露营车', c: 'big-bag' },
-            { name: '露营桌', c: 'big-bag' },
-            { name: '露营椅', c: 'big-bag', q: 5 },
-            { name: '茶叶咖啡', c: 'misc' },
-            { name: '保暖衣服', c: 'clothing' },
-            { name: '冲锋衣', c: 'clothing' },
-            { name: '长裤', c: 'clothing' },
-            { name: '换洗衣服', c: 'clothing', smart: 'perPersonPerDay' },
-            { name: 'bose音响', c: 'electronics' },
-            { name: '主灯', c: 'electronics' },
-            { name: '头灯', c: 'electronics' },
-            { name: '挂灯', c: 'electronics' },
-            { name: '氛围灯', c: 'electronics' },
-            { name: '厨房剪刀', c: 'misc' },
-            { name: '烤肉夹', c: 'misc' },
-            { name: '水果刀', c: 'misc' },
-            { name: '菜刀', c: 'misc' },
-            { name: '洗洁精', c: 'misc' },
-            { name: '洗碗海绵', c: 'misc' },
-            { name: '纸巾', c: 'misc' },
-            { name: '抹布', c: 'misc' },
-            { name: '湿巾', c: 'misc' },
-            { name: '孜然粉', c: 'misc' },
-            { name: '胡椒粉', c: 'misc' },
-            { name: '盐', c: 'misc' },
-            { name: '油', c: 'misc' },
-            { name: '酱油', c: 'misc' },
-            { name: '无人机', c: 'electronics' },
-            { name: '单反', c: 'electronics' },
-            { name: '三脚架', c: 'electronics' },
-            { name: '移动电源', c: 'electronics' },
-            { name: '手机充电线', c: 'electronics' },
-            { name: '充电宝', c: 'electronics' },
-            { name: '垃圾袋', c: 'misc' },
-            { name: '垃圾袋支架', c: 'misc' },
-            { name: '地钉', c: 'misc' },
-            { name: '锤子', c: 'misc' },
-        ],
-    },
-];
-
-const BASE_LIBRARY_ITEMS = [
-    { name: '身份证', category: 'docs' },
-    { name: '护照', category: 'docs' },
-    { name: '驾驶证', category: 'docs' },
-    { name: '工作证/门禁卡', category: 'docs' },
-    { name: '社保卡', category: 'docs' },
-    { name: '医保卡', category: 'docs' },
-    { name: '宝宝出生证明', category: 'docs' },
-    { name: '户口本', category: 'docs' },
-    { name: '学生证', category: 'docs' },
-    { name: '车票/机票', category: 'docs' },
-    { name: '酒店预订确认单', category: 'docs' },
-    { name: '行程单', category: 'docs' },
-    { name: '保险保单', category: 'docs' },
-    { name: '银行卡', category: 'small-bag' },
-    { name: '现金', category: 'small-bag' },
-    { name: '钱包', category: 'small-bag' },
-    { name: '钥匙', category: 'small-bag' },
-    { name: '口罩', category: 'small-bag', defaultQty: 3 },
-    { name: '墨镜', category: 'small-bag' },
-    { name: '发绳', category: 'small-bag' },
-    { name: '纸巾', category: 'misc' },
-    { name: '湿巾', category: 'misc' },
-    { name: '湿巾（婴儿专用）', category: 'misc', defaultQty: 2, bag: 'bag-baby' },
-    { name: '垃圾袋', category: 'misc', defaultQty: 3 },
-    { name: '保鲜袋', category: 'misc' },
-    { name: '收纳袋', category: 'big-bag' },
-    { name: '压缩袋', category: 'big-bag' },
-    { name: '折叠购物袋', category: 'big-bag' },
-    { name: '雨伞', category: 'misc' },
-    { name: '保温杯', category: 'misc' },
-    { name: '水杯', category: 'misc' },
-    { name: '零食', category: 'misc' },
-    { name: '笔', category: 'misc' },
-    { name: '行李牌', category: 'misc' },
-    { name: '行李锁', category: 'misc' },
-    { name: 'U型枕', category: 'misc' },
-    { name: '眼罩', category: 'misc' },
-    { name: '耳塞', category: 'small-bag' },
-    { name: '奶瓶', category: 'misc', defaultQty: 2, bag: 'bag-baby', smartRule: 'perPerson' },
-    { name: '奶粉', category: 'misc', bag: 'bag-baby' },
-    { name: '奶瓶刷', category: 'misc', bag: 'bag-baby' },
-    { name: '宝宝奶嘴', category: 'misc', defaultQty: 2, bag: 'bag-baby' },
-    { name: '围兜', category: 'misc', defaultQty: 1, bag: 'bag-baby', smartRule: 'perPersonPerDay' },
-    { name: '安抚玩具', category: 'misc', bag: 'bag-baby' },
-    { name: '隔尿垫', category: 'misc', defaultQty: 2, bag: 'bag-baby' },
-    { name: '棉柔巾', category: 'misc', bag: 'bag-baby' },
-    { name: '辅食剪', category: 'misc', bag: 'bag-baby' },
-    { name: '辅食碗', category: 'misc', bag: 'bag-baby' },
-    { name: '尿不湿', category: 'misc', defaultQty: 5, bag: 'bag-baby', smartRule: 'perPersonPerDay' },
-    { name: '手机', category: 'electronics' },
-    { name: '充电器（手机）', category: 'electronics' },
-    { name: '数据线', category: 'electronics', defaultQty: 2 },
-    { name: '双头充电线', category: 'electronics' },
-    { name: '充电宝', category: 'electronics' },
-    { name: '耳机', category: 'electronics' },
-    { name: '降噪耳机', category: 'electronics' },
-    { name: 'Apple Watch 充电器', category: 'electronics' },
-    { name: 'iPad', category: 'electronics' },
-    { name: 'iPad 充电器', category: 'electronics' },
-    { name: '笔记本电脑', category: 'electronics' },
-    { name: '充电器（电脑）', category: 'electronics' },
-    { name: '鼠标', category: 'electronics' },
-    { name: '相机', category: 'electronics' },
-    { name: '相机备用电池', category: 'electronics' },
-    { name: '相机充电器', category: 'electronics' },
-    { name: '读卡器', category: 'electronics' },
-    { name: '自拍杆', category: 'electronics' },
-    { name: '转换插头', category: 'electronics' },
-    { name: '插线板', category: 'electronics' },
-    { name: '手电筒', category: 'electronics' },
-    { name: '露营灯', category: 'electronics' },
-    { name: '牙刷牙膏', category: 'hygiene' },
-    { name: '电动牙刷', category: 'hygiene' },
-    { name: '漱口水', category: 'hygiene' },
-    { name: '牙线', category: 'hygiene' },
-    { name: '洗面奶', category: 'hygiene' },
-    { name: '梳子', category: 'hygiene' },
-    { name: '剃须刀', category: 'hygiene' },
-    { name: '毛巾', category: 'hygiene', smartRule: 'perPerson' },
-    { name: '浴巾', category: 'hygiene', smartRule: 'perPerson' },
-    { name: '洗发水分装瓶', category: 'hygiene' },
-    { name: '护发素分装瓶', category: 'hygiene' },
-    { name: '沐浴露分装瓶', category: 'hygiene' },
-    { name: '折叠牙刷杯', category: 'hygiene' },
-    { name: '润唇膏', category: 'skincare' },
-    { name: '防晒霜', category: 'skincare' },
-    { name: '面霜', category: 'skincare' },
-    { name: '乳液', category: 'skincare' },
-    { name: '精华', category: 'skincare' },
-    { name: '面膜', category: 'skincare', defaultQty: 2 },
-    { name: '身体乳', category: 'skincare' },
-    { name: '护手霜', category: 'skincare' },
-    { name: '喷雾', category: 'skincare' },
-    { name: '驱蚊液', category: 'skincare' },
-    { name: '护臀膏', category: 'skincare', bag: 'bag-baby' },
-    { name: '芦荟胶', category: 'skincare' },
-    { name: '口红', category: 'makeup' },
-    { name: '唇釉', category: 'makeup' },
-    { name: '粉底液', category: 'makeup' },
-    { name: '粉扑', category: 'makeup' },
-    { name: '气垫', category: 'makeup' },
-    { name: '眼影盘', category: 'makeup' },
-    { name: '眉笔', category: 'makeup' },
-    { name: '眼线笔', category: 'makeup' },
-    { name: '睫毛膏', category: 'makeup' },
-    { name: '腮红', category: 'makeup' },
-    { name: '散粉', category: 'makeup' },
-    { name: '高光', category: 'makeup' },
-    { name: '修容', category: 'makeup' },
-    { name: '遮瑕', category: 'makeup' },
-    { name: '妆前乳', category: 'makeup' },
-    { name: '定妆喷雾', category: 'makeup' },
-    { name: '美妆蛋', category: 'makeup' },
-    { name: '化妆刷', category: 'makeup' },
-    { name: '卸妆油', category: 'makeup' },
-    { name: '卸妆湿巾', category: 'makeup' },
-    { name: '香水', category: 'makeup' },
-    { name: 'T恤/上衣', category: 'clothing', smartRule: 'perPersonPerDay' },
-    { name: '衬衫', category: 'clothing', smartRule: 'perPersonPerDay' },
-    { name: '裤子/裙子', category: 'clothing', smartRule: 'perPersonPerDay' },
-    { name: '连衣裙', category: 'clothing', smartRule: 'perPersonPerDay' },
-    { name: '睡衣', category: 'clothing', smartRule: 'perPerson' },
-    { name: '内衣', category: 'clothing', defaultQty: 1, smartRule: 'perPersonPerDay' },
-    { name: '内裤', category: 'clothing', defaultQty: 1, smartRule: 'perPersonPerDay' },
-    { name: '文胸', category: 'clothing', defaultQty: 1, smartRule: 'perPersonPerDay' },
-    { name: '袜子', category: 'clothing', defaultQty: 1, smartRule: 'perPersonPerDay' },
-    { name: '打底裤', category: 'clothing', defaultQty: 1, smartRule: 'perPersonPerDay' },
-    { name: '轻薄外套', category: 'clothing', smartRule: 'perPerson' },
-    { name: '运动鞋', category: 'clothing', smartRule: 'perPerson' },
-    { name: '拖鞋', category: 'clothing', smartRule: 'perPerson' },
-    { name: '宝宝衣服', category: 'clothing', defaultQty: 2, bag: 'bag-baby', smartRule: 'perPersonPerDay' },
-    { name: '宝宝袜子', category: 'clothing', defaultQty: 1, bag: 'bag-baby', smartRule: 'perPersonPerDay' },
-    { name: '口水巾', category: 'clothing', defaultQty: 1, bag: 'bag-baby', smartRule: 'perPersonPerDay' },
-    { name: '帽子', category: 'clothing', smartRule: 'perPerson' },
-    { name: '感冒药', category: 'medicine' },
-    { name: '退烧药', category: 'medicine' },
-    { name: '退烧药（儿童）', category: 'medicine', bag: 'bag-baby' },
-    { name: '体温计', category: 'medicine', bag: 'bag-baby' },
-    { name: '退烧贴', category: 'medicine', defaultQty: 2, bag: 'bag-baby-vaccine' },
-    { name: '退热贴', category: 'medicine', defaultQty: 2, bag: 'bag-baby' },
-    { name: '创可贴', category: 'medicine' },
-    { name: '碘伏棉签', category: 'medicine' },
-    { name: '止痛药', category: 'medicine' },
-    { name: '晕车药', category: 'medicine' },
-    { name: '肠胃药', category: 'medicine' },
-    { name: '过敏药', category: 'medicine' },
-    { name: '消毒喷雾', category: 'medicine' },
-    { name: '常备药', category: 'medicine' },
-];
+import {
+    // constants
+    DEFAULT_CATEGORIES, DEFAULT_BAGS, CATEGORY_BAG_MAP, MODULE_FILTERS, STORAGE_KEYS, BABY_MODULE_IDS,
+    // seeds
+    OFFICIAL_MODULES, BASE_LIBRARY_ITEMS,
+    // utils
+    gid, deepClone, uniqueStrings, guessCat, catInfo, bagName, bagIcon, suggestBagForItem,
+    // smartFill
+    normalizeSmartConfig, mergeSmartConfig, computeSmartQty, strongerSmartRule,
+    smartRuleLabel, smartRuleShort, inferSmartConfig, inferSmartRule, resolveItemSmartPlan,
+    mergeTripItems, applyTripSmartFill,
+    // models
+    normalizeRecord, normalizeTripRecord, normalizeOfficialModule, normalizeModuleRecord,
+    normalizeTripItem, normalizeModuleItem, normalizeLibraryItem,
+    // store
+    readJson, writeJson, getRecords, saveRecords, saveRecord,
+    getOfficialModules, saveOfficialModules, getTrips, getMyModules,
+    // libraryService
+    sortLibraryItems, getItemLibrary, saveItemLibrary, buildSeedItemLibrary,
+    ensureItemLibrarySeeded, syncItemsIntoLibrary, createModuleItemFromAsset,
+    // tripService
+    getModuleEntity, resolveOfficialModuleItems, resolveCustomModuleItems,
+    createTripItemFromDef, createTripItemFromModuleItem, createTripItemFromAsset,
+    getTripProgress, getTripStatus, formatTripMeta, formatTripSourceSummary, formatItemSource,
+    getModuleKey, splitModuleKey, getBabyBaseModule,
+    isBabyModuleEntity, isBabyBaseModuleEntity, upsertTripSourceModule, ensureBabyBaseModuleOnTripRecord,
+} from './src/data/index.js';
 
 let S = {
     currentPage: 'home',
@@ -645,8 +184,10 @@ function renderHome() {
     const modules = getMyModules();
     const library = getItemLibrary();
     const active = trips.find(trip => getTripStatus(trip).key !== 'done') || null;
-    const recent = trips.filter(trip => trip.id !== active?.id).slice(0, 3);
-    const history = trips.filter(trip => trip.id !== active?.id).slice(3);
+    const done = trips.filter(trip => getTripStatus(trip).key === 'done');
+    const rest = trips.filter(trip => trip.id !== active?.id);
+    const recent = rest.filter(t => getTripStatus(t).key !== 'done').slice(0, 3);
+    const history = done;
 
     const isNewUser = !trips.length && !modules.length;
     const heroEl = document.getElementById('homeHero');
@@ -657,35 +198,96 @@ function renderHome() {
         statsEl.innerHTML = isNewUser ? '' : '<span>' + trips.length + ' 个行程</span><span class="qs-dot">·</span><span>' + (modules.length + getOfficialModules().length) + ' 个小包</span><span class="qs-dot">·</span><span>' + library.length + ' 件物品</span>';
     }
 
-    document.getElementById('activeTripMeta').textContent = active
-        ? getTripStatus(active).label
-        : '';
+    const content = document.getElementById('homeContent');
+    if (!content) return;
 
-    document.getElementById('activeTripSection').innerHTML = active
-        ? renderActiveTrip(active)
-        : (isNewUser ? '' : renderHomeEmpty());
+    // 新用户：展示 feature highlights
+    if (isNewUser) {
+        content.innerHTML = renderNewUserGuide();
+        return;
+    }
 
-    document.getElementById('recentTripList').innerHTML = recent.length
-        ? recent.map(renderTripCard).join('')
-        : (isNewUser ? '' : '<div class="empty-panel"><div class="empty-icon">📋</div><div class="empty-title">暂无最近行程</div><div class="empty-hint">创建行程后会出现在这里</div></div>');
+    let html = '';
 
-    document.getElementById('historyToggleMeta').textContent = history.length
-        ? (S.homeHistoryExpanded ? '收起' : `展开 ${history.length} 条`)
-        : '暂无';
+    // 进行中行程（有才显示，没有不占位）
+    if (active) {
+        html += '<section class="section">' +
+            '<div class="section-head">' +
+            '<h3 class="section-title">进行中</h3>' +
+            '<span class="section-meta">' + getTripStatus(active).label + '</span>' +
+            '</div>' +
+            renderActiveTrip(active) +
+            '</section>';
+    } else {
+        // 没有进行中行程：用一个轻量的 CTA banner
+        html += '<div class="home-cta-banner" onclick="openCreateTripModal()">' +
+            '<div class="home-cta-icon">📝</div>' +
+            '<div class="home-cta-body">' +
+            '<div class="home-cta-title">新建行程</div>' +
+            '<div class="home-cta-desc">选几个小包，智能生成打包清单</div>' +
+            '</div>' +
+            '<div class="home-cta-arrow">›</div>' +
+            '</div>';
+    }
 
-    const historyBox = document.getElementById('historyTripList');
-    const showHistory = S.homeHistoryExpanded && history.length;
-    historyBox.innerHTML = showHistory
-        ? history.map(renderTripCard).join('')
-        : (history.length ? '' : '<div class="empty-panel"><div class="empty-icon">📋</div><div class="empty-title">暂无历史行程</div><div class="empty-hint">完成的行程会自动归档到这里</div></div>');
+    // 最近行程
+    if (recent.length) {
+        html += '<section class="section">' +
+            '<div class="section-head">' +
+            '<h3 class="section-title">最近</h3>' +
+            '</div>' +
+            '<div class="trip-list-compact">' + recent.map(renderTripCardCompact).join('') + '</div>' +
+            '</section>';
+    }
+
+    // 历史行程（已完成的）
+    if (history.length) {
+        const showing = S.homeHistoryExpanded ? history : history.slice(0, 2);
+        html += '<section class="section">' +
+            '<div class="section-head">' +
+            '<h3 class="section-title">已完成</h3>' +
+            '<span class="section-meta section-link" onclick="toggleHomeHistory()">' +
+            (S.homeHistoryExpanded ? '收起' : (history.length > 2 ? '查看全部 ' + history.length + ' 条' : '')) +
+            '</span>' +
+            '</div>' +
+            '<div class="trip-list-compact">' + showing.map(renderTripCardCompact).join('') + '</div>' +
+            '</section>';
+    }
+
+    content.innerHTML = html;
+}
+
+function renderNewUserGuide() {
+    return '<div class="home-features">' +
+        '<div class="feature-card" onclick="openMainPage(\'kits\')">' +
+        '<div class="feature-icon">🧰</div>' +
+        '<div class="feature-body">' +
+        '<div class="feature-title">整理小包</div>' +
+        '<div class="feature-desc">把常带物品按用途分组，比如洗漱包、化妆包。系统已预置 9 个官方小包。</div>' +
+        '</div>' +
+        '<div class="home-cta-arrow">\u203A</div>' +
+        '</div>' +
+        '<div class="feature-card" onclick="openCreateTripModal()">' +
+        '<div class="feature-icon">📝</div>' +
+        '<div class="feature-body">' +
+        '<div class="feature-title">新建行程</div>' +
+        '<div class="feature-desc">勾选需要的小包，系统自动合并物品并按天数、人数建议数量。</div>' +
+        '</div>' +
+        '<div class="home-cta-arrow">\u203A</div>' +
+        '</div>' +
+        '<div class="feature-card" onclick="openMainPage(\'items\')">' +
+        '<div class="feature-icon">🎒</div>' +
+        '<div class="feature-body">' +
+        '<div class="feature-title">物品库</div>' +
+        '<div class="feature-desc">管理你的物品库，添加个人常用物品，打包时随手挑选。</div>' +
+        '</div>' +
+        '<div class="home-cta-arrow">\u203A</div>' +
+        '</div>' +
+        '</div>';
 }
 
 function renderHomeEmpty() {
-    return '<div class="empty-panel">' +
-        '<div class="empty-icon">📝</div>' +
-        '<div class="empty-title">还没有进行中的行程</div>' +
-        '<div class="empty-hint">点右上角 ＋ 新建一个行程，或先去"小包"页整理物品。</div>' +
-        '</div>';
+    return '';
 }
 
 function renderActiveTrip(trip) {
@@ -703,6 +305,23 @@ function renderActiveTrip(trip) {
         '<button class="btn-secondary" onclick="openTrip(\'' + trip.id + '\',\'plan\')">继续规划</button>' +
         '<button class="btn-primary" onclick="openTrip(\'' + trip.id + '\',\'pack\')">开始打包</button>' +
         '</div></div>';
+}
+
+function renderTripCardCompact(trip) {
+    const progress = getTripProgress(trip);
+    const status = getTripStatus(trip);
+    return '<div class="trip-card-compact" onclick="openTrip(\'' + trip.id + '\',\'plan\')">' +
+        '<div class="trip-compact-icon">' + status.icon + '</div>' +
+        '<div class="trip-compact-body">' +
+        '<div class="trip-compact-name">' + esc(trip.name) + '</div>' +
+        '<div class="trip-compact-meta">' + esc(formatTripMeta(trip)) + '</div>' +
+        '</div>' +
+        '<div class="trip-compact-progress">' +
+        '<div class="progress-ring" style="--pct:' + progress.pct + '">' +
+        '<span class="progress-ring-text">' + progress.pct + '%</span>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
 }
 
 function renderTripCard(trip) {
@@ -882,7 +501,10 @@ function renderBagsPackView(trip) {
         const collapsed = S.collapsedBags.has(group.bag.id) ? ' collapsed' : '';
         return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '">' +
             '<div class="bag-group-header" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">' +
-            '<span>' + group.bag.icon + ' ' + esc(group.bag.name) + '</span>' +
+            '<div class="bag-group-label">' +
+            '<span class="bag-icon">' + group.bag.icon + '</span>' +
+            '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
+            '</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
             '<span class="bag-toggle">▼</span>' +
             '</div></div>' +
@@ -1044,7 +666,6 @@ function renderOfficialModuleCard(module, view = 'normal') {
             '<div class="kit-card-icon">' + module.icon + '</div>' +
             '<div class="kit-card-name">' + esc(module.name) + '</div>' +
             '</div>' +
-            '<div class="kit-card-count"><span class="kit-card-count-icon">📦</span>' + preview.length + '件</div>' +
             '</div>';
     }
     return '<div class="kit-card recommended" onclick="openModuleDetail(\'official\',\'' + module.id + '\')">' +
@@ -1070,7 +691,6 @@ function renderMyModuleCard(module, view = 'normal') {
             '<div class="kit-card-icon">' + esc(module.icon || '🧰') + '</div>' +
             '<div class="kit-card-name">' + esc(module.name) + '</div>' +
             '</div>' +
-            '<div class="kit-card-count"><span class="kit-card-count-icon">📦</span>' + preview.length + '件</div>' +
             '</div>';
     }
     return '<div class="kit-card" onclick="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
@@ -1229,8 +849,6 @@ function renderLibraryCard(item) {
         (addButton ? '<div class="library-actions">' + addButton + '</div>' : '') +
         '</div>';
 }
-
-
 function parseBulkNames(text) {
     return uniqueStrings(
         String(text || '')
@@ -2124,343 +1742,6 @@ function persistCurrentTrip() {
     S.currentTrip.updatedAt = new Date().toISOString();
     saveRecord(S.currentTrip);
 }
-
-function getModuleEntity(source, id) {
-    if (source === 'official') return getOfficialModules().find(module => module.id === id) || null;
-    return getMyModules().find(module => module.id === id) || null;
-}
-
-function resolveOfficialModuleItems(module, days, people) {
-    return (module.items || []).map(item => createTripItemFromModuleItem(normalizeModuleItem(item), days, people, module.name));
-}
-
-function resolveCustomModuleItems(module, days, people) {
-    return (module.items || []).map(item => createTripItemFromModuleItem(item, days, people, module.name));
-}
-
-function resolveItemSmartPlan(name, category, rawRule = null, rawConfig = null) {
-    const smartConfig = normalizeSmartConfig(rawConfig || inferSmartConfig(name, category));
-    const fallbackRule = inferSmartRule(name, category);
-    const smartRule = rawRule || (smartConfig ? 'formula' : fallbackRule);
-    return {
-        smartRule: smartConfig && smartRule === 'fixed' ? 'formula' : smartRule,
-        smartConfig,
-    };
-}
-
-function createTripItemFromDef(def, days, people, sourceModuleName) {
-    const category = def.c || def.category || guessCat(def.name);
-    const baseQty = Math.max(1, parseInt(def.q) || 1);
-    const { smartRule, smartConfig } = resolveItemSmartPlan(def.name, category, def.smartRule || def.smart, def.smartConfig);
-    return normalizeTripItem({
-        id: 'item-' + gid(),
-        name: def.name,
-        category,
-        bag: def.bag || suggestBagForItem(def.name, category),
-        smartRule,
-        smartConfig,
-        smartBaseQty: baseQty,
-        qty: computeSmartQty(baseQty, smartRule, days, people, smartConfig),
-        packed: false,
-        notes: '',
-        sourceModules: sourceModuleName ? [sourceModuleName] : [],
-        tags: Array.isArray(def.tags) ? [...def.tags] : [],
-    });
-}
-
-function createTripItemFromModuleItem(item, days, people, sourceModuleName) {
-    const { smartRule, smartConfig } = resolveItemSmartPlan(item.name, item.category, item.smartRule, item.smartConfig);
-    return normalizeTripItem({
-        id: 'item-' + gid(),
-        name: item.name,
-        category: item.category,
-        bag: item.bag,
-        smartRule,
-        smartConfig,
-        smartBaseQty: item.defaultQty,
-        qty: computeSmartQty(item.defaultQty, smartRule, days, people, smartConfig),
-        packed: false,
-        notes: '',
-        sourceModules: sourceModuleName ? [sourceModuleName] : [],
-        tags: Array.isArray(item.tags) ? [...item.tags] : [],
-    });
-}
-
-function createTripItemFromAsset(asset, days, people) {
-    const { smartRule, smartConfig } = resolveItemSmartPlan(asset.name, asset.category, asset.smartRule, asset.smartConfig);
-    return normalizeTripItem({
-        id: 'item-' + gid(),
-        name: asset.name,
-        category: asset.category,
-        bag: asset.bag || suggestBagForItem(asset.name, asset.category),
-        smartRule,
-        smartConfig,
-        smartBaseQty: asset.defaultQty || 1,
-        qty: computeSmartQty(asset.defaultQty || 1, smartRule, days, people, smartConfig),
-        packed: false,
-        notes: '',
-        sourceModules: [],
-        tags: Array.isArray(asset.tags) ? [...asset.tags] : [],
-    });
-}
-
-function createModuleItemFromAsset(asset) {
-    const { smartRule, smartConfig } = resolveItemSmartPlan(asset.name, asset.category, asset.smartRule, asset.smartConfig);
-    return normalizeModuleItem({
-        id: 'module-item-' + gid(),
-        name: asset.name,
-        category: asset.category,
-        bag: asset.bag || suggestBagForItem(asset.name, asset.category),
-        defaultQty: asset.defaultQty || 1,
-        smartRule,
-        smartConfig,
-    });
-}
-
-function mergeTripItems(targetItems, incomingItems, tripContext, strategy = 'manual') {
-    incomingItems.forEach(candidate => {
-        const existing = targetItems.find(item => item.name === candidate.name && item.category === candidate.category);
-        if (!existing) {
-            targetItems.push(normalizeTripItem(candidate));
-            return;
-        }
-
-        existing.sourceModules = uniqueStrings([...(existing.sourceModules || []), ...(candidate.sourceModules || [])]);
-        existing.notes = existing.notes || candidate.notes || '';
-
-        if (strategy === 'module') {
-            existing.smartRule = strongerSmartRule(existing.smartRule, candidate.smartRule);
-            existing.smartConfig = mergeSmartConfig(existing.smartConfig, candidate.smartConfig);
-            existing.smartBaseQty = Math.max(existing.smartBaseQty || existing.qty, candidate.smartBaseQty || candidate.qty || 1);
-            if (!existing.smartLocked) {
-                existing.qty = Math.max(
-                    existing.qty,
-                    candidate.qty,
-                    computeSmartQty(existing.smartBaseQty || 1, existing.smartRule, tripContext.days, tripContext.people, existing.smartConfig, tripContext)
-                );
-            } else {
-                existing.qty = Math.max(existing.qty, candidate.qty);
-            }
-        } else {
-            existing.qty += candidate.qty;
-            if (existing.smartRule !== 'fixed') existing.smartLocked = true;
-        }
-    });
-}
-
-function applyTripSmartFill(trip, unlockAll = false) {
-    trip.items = trip.items.map(item => {
-        const next = normalizeTripItem(item);
-        if (unlockAll) next.smartLocked = false;
-        if (next.smartRule !== 'fixed' && !next.smartLocked) {
-            next.qty = computeSmartQty(next.smartBaseQty || 1, next.smartRule, trip.days, trip.people, next.smartConfig, trip);
-        }
-        return next;
-    });
-}
-
-function normalizeSmartConfig(config) {
-    if (!config) return null;
-    const sceneFactors = {};
-    const rawSceneFactors = config.sceneFactors || {};
-    Object.keys(rawSceneFactors).forEach(key => {
-        const value = parseInt(rawSceneFactors[key]);
-        if (Number.isFinite(value) && value > 0) sceneFactors[key] = value;
-    });
-    return {
-        mode: 'formula',
-        dailyIncrement: Math.max(0, parseInt(config.dailyIncrement) || parseInt(config.perDay) || 0),
-        personIncrement: Math.max(0, parseInt(config.personIncrement) || 0),
-        sceneFactors,
-    };
-}
-
-function mergeSmartConfig(currentConfig, nextConfig) {
-    const current = normalizeSmartConfig(currentConfig);
-    const next = normalizeSmartConfig(nextConfig);
-    if (!current) return next;
-    if (!next) return current;
-    const mergedSceneFactors = { ...current.sceneFactors };
-    Object.keys(next.sceneFactors).forEach(key => {
-        mergedSceneFactors[key] = Math.max(mergedSceneFactors[key] || 0, next.sceneFactors[key]);
-    });
-    return {
-        mode: 'formula',
-        dailyIncrement: Math.max(current.dailyIncrement, next.dailyIncrement),
-        personIncrement: Math.max(current.personIncrement, next.personIncrement),
-        sceneFactors: mergedSceneFactors,
-    };
-}
-
-function getSmartSceneFactor(smartConfig, tripContext) {
-    const config = normalizeSmartConfig(smartConfig);
-    if (!config || !tripContext?.sourceModules?.length) return 0;
-    const activeModuleIds = new Set((tripContext.sourceModules || []).map(module => module.id));
-    return Object.keys(config.sceneFactors).reduce((sum, moduleId) => sum + (activeModuleIds.has(moduleId) ? config.sceneFactors[moduleId] : 0), 0);
-}
-
-function computeSmartQty(baseQty, smartRule, days, people, smartConfig = null, tripContext = null) {
-    const safeBase = Math.max(1, parseInt(baseQty) || 1);
-    const safeDays = Math.max(1, parseInt(days) || 1);
-    const safePeople = Math.max(1, parseInt(people) || 1);
-
-    if (smartRule === 'formula') {
-        const config = normalizeSmartConfig(smartConfig);
-        if (!config) return safeBase;
-        return Math.max(1, safeBase + safeDays * config.dailyIncrement + Math.max(0, safePeople - 1) * config.personIncrement + getSmartSceneFactor(config, tripContext));
-    }
-    if (smartRule === 'perPerson') return safeBase * safePeople;
-    if (smartRule === 'perDay') return safeBase * safeDays;
-    if (smartRule === 'perPersonPerDay') return safeBase * safeDays * safePeople;
-    return safeBase;
-}
-
-function strongerSmartRule(currentRule, nextRule) {
-    const order = { fixed: 0, perPerson: 1, perDay: 2, perPersonPerDay: 3, formula: 4 };
-    return (order[nextRule] || 0) > (order[currentRule] || 0) ? nextRule : currentRule;
-}
-
-function smartRuleLabel(rule, smartConfig = null) {
-    if (rule === 'formula') {
-        const config = normalizeSmartConfig(smartConfig);
-        if (!config) return '基础量 + 天数增量 + 场景系数';
-        return `基础量 + ${config.dailyIncrement}×天数 + 场景系数`;
-    }
-    if (rule === 'perPerson') return '按人数建议';
-    if (rule === 'perDay') return '按天数建议';
-    if (rule === 'perPersonPerDay') return '按天数 × 人数建议';
-    return '固定数量';
-}
-
-function smartRuleShort(rule) {
-    if (rule === 'formula') return '公式补量';
-    if (rule === 'perPerson') return '按人数';
-    if (rule === 'perDay') return '按天数';
-    if (rule === 'perPersonPerDay') return '按天/人';
-    return '固定';
-}
-
-function inferSmartConfig(name, category) {
-    const n = String(name || '').toLowerCase();
-    if (['尿不湿', '纸尿裤'].some(keyword => n.includes(keyword))) {
-        return normalizeSmartConfig({
-            dailyIncrement: 3,
-            sceneFactors: {
-                [BABY_MODULE_IDS.vaccine]: 1,
-                [BABY_MODULE_IDS.feeding]: 1,
-                [BABY_MODULE_IDS.overnight]: 3,
-                [BABY_MODULE_IDS.outdoor]: 2,
-            },
-        });
-    }
-    if (['备用衣裤', '宝宝衣服', '宝宝衣裤'].some(keyword => n.includes(keyword))) {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.overnight]: 1,
-                [BABY_MODULE_IDS.outdoor]: 1,
-            },
-        });
-    }
-    if ((n.includes('湿巾') && (n.includes('婴儿') || n.includes('宝宝'))) || n === '湿巾（婴儿专用）') {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.overnight]: 1,
-                [BABY_MODULE_IDS.outdoor]: 1,
-            },
-        });
-    }
-    if (n.includes('棉柔巾')) {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.feeding]: 1,
-                [BABY_MODULE_IDS.overnight]: 1,
-            },
-        });
-    }
-    if (n.includes('隔尿垫')) {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.overnight]: 1,
-                [BABY_MODULE_IDS.outdoor]: 1,
-            },
-        });
-    }
-    if (['围兜', '围嘴', '口水巾'].some(keyword => n.includes(keyword))) {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.feeding]: 1,
-                [BABY_MODULE_IDS.overnight]: 1,
-            },
-        });
-    }
-    if (n.includes('大量零食')) {
-        return normalizeSmartConfig({
-            dailyIncrement: 1,
-            sceneFactors: {
-                [BABY_MODULE_IDS.outdoor]: 2,
-            },
-        });
-    }
-    return null;
-}
-
-function inferSmartRule(name, category) {
-    const n = String(name || '').toLowerCase();
-    if (inferSmartConfig(name, category)) return 'formula';
-    if (category === 'clothing') {
-        if (['t恤', '上衣', '衬衫', '裤', '裙', '内衣', '内裤', '文胸', '袜', '打底裤', '宝宝袜子'].some(keyword => n.includes(keyword))) {
-            return 'perPersonPerDay';
-        }
-        if (['睡衣', '外套', '鞋', '拖鞋', '帽子'].some(keyword => n.includes(keyword))) {
-            return 'perPerson';
-        }
-        return 'perPerson';
-    }
-    if (['奶瓶', '毛巾', '浴巾'].some(keyword => n.includes(keyword))) return 'perPerson';
-    return 'fixed';
-}
-
-function getTripProgress(trip) {
-    const total = trip.items?.length || 0;
-    const packed = trip.items?.filter(item => item.packed).length || 0;
-    return {
-        total,
-        packed,
-        pending: Math.max(0, total - packed),
-        pct: total ? Math.round((packed / total) * 100) : 0,
-    };
-}
-
-function getTripStatus(trip) {
-    const progress = getTripProgress(trip);
-    if (progress.total > 0 && progress.packed >= progress.total) return { key: 'done', label: '已完成', icon: '✅' };
-    if (progress.packed > 0) return { key: 'packing', label: '打包中', icon: '🎒' };
-    return { key: 'planning', label: '规划中', icon: '📝' };
-}
-
-function formatTripMeta(trip) {
-    const modules = trip.sourceModules?.length ? ` · ${trip.sourceModules.length} 个小包` : '';
-    return `${trip.days || 1} 天 · ${trip.people || 1} 人 · ${trip.items?.length || 0} 件${modules}`;
-}
-
-function formatTripSourceSummary(trip) {
-    if (!trip.sourceModules?.length) return '自由添加物品';
-    const names = trip.sourceModules.map(module => module.name);
-    if (names.length <= 2) return names.join(' + ');
-    return names.slice(0, 2).join(' + ') + ` +${names.length - 2} 个小包`;
-}
-
-function formatItemSource(item) {
-    if (!item.sourceModules?.length) return '';
-    if (item.sourceModules.length === 1) return '来自 ' + item.sourceModules[0];
-    return `来自 ${item.sourceModules.length} 个小包`;
-}
-
 function stepValue(id, delta) {
     const input = document.getElementById(id);
     if (!input) return;
@@ -2491,31 +1772,6 @@ function getPreviewDays() {
 function getPreviewPeople() {
     return S.currentTrip?.people || 1;
 }
-
-function getModuleKey(source, id) {
-    return `${source}:${id}`;
-}
-
-function splitModuleKey(key) {
-    return key.split(':');
-}
-
-function getBabyBaseModule() {
-    return getOfficialModules().find(module => module.id === BABY_MODULE_IDS.base) || null;
-}
-
-function isBabyModuleEntity(module) {
-    if (!module) return false;
-    if (module.group === 'baby') return true;
-    if (module.purpose === 'family') return true;
-    const blob = [module.name, module.desc, ...(module.tags || []), ...((module.items || []).map(item => item.name || ''))].join(' ');
-    return /宝宝|带娃|疫苗|奶瓶|尿不湿|辅食/.test(blob);
-}
-
-function isBabyBaseModuleEntity(module) {
-    return !!module && module.id === BABY_MODULE_IDS.base;
-}
-
 function tripBuilderHasBabyAddonSelection() {
     return Array.from(S.tripBuilderSelection).some(key => {
         const [source, id] = splitModuleKey(key);
@@ -2537,26 +1793,6 @@ function buildTripBuilderModulesFromSelection() {
         return module ? { source, module } : null;
     }).filter(Boolean);
 }
-
-function upsertTripSourceModule(trip, sourceModule) {
-    if (!trip || !sourceModule) return;
-    const existing = trip.sourceModules || [];
-    if (!existing.some(module => module.source === sourceModule.source && module.id === sourceModule.id)) {
-        existing.push(sourceModule);
-        trip.sourceModules = existing;
-    }
-}
-
-function ensureBabyBaseModuleOnTripRecord(trip) {
-    if (!trip) return;
-    const baseModule = getBabyBaseModule();
-    if (!baseModule) return;
-    if ((trip.sourceModules || []).some(module => module.source === 'official' && module.id === baseModule.id)) return;
-    const items = resolveOfficialModuleItems(baseModule, trip.days, trip.people);
-    mergeTripItems(trip.items, items, trip, 'module');
-    upsertTripSourceModule(trip, { source: 'official', id: baseModule.id, name: baseModule.name });
-}
-
 function syncBagWithCategory(catSelectId, bagSelectId, bags) {
     const category = document.getElementById(catSelectId)?.value;
     const select = document.getElementById(bagSelectId);
@@ -2567,274 +1803,6 @@ function syncBagWithCategory(catSelectId, bagSelectId, bags) {
     );
     fillBagSelect(bagSelectId, preferred, bags);
 }
-
-function suggestBagForItem(name, category) {
-    const n = String(name || '');
-    if (['疫苗本', '退烧贴', '退热贴', '医保卡'].some(keyword => n.includes(keyword))) return 'bag-baby-vaccine';
-    if (['奶瓶', '奶粉', '奶粉格', '辅食碗', '围兜', '围嘴', '保温杯'].some(keyword => n.includes(keyword))) return 'bag-baby-feeding';
-    if (['便携烧水壶', '奶瓶刷', '折叠澡盆'].some(keyword => n.includes(keyword))) return 'bag-baby-overnight';
-    if (['驱蚊液', '防晒霜', '便携马桶', '大量零食'].some(keyword => n.includes(keyword))) return 'bag-baby-outdoor';
-    if (n.includes('宝宝') || ['尿不湿', '纸尿裤', '隔尿垫', '棉柔巾', '湿巾（婴儿专用）', '备用衣裤', '安抚奶嘴', '口水巾'].some(keyword => n.includes(keyword))) return 'bag-baby';
-    return CATEGORY_BAG_MAP[category] || 'bag-misc';
-}
-
-function readJson(key, fallback) {
-    try {
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : fallback;
-    } catch {
-        return fallback;
-    }
-}
-
-function writeJson(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-}
-
-function getRecords() {
-    return readJson(STORAGE_KEYS.records, [])
-        .map(normalizeRecord)
-        .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
-}
-
-function saveRecords(records) {
-    writeJson(STORAGE_KEYS.records, records);
-}
-
-function saveRecord(record) {
-    const records = getRecords();
-    const idx = records.findIndex(item => item.id === record.id);
-    const normalized = normalizeRecord(record);
-    if (idx >= 0) records[idx] = normalized;
-    else records.unshift(normalized);
-    saveRecords(records);
-}
-
-function getOfficialModules() {
-    return readJson(STORAGE_KEYS.officialModules, OFFICIAL_MODULES)
-        .map(normalizeOfficialModule);
-}
-
-function saveOfficialModules(modules) {
-    writeJson(STORAGE_KEYS.officialModules, (modules || []).map(normalizeOfficialModule));
-}
-
-function getTrips() {
-    return getRecords().filter(record => record.recordType === 'trip');
-}
-
-function getMyModules() {
-    return getRecords().filter(record => record.recordType === 'module');
-}
-
-function getItemLibrary() {
-    const items = readJson(STORAGE_KEYS.itemLibrary, buildSeedItemLibrary());
-    return sortLibraryItems((items || []).map(normalizeLibraryItem));
-}
-
-function saveItemLibrary(items) {
-    writeJson(STORAGE_KEYS.itemLibrary, sortLibraryItems((items || []).map(normalizeLibraryItem)));
-}
-
-function buildSeedItemLibrary() {
-    const byName = new Map();
-    const ref = { value: 1 };
-    BASE_LIBRARY_ITEMS.forEach(def => registerSeedItem(byName, def, ref));
-    getOfficialModules().forEach(module => {
-        module.items.forEach(def => registerSeedItem(byName, def, ref));
-    });
-    return sortLibraryItems(Array.from(byName.values()));
-}
-
-function registerSeedItem(map, def, ref) {
-    const name = String(def.name || '').trim();
-    if (!name || map.has(name)) return;
-    const category = def.category || def.c || guessCat(name);
-    map.set(name, normalizeLibraryItem({
-        id: 'asset-seed-' + ref.value++,
-        name,
-        category,
-        defaultQty: def.defaultQty || def.q || 1,
-        bag: def.bag || suggestBagForItem(name, category),
-        smartRule: def.smartRule || def.smart || inferSmartRule(name, category),
-        source: 'system',
-    }));
-}
-
-function ensureItemLibrarySeeded() {
-    const stored = readJson(STORAGE_KEYS.itemLibrary, null);
-    const seeded = buildSeedItemLibrary();
-    if (!stored || !stored.length) {
-        saveItemLibrary(seeded);
-        return;
-    }
-
-    const merged = (stored || []).map(normalizeLibraryItem);
-    const byName = new Map(merged.map(item => [item.name, true]));
-    seeded.forEach(item => {
-        if (!byName.has(item.name)) merged.push(item);
-    });
-    saveItemLibrary(merged);
-}
-
-function syncItemsIntoLibrary(items = []) {
-    if (!items.length) return;
-    const library = getItemLibrary();
-    const byName = new Map(library.map(item => [item.name, true]));
-    let changed = false;
-
-    items.forEach(item => {
-        const name = String(item?.name || '').trim();
-        if (!name || byName.has(name)) return;
-        const category = item.category || guessCat(name);
-        const { smartRule, smartConfig } = resolveItemSmartPlan(name, category, item.smartRule, item.smartConfig);
-        library.unshift(normalizeLibraryItem({
-            id: 'asset-' + gid(),
-            name,
-            category,
-            defaultQty: item.defaultQty || item.smartBaseQty || item.qty || 1,
-            bag: item.bag || suggestBagForItem(name, category),
-            smartRule,
-            smartConfig,
-            source: 'user',
-        }));
-        byName.set(name, true);
-        changed = true;
-    });
-
-    if (changed) saveItemLibrary(library);
-}
-
-function sortLibraryItems(items) {
-    return [...items].sort((a, b) => {
-        const sourceDiff = Number(b.source === 'user') - Number(a.source === 'user');
-        if (sourceDiff !== 0) return sourceDiff;
-        const categoryDiff = catInfo(a.category).name.localeCompare(catInfo(b.category).name, 'zh-Hans-CN');
-        if (categoryDiff !== 0) return categoryDiff;
-        return a.name.localeCompare(b.name, 'zh-Hans-CN');
-    });
-}
-
-function normalizeRecord(record) {
-    const type = record.recordType || (record.isTemplate ? 'module' : 'trip');
-    return type === 'module' ? normalizeModuleRecord(record) : normalizeTripRecord(record);
-}
-
-function normalizeTripRecord(record) {
-    const bags = Array.isArray(record.bags) && record.bags.length ? record.bags : deepClone(DEFAULT_BAGS);
-    return {
-        ...record,
-        recordType: 'trip',
-        isTemplate: false,
-        days: Math.max(1, parseInt(record.days) || 1),
-        people: Math.max(1, parseInt(record.people) || 1),
-        bags,
-        sourceModules: Array.isArray(record.sourceModules) ? record.sourceModules.map(module => ({
-            source: module.source || 'custom',
-            id: module.id || '',
-            name: module.name || '未命名小包',
-        })) : [],
-        items: (record.items || []).map(normalizeTripItem),
-        createdAt: record.createdAt || new Date().toISOString(),
-        updatedAt: record.updatedAt || record.createdAt || new Date().toISOString(),
-    };
-}
-
-function normalizeOfficialModule(module) {
-    return {
-        id: module?.id || ('official-module-' + gid()),
-        name: module?.name || '未命名官方小包',
-        icon: module?.icon || '🧰',
-        purpose: module?.purpose || 'starter',
-        group: module?.group || '',
-        role: module?.role || '',
-        defaultOn: Boolean(module?.defaultOn),
-        desc: module?.desc || '',
-        tags: Array.isArray(module?.tags) ? uniqueStrings(module.tags) : [],
-        items: (module?.items || []).map(normalizeModuleItem),
-    };
-}
-
-function normalizeModuleRecord(record) {
-    return {
-        ...record,
-        recordType: 'module',
-        isTemplate: true,
-        icon: record.icon || record.kitMeta?.icon || '🧰',
-        desc: record.desc || record.kitMeta?.desc || '',
-        purpose: record.purpose || 'custom',
-        tags: Array.isArray(record.tags) ? record.tags : [],
-        items: (record.items || []).map(normalizeModuleItem),
-        createdAt: record.createdAt || new Date().toISOString(),
-        updatedAt: record.updatedAt || record.createdAt || new Date().toISOString(),
-    };
-}
-
-function normalizeTripItem(item) {
-    const category = item.category || guessCat(item.name || '');
-    const smartConfig = normalizeSmartConfig(item.smartConfig || inferSmartConfig(item.name, category));
-    return {
-        id: item.id || ('item-' + gid()),
-        name: item.name || '未命名物品',
-        category,
-        bag: item.bag || suggestBagForItem(item.name, category),
-        qty: Math.max(1, parseInt(item.qty) || 1),
-        packed: Boolean(item.packed),
-        notes: item.notes || '',
-        smartRule: item.smartRule || (smartConfig ? 'formula' : 'fixed'),
-        smartConfig,
-        smartBaseQty: Math.max(1, parseInt(item.smartBaseQty) || parseInt(item.defaultQty) || parseInt(item.qty) || 1),
-        smartLocked: Boolean(item.smartLocked),
-        sourceModules: Array.isArray(item.sourceModules) ? uniqueStrings(item.sourceModules) : (item.sourceModule ? [item.sourceModule] : []),
-        tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : [],
-    };
-}
-
-function normalizeModuleItem(item) {
-    const category = item.category || guessCat(item.name || '');
-    const smartConfig = normalizeSmartConfig(item.smartConfig || inferSmartConfig(item.name, category));
-    return {
-        id: item.id || ('module-item-' + gid()),
-        name: item.name || '未命名物品',
-        category,
-        bag: item.bag || suggestBagForItem(item.name, category),
-        defaultQty: Math.max(1, parseInt(item.defaultQty) || parseInt(item.smartBaseQty) || parseInt(item.qty) || 1),
-        smartRule: item.smartRule || (smartConfig ? 'formula' : inferSmartRule(item.name, category)),
-        smartConfig,
-    };
-}
-
-function normalizeLibraryItem(item) {
-    const name = String(item?.name || '未命名物品').trim();
-    const category = item?.category || guessCat(name);
-    const smartConfig = normalizeSmartConfig(item?.smartConfig || inferSmartConfig(name, category));
-    return {
-        id: item?.id || ('asset-' + gid()),
-        name,
-        category,
-        defaultQty: Math.max(1, parseInt(item?.defaultQty) || 1),
-        bag: item?.bag || suggestBagForItem(name, category),
-        smartRule: smartConfig ? 'formula' : (item?.smartRule || inferSmartRule(name, category)),
-        smartConfig,
-        source: item?.source === 'user' ? 'user' : 'system',
-        tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : [],
-    };
-}
-
-function catInfo(id) {
-    return DEFAULT_CATEGORIES.find(cat => cat.id === id) || { id: 'misc', name: '杂物', cssClass: 'cat-misc' };
-}
-
-function bagName(id, bags = DEFAULT_BAGS) {
-    const bag = (bags || []).find(entry => entry.id === id);
-    return bag ? bag.name : '未分配';
-}
-
-function bagIcon(id, bags = DEFAULT_BAGS) {
-    const bag = (bags || []).find(entry => entry.id === id);
-    return bag ? bag.icon : '📦';
-}
-
 function fillCatSelect(id, selected) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -2846,40 +1814,6 @@ function fillBagSelect(id, selected, bags = DEFAULT_BAGS) {
     if (!el) return;
     el.innerHTML = (bags || DEFAULT_BAGS).map(bag => '<option value="' + bag.id + '"' + (bag.id === selected ? ' selected' : '') + '>' + bag.icon + ' ' + bag.name + '</option>').join('');
 }
-
-function guessCat(name) {
-    const n = String(name || '').toLowerCase();
-    const rules = [
-        [['身份证', '护照', '签证', '驾照', '工作证', '门禁', '名片', '发票', '行程', '保险', '户口', '出生', '学生证', '预订', '确认单', '社保', '医保'], 'docs'],
-        [['充电', '电池', '数据线', '耳机', '手机', '电脑', 'pad', '平板', '相机', '转换插', 'u盘', '鼠标', '手电', '头灯', '露营灯', '音箱', '自拍', '插线板', '读卡器', 'watch'], 'electronics'],
-        [['衬衫', 't恤', '裤', '裙', '连衣裙', '内衣', '内裤', '文胸', '袜', '外套', '西装', '风衣', '睡衣', '泳衣', '拖鞋', '鞋', '冲锋衣', '速干', '帽子', '围巾', '口水巾', '宝宝衣服', '宝宝袜子', '打底裤'], 'clothing'],
-        [['牙刷', '牙膏', '漱口', '牙线', '洗面', '梳', '剃须', '沐浴', '洗发', '香皂', '浴巾', '毛巾', '牙刷杯'], 'hygiene'],
-        [['面霜', '防晒', '唇膏', '面膜', '芦荟', '驱蚊', '护肤', '护臀', '乳液', '精华', '身体乳', '护手霜', '喷雾'], 'skincare'],
-        [['口红', '唇釉', '粉底', '粉扑', '气垫', '眼影', '化妆', '卸妆', '睫毛', '腮红', '眉笔', '眼线', '遮瑕', '散粉', '高光', '修容', '定妆', '妆前', '美妆蛋', '化妆刷', '香水'], 'makeup'],
-        [['感冒药', '退烧', '创可贴', '肠胃', '晕车', '维生素', '温度计', '碘伏', '止痛', '消毒', '常备药', '退热贴', '过敏药'], 'medicine'],
-        [['钱包', '钥匙', '口罩', '随身', '现金', '银行卡', '墨镜', '发绳'], 'small-bag'],
-        [['购物袋', '收纳袋', '压缩袋', '大包', '行李箱'], 'big-bag'],
-        [['雨伞', '雨衣', '纸巾', '湿巾', '垃圾袋', '塑料袋', '零食', '水杯', '保温杯', 'u型枕', '眼罩', '耳塞', '行李锁', '行李牌', '打火机', '绳索', '扎带', '饮用水', '奶瓶', '奶粉', '围兜', '安抚玩具', '隔尿垫', '奶嘴', '尿不湿', '辅食'], 'misc'],
-    ];
-
-    for (const [keywords, category] of rules) {
-        if (keywords.some(keyword => n.includes(keyword))) return category;
-    }
-    return 'misc';
-}
-
-function uniqueStrings(values) {
-    return Array.from(new Set((values || []).filter(Boolean)));
-}
-
-function deepClone(value) {
-    return JSON.parse(JSON.stringify(value));
-}
-
-function gid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
 function esc(value) {
     const div = document.createElement('div');
     div.textContent = value == null ? '' : String(value);
@@ -3018,5 +1952,43 @@ function clearAllData() {
     nav('home');
     toast('数据已清除');
 }
+
+// Expose functions to global scope for HTML onclick/oninput handlers
+Object.assign(window, {
+    // nav & pages
+    openMainPage, goBack, nav,
+    // trip builder
+    openCreateTripModal, confirmCreateTrip, stepValue,
+    toggleTripBuilderModule, changeCurrentTripSetting,
+    // trip page
+    openTrip, setTripMode, toggleTripMode, setPackView,
+    togglePackItem, toggleBagCollapse, markAllPacked, markAllUnpacked,
+    reapplyTripSmartFill, saveCurrentTripAsModule,
+    goSelectModuleForTrip, goSelectItemsForTrip,
+    // module
+    openCreateModuleModal, saveCustomModule, deleteCurrentModuleDraft,
+    clearModuleBuilderSelection, addBuilderCustomItem,
+    useCurrentModule, openEditCurrentModule, openModuleDetail,
+    setModuleFilter, updateModuleSearch, updateModuleBuilderSearch,
+    // library
+    saveLibraryItem, deleteLibraryItem, openLibraryItemModal,
+    addLibraryItemTag, removeLibraryItemTag,
+    setItemFilter, updateItemSearch,
+    // manual item
+    openManualItemModal, saveManualTripItem,
+    // trip item edit
+    openTripItemModal, saveCurrentTripItem, deleteCurrentTripItem,
+    addTripItemTag, removeTripItemTag,
+    // modals
+    showModal, closeModal,
+    // onboarding
+    startOnboarding, nextOnboardingStep, finishOnboarding,
+    // me page
+    resetOfficialModules, clearAllData,
+    // home extras
+    toggleHomeHistory, duplicateTrip,
+    // kit view
+    setKitView,
+});
 
 init();

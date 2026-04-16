@@ -26,44 +26,15 @@
         <main class="pages">
             <section class="page active" data-page="home">
                 <div class="hero-card home-hero-card" id="homeHero">
-                    <!-- Decorative shapes -->
                     <div class="hero-decoration shape-1"></div>
                     <div class="hero-decoration shape-2"></div>
                     <div class="hero-decoration shape-3"></div>
-                    
                     <div class="hero-badge">✨ 智能行程规划</div>
                     <h2 class="hero-title">行理</h2>
                     <p class="hero-desc">组合小包，生成行程单，再也不怕落东西。</p>
-                    <div class="hero-actions">
-                        <button class="btn-primary" onclick="openCreateTripModal()">📝 新建行程</button>
-                        <button class="btn-secondary" onclick="openMainPage('kits')">🧰 浏览小包</button>
-                    </div>
                 </div>
-
                 <div class="home-quick-stats" id="homeStats"></div>
-
-                <section class="section">
-                    <div class="section-head">
-                        <h3 class="section-title">进行中</h3>
-                        <span class="section-meta" id="activeTripMeta"></span>
-                    </div>
-                    <div id="activeTripSection"></div>
-                </section>
-
-                <section class="section">
-                    <div class="section-head">
-                        <h3 class="section-title">最近行程</h3>
-                    </div>
-                    <div id="recentTripList"></div>
-                </section>
-
-                <section class="section">
-                    <div class="section-head">
-                        <h3 class="section-title">历史行程</h3>
-                        <span class="section-meta" id="historyToggleMeta">暂无</span>
-                    </div>
-                    <div id="historyTripList"></div>
-                </section>
+                <div id="homeContent"></div>
             </section>
 
             <section class="page" data-page="list">
@@ -437,6 +408,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="bundle.js?v=20260415"></script>
 </body>
 </html>
