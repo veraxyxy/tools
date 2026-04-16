@@ -802,7 +802,8 @@ input, select, textarea { appearance: none; }
 .library-item-tag { padding: 1px 6px; border-radius: 999px; font-size: 10px; background: var(--secondary-soft); color: #1d7fbf; font-weight: 600; }
 
 /* ===== Item subline ===== */
-.item-subline { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; }
+.item-subline { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; min-width: 0; overflow: visible; }
+.item-pill { background: var(--surface-2); color: var(--ink-2); flex-shrink: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-item-card { display: flex; align-items: center; gap: 12px; }
 
 .check-button {
@@ -845,14 +846,15 @@ input, select, textarea { appearance: none; }
 .item-pill.cat-electronics { background: #e0e7ff; color: #4f46e5; }
 .item-pill.cat-medicine { background: #fee2e2; color: #dc2626; }
 .item-pill.cat-clothing { background: #ffe4e6; color: #e11d48; }
+.source-module-pill { background: var(--primary-soft); color: var(--primary); font-size: 11px; }
 
 .bag-group { overflow: hidden; }
-.bag-group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: var(--surface); border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none; }
+.bag-group-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; background: var(--surface); border-bottom: 1px solid var(--line); user-select: none; -webkit-user-select: none; }
 .bag-group-header:active { opacity: 0.7; }
 .bag-group-label { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }
 .bag-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
 .bag-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--ink); }
-.bag-group-items { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+.bag-group-items { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; }
 .bag-group.collapsed .bag-group-items { display: none; }
 .bag-toggle { font-size: 14px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
 .bag-group.collapsed .bag-toggle { transform: rotate(-90deg); }

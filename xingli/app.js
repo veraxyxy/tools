@@ -388,7 +388,7 @@ function renderTripPage() {
         '<div class="trip-settings-bar">' +
         renderTripSettingBlock('days', '天数', trip.days, 1, 90) +
         renderTripSettingBlock('people', '人数', trip.people, 1, 20) +
-        '<div class="trip-setting-block"><div class="trip-setting-label">智能填充</div><button class="btn-secondary wide" onclick="reapplyTripSmartFill()">重新智能填充</button></div>' +
+        '<div class="trip-setting-block"><div class="trip-setting-label">智能填充</div><button class="pill-button" onclick="reapplyTripSmartFill()">重新智能填充</button></div>' +
         '</div>' +
         '<div class="trip-smart-note">已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。</div>' +
         '</div>';
@@ -488,25 +488,17 @@ function renderBagsPackView(trip) {
 
     if (!groups.length) return renderTripEmpty();
 
-    // Auto-expand bags that have partial progress
-    groups.forEach(group => {
-        if (!S.collapsedBags.has(group.bag.id)) {
-            const packed = group.items.filter(item => item.packed).length;
-            if (packed === 0) S.collapsedBags.add(group.bag.id);
-        }
-    });
-
     return groups.map(group => {
         const packed = group.items.filter(item => item.packed).length;
         const collapsed = S.collapsedBags.has(group.bag.id) ? ' collapsed' : '';
         return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '">' +
-            '<div class="bag-group-header" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">' +
+            '<div class="bag-group-header">' +
             '<div class="bag-group-label">' +
             '<span class="bag-icon">' + group.bag.icon + '</span>' +
             '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span class="bag-toggle">▼</span>' +
+            '<span class="bag-toggle" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">▼</span>' +
             '</div></div>' +
             '<div class="bag-group-items">' + group.items.map(renderPackItemCard).join('') + '</div>' +
             '</div>';
@@ -525,15 +517,19 @@ function toggleBagCollapse(bagId) {
 
 function renderPackItemCard(item) {
     const cat = catInfo(item.category);
-    const tagsHtml = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
+    const tags = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
+    const sourceModules = item.sourceModules || [];
+    const sourcePill = sourceModules.length > 0
+        ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(', ') + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + '等' : sourceModules[0]) + '</span>'
+        : '';
     return '<div class="list-item-card' + (item.packed ? ' packed' : '') + '" onclick="togglePackItem(\'' + item.id + '\')">' +
         '<button class="check-button ' + (item.packed ? 'checked' : '') + '">✓</button>' +
         '<div class="list-item-main">' +
         '<div class="list-item-name">' + esc(item.name) + '</div>' +
         '<div class="item-subline">' +
         '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-        '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + '</span>' +
-        (tagsHtml ? tagsHtml : '') +
+        (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + '</span>') +
+        (tags ? tags : '') +
         '</div>' +
         '</div>' +
         '<div class="item-qty">×' + item.qty + '</div>' +

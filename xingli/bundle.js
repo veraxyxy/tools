@@ -1350,7 +1350,7 @@
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
-    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-settings-bar">' + renderTripSettingBlock("days", "\u5929\u6570", trip.days, 1, 90) + renderTripSettingBlock("people", "\u4EBA\u6570", trip.people, 1, 20) + '<div class="trip-setting-block"><div class="trip-setting-label">\u667A\u80FD\u586B\u5145</div><button class="btn-secondary wide" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
+    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-settings-bar">' + renderTripSettingBlock("days", "\u5929\u6570", trip.days, 1, 90) + renderTripSettingBlock("people", "\u4EBA\u6570", trip.people, 1, 20) + '<div class="trip-setting-block"><div class="trip-setting-label">\u667A\u80FD\u586B\u5145</div><button class="pill-button" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
     switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === "plan" ? "active" : "") + `" onclick="setTripMode('plan')">\u89C4\u5212\u6A21\u5F0F</button><button class="mode-tab ` + (S.tripMode === "pack" ? "active" : "") + `" onclick="setTripMode('pack')">\u6253\u5305\u6A21\u5F0F</button>`;
     if (S.tripMode === "plan") {
       actionBar.innerHTML = [
@@ -1405,16 +1405,10 @@
     const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
     if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
     if (!groups.length) return renderTripEmpty();
-    groups.forEach((group) => {
-      if (!S.collapsedBags.has(group.bag.id)) {
-        const packed = group.items.filter((item) => item.packed).length;
-        if (packed === 0) S.collapsedBags.add(group.bag.id);
-      }
-    });
     return groups.map((group) => {
       const packed = group.items.filter((item) => item.packed).length;
       const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
-      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + `"><div class="bag-group-header" onclick="toggleBagCollapse('` + group.bag.id + `')"><div class="bag-group-label"><span class="bag-icon">` + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-toggle">\u25BC</span></div></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
     }).join("");
   }
   function toggleBagCollapse(bagId) {
@@ -1428,8 +1422,10 @@
   }
   function renderPackItemCard(item) {
     const cat = catInfo(item.category);
-    const tagsHtml = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + (tagsHtml ? tagsHtml : "") + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    const tags = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
+    const sourceModules = item.sourceModules || [];
+    const sourcePill = sourceModules.length > 0 ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(", ") + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + "\u7B49" : sourceModules[0]) + "</span>" : "";
+    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>") + (tags ? tags : "") + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
   }
   function setTripMode(mode) {
     S.tripMode = mode;
