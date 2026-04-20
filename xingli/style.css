@@ -939,12 +939,126 @@ input, select, textarea { appearance: none; }
 .duration-label { padding-right: 10px; color: var(--ink-2); font-size: 13px; }
 
 /* ===== Trip settings ===== */
+/* 行程信息折叠卡片 */
+.trip-info-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    cursor: pointer;
+    user-select: none;
+}
+.trip-info-toggle-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-2);
+    letter-spacing: 0.04em;
+}
+.trip-info-toggle-arrow {
+    font-size: 10px;
+    color: var(--ink-3);
+    transition: transform 200ms ease;
+}
+.trip-info-toggle-arrow.collapsed {
+    transform: rotate(-90deg);
+}
+
+.trip-info-body {
+    overflow: hidden;
+    max-height: 400px;
+    transition: max-height 250ms ease, opacity 250ms ease;
+    opacity: 1;
+}
+.trip-info-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+.trip-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+}
+.trip-info-row:last-of-type {
+    border-bottom: none;
+}
+.trip-info-row-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+}
+.trip-info-row .stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.trip-info-row .stepper input {
+    width: 44px;
+    text-align: center;
+    border: none;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: var(--surface-2);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    padding: 4px 2px;
+}
+.trip-info-row .stepper-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 150ms;
+}
+.trip-info-row .stepper-btn:active {
+    background: var(--surface-2);
+}
+
+.btn-recompute {
+    display: block;
+    width: calc(100% - 28px);
+    margin: 14px 14px;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms, transform 100ms;
+    text-align: center;
+}
+.btn-recompute:hover {
+    background: rgba(255, 107, 138, 0.18);
+}
+.btn-recompute:active {
+    transform: scale(0.98);
+}
+
+.trip-smart-note { margin-top: 10px; font-size: 12px; line-height: 1.6; color: var(--ink-2); }
+
+/* 旧的 trip-settings-bar 保留兼容（如果有遗留引用） */
 .trip-settings-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .trip-setting-block { padding: 12px; border-radius: 20px; background: var(--surface-2); }
 .trip-setting-label { margin-bottom: 6px; font-size: 12px; font-weight: 700; color: var(--ink-3); }
 .trip-setting-block .stepper { width: 100%; justify-content: space-between; }
 .trip-setting-block .stepper input { width: 42px; }
-.trip-smart-note { margin-top: 10px; font-size: 12px; line-height: 1.6; color: var(--ink-2); }
 
 /* ===== Quick add panel ===== */
 .quick-add-panel { margin-top: 16px; padding: 14px; border-radius: var(--radius-md); background: var(--surface-2); }

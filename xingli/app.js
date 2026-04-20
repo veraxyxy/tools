@@ -55,6 +55,7 @@ let S = {
     tripBuilderSelection: new Set(),
     kitView: 'compact',
     collapsedBags: new Set(),
+    tripInfoCollapsed: false,
     currentEditingTags: [],
 };
 
@@ -376,6 +377,7 @@ function renderTripPage() {
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter(item => item.smartRule !== 'fixed').length;
 
+    const collapsed = S.tripInfoCollapsed ? ' collapsed' : '';
     summaryBox.innerHTML = '<div class="list-summary-card">' +
         '<div class="list-summary-top">' +
         '<div>' +
@@ -385,10 +387,28 @@ function renderTripPage() {
         '<button class="pill-button" onclick="saveCurrentTripAsModule()">存为小包</button>' +
         '</div>' +
         renderProgress(progress) +
-        '<div class="trip-settings-bar">' +
-        renderTripSettingBlock('days', '天数', trip.days, 1, 90) +
-        renderTripSettingBlock('people', '人数', trip.people, 1, 20) +
-        '<div class="trip-setting-block"><div class="trip-setting-label">智能填充</div><button class="pill-button" onclick="reapplyTripSmartFill()">重新智能填充</button></div>' +
+        '<div class="trip-info-toggle" onclick="toggleTripInfoCard()">' +
+        '<span class="trip-info-toggle-text">行程设置</span>' +
+        '<span class="trip-info-toggle-arrow' + collapsed + '">▼</span>' +
+        '</div>' +
+        '<div class="trip-info-body' + collapsed + '">' +
+        '<div class="trip-info-row">' +
+        '<div class="trip-info-row-label">天数</div>' +
+        '<div class="stepper">' +
+        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', -1)">−</button>' +
+        '<input type="number" min="1" max="90" value="' + trip.days + '" oninput="updateCurrentTripSetting(\'days\', this.value)">' +
+        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', 1)">+</button>' +
+        '</div>' +
+        '</div>' +
+        '<div class="trip-info-row">' +
+        '<div class="trip-info-row-label">人数</div>' +
+        '<div class="stepper">' +
+        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', -1)">−</button>' +
+        '<input type="number" min="1" max="20" value="' + trip.people + '" oninput="updateCurrentTripSetting(\'people\', this.value)">' +
+        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', 1)">+</button>' +
+        '</div>' +
+        '</div>' +
+        '<button class="btn-recompute" onclick="reapplyTripSmartFill()">重新智能填充</button>' +
         '</div>' +
         '<div class="trip-smart-note">已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。</div>' +
         '</div>';
@@ -515,6 +535,16 @@ function toggleBagCollapse(bagId) {
     if (el) el.classList.toggle('collapsed', S.collapsedBags.has(bagId));
 }
 
+function toggleTripInfoCard() {
+    S.tripInfoCollapsed = !S.tripInfoCollapsed;
+    const summaryBox = document.getElementById('listSummary');
+    if (!summaryBox) return;
+    const toggle = summaryBox.querySelector('.trip-info-toggle-arrow');
+    const body = summaryBox.querySelector('.trip-info-body');
+    if (toggle) toggle.classList.toggle('collapsed', S.tripInfoCollapsed);
+    if (body) body.classList.toggle('collapsed', S.tripInfoCollapsed);
+}
+
 function renderPackItemCard(item) {
     const cat = catInfo(item.category);
     const tags = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
@@ -558,6 +588,7 @@ function openTrip(id, mode = 'plan') {
     S.currentTrip = deepClone(trip);
     S.tripMode = mode;
     S.collapsedBags = new Set();
+    S.tripInfoCollapsed = false;
     nav('list');
 }
 
@@ -1958,7 +1989,7 @@ Object.assign(window, {
     toggleTripBuilderModule, changeCurrentTripSetting,
     // trip page
     openTrip, setTripMode, toggleTripMode, setPackView,
-    togglePackItem, toggleBagCollapse, markAllPacked, markAllUnpacked,
+    togglePackItem, toggleBagCollapse, toggleTripInfoCard, markAllPacked, markAllUnpacked,
     reapplyTripSmartFill, saveCurrentTripAsModule,
     goSelectModuleForTrip, goSelectItemsForTrip,
     // module

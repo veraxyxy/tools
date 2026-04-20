@@ -1156,6 +1156,7 @@
     tripBuilderSelection: /* @__PURE__ */ new Set(),
     kitView: "compact",
     collapsedBags: /* @__PURE__ */ new Set(),
+    tripInfoCollapsed: false,
     currentEditingTags: []
   };
   function init() {
@@ -1350,7 +1351,8 @@
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
-    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-settings-bar">' + renderTripSettingBlock("days", "\u5929\u6570", trip.days, 1, 90) + renderTripSettingBlock("people", "\u4EBA\u6570", trip.people, 1, 20) + '<div class="trip-setting-block"><div class="trip-setting-label">\u667A\u80FD\u586B\u5145</div><button class="pill-button" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
+    const collapsed = S.tripInfoCollapsed ? " collapsed" : "";
+    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" oninput="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" oninput="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><button class="btn-recompute" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ` + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
     switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === "plan" ? "active" : "") + `" onclick="setTripMode('plan')">\u89C4\u5212\u6A21\u5F0F</button><button class="mode-tab ` + (S.tripMode === "pack" ? "active" : "") + `" onclick="setTripMode('pack')">\u6253\u5305\u6A21\u5F0F</button>`;
     if (S.tripMode === "plan") {
       actionBar.innerHTML = [
@@ -1368,9 +1370,6 @@
       subBar.innerHTML = '<div class="pack-view-switch"><button class="pack-view-tab ' + (S.packView === "bags" ? "active" : "") + `" onclick="setPackView('bags')">\u6309\u5C0F\u5305\u770B</button><button class="pack-view-tab ` + (S.packView === "remaining" ? "active" : "") + `" onclick="setPackView('remaining')">\u672A\u6253\u5305</button><button class="pack-view-tab ` + (S.packView === "all" ? "active" : "") + `" onclick="setPackView('all')">\u5168\u90E8</button></div>`;
       content.innerHTML = renderPackContent(trip);
     }
-  }
-  function renderTripSettingBlock(field, label, value, min, max) {
-    return '<div class="trip-setting-block"><div class="trip-setting-label">' + label + `</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('` + field + `', -1)">\u2212</button><input type="number" min="` + min + '" max="' + max + '" value="' + value + `" oninput="updateCurrentTripSetting('` + field + `', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('` + field + `', 1)">+</button></div></div>`;
   }
   function renderTripEmpty() {
     return '<div class="empty-panel"><div class="empty-icon">\u{1F9F3}</div><div class="empty-title">\u8FD9\u5F20\u884C\u7A0B\u5355\u8FD8\u662F\u7A7A\u7684</div><div class="empty-hint">\u53BB\u52FE\u9009\u4E00\u4E2A\u6216\u591A\u4E2A\u5C0F\u5305\uFF0C\u6216\u8005\u76F4\u63A5\u624B\u52A8\u52A0\u5355\u4E2A\u7269\u54C1\u3002</div></div>';
@@ -1420,6 +1419,15 @@
     const el = document.getElementById("bag-" + bagId);
     if (el) el.classList.toggle("collapsed", S.collapsedBags.has(bagId));
   }
+  function toggleTripInfoCard() {
+    S.tripInfoCollapsed = !S.tripInfoCollapsed;
+    const summaryBox = document.getElementById("listSummary");
+    if (!summaryBox) return;
+    const toggle = summaryBox.querySelector(".trip-info-toggle-arrow");
+    const body = summaryBox.querySelector(".trip-info-body");
+    if (toggle) toggle.classList.toggle("collapsed", S.tripInfoCollapsed);
+    if (body) body.classList.toggle("collapsed", S.tripInfoCollapsed);
+  }
   function renderPackItemCard(item) {
     const cat = catInfo(item.category);
     const tags = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
@@ -1446,6 +1454,7 @@
     S.currentTrip = deepClone(trip);
     S.tripMode = mode;
     S.collapsedBags = /* @__PURE__ */ new Set();
+    S.tripInfoCollapsed = false;
     nav("list");
   }
   function changeCurrentTripSetting(field, delta) {
@@ -2556,6 +2565,7 @@
     setPackView,
     togglePackItem,
     toggleBagCollapse,
+    toggleTripInfoCard,
     markAllPacked,
     markAllUnpacked,
     reapplyTripSmartFill,
