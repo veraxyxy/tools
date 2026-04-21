@@ -2,6 +2,9 @@
 
 一个手机端疫苗查看与记录小页面。
 
+在线访问：
+- GitHub Pages: https://veraxyxy.github.io/tools/yimiao/
+
 功能：
 - 支持“健康院省钱版 / 机构减针版”两种模式切换
 - 支持疫苗状态记录：未打、已预约、已打
@@ -22,3 +25,8 @@ python3 -m http.server 8123
 ```
 然后打开：
 `http://127.0.0.1:8123/yimiao/index.html`
+
+更新数据：
+```bash
+python3 scripts/extract_vaccine_data.py --src "~/Downloads/疫苗及打针记录.xlsx"
+```

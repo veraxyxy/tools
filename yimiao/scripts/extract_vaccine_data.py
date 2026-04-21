@@ -1,11 +1,13 @@
 from openpyxl import load_workbook
 from datetime import datetime
 from pathlib import Path
+import argparse
 import json
 import re
 
-SRC = Path('/Users/vera/Downloads/疫苗及打针记录.xlsx')
-OUT = Path('/Users/vera/WorkBuddy/20260421093158/data/vaccine_data.json')
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SRC = Path.home() / 'Downloads' / '疫苗及打针记录.xlsx'
+DEFAULT_OUT = ROOT / 'data' / 'vaccine_data.json'
 
 MODE_CONFIG = {
     '时间线版本(健康院)': {
@@ -170,9 +172,8 @@ def parse_mode(ws, config):
     return summary, groups
 
 
-def main():
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    wb = load_workbook(SRC, data_only=True)
+def build_payload(src: Path):
+    wb = load_workbook(src, data_only=True)
     summaries = []
     modes = []
     top_warnings = []
@@ -196,9 +197,9 @@ def main():
 
     birth_date = to_display(wb['时间线版本(机构)']['B4'].value)
 
-    payload = {
+    return {
         'generatedAt': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'sourceWorkbook': str(SRC),
+        'sourceWorkbook': str(src),
         'baby': {
             'birthDate': birth_date,
         },
@@ -206,8 +207,27 @@ def main():
         'warnings': top_warnings,
         'modes': modes,
     }
-    OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(OUT)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='从疫苗 Excel 抽取 GitHub Pages 页面所需 JSON 数据。')
+    parser.add_argument('--src', default=str(DEFAULT_SRC), help='原始 Excel 路径，默认使用 ~/Downloads/疫苗及打针记录.xlsx')
+    parser.add_argument('--out', default=str(DEFAULT_OUT), help='输出 JSON 路径，默认写入 ../data/vaccine_data.json')
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    src = Path(args.src).expanduser().resolve()
+    out = Path(args.out).expanduser().resolve()
+
+    if not src.exists():
+        raise FileNotFoundError(f'未找到 Excel 文件：{src}。请通过 --src 传入正确路径。')
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(src)
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(out)
 
 
 if __name__ == '__main__':
