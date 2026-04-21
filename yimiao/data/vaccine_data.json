@@ -1,0 +1,1027 @@
+{
+  "generatedAt": "2026-04-21 12:47:34",
+  "sourceWorkbook": "/Users/vera/Downloads/疫苗及打针记录.xlsx",
+  "baby": {
+    "birthDate": "2025-02-10"
+  },
+  "comparison": [
+    {
+      "id": "health-center",
+      "name": "健康院省钱版",
+      "title": "时间线版本（健康院少花钱版）",
+      "description": "尽量在 HK 健康院完成免费疫苗，必要时补充自费项目。",
+      "declaredTotal": 38,
+      "sheetTotal": 38,
+      "totalsByChannel": {
+        "hk_free": 19,
+        "cn_free": 2,
+        "cn_self_domestic": 6,
+        "cn_self_imported": 5,
+        "hk_self": 6
+      },
+      "groupCount": 14,
+      "itemCount": 38,
+      "warnings": [
+        "原表中“流脑acyw135-nimenrix 2/3”同时出现在 8 月和 12 月，针次文字重复，建议人工复核。"
+      ]
+    },
+    {
+      "id": "institution-lite",
+      "name": "机构减针版",
+      "title": "时间线版本（减针版）",
+      "description": "优先减少针数，在机构自费完成更多组合疫苗。",
+      "declaredTotal": 33,
+      "sheetTotal": 31,
+      "totalsByChannel": {
+        "hk_free": 14,
+        "hk_self": 8,
+        "cn_free": 2,
+        "cn_self_domestic": 2,
+        "cn_self_imported": 5
+      },
+      "groupCount": 14,
+      "itemCount": 31,
+      "warnings": [
+        "标题标注 33 针，但针数合计列是 31 针。",
+        "原表标题写“共33针”，但针数合计列为 31 针，页面以明细统计和针数合计列为准。",
+        "原表中“五合一（百白破+小儿麻痹+HIB）2/3”同时出现在 4 月和 18 月，针次文字重复，建议人工复核。"
+      ]
+    }
+  ],
+  "warnings": [
+    {
+      "modeId": "health-center",
+      "message": "原表中“流脑acyw135-nimenrix 2/3”同时出现在 8 月和 12 月，针次文字重复，建议人工复核。"
+    },
+    {
+      "modeId": "institution-lite",
+      "message": "标题标注 33 针，但针数合计列是 31 针。"
+    },
+    {
+      "modeId": "institution-lite",
+      "message": "原表标题写“共33针”，但针数合计列为 31 针，页面以明细统计和针数合计列为准。"
+    },
+    {
+      "modeId": "institution-lite",
+      "message": "原表中“五合一（百白破+小儿麻痹+HIB）2/3”同时出现在 4 月和 18 月，针次文字重复，建议人工复核。"
+    }
+  ],
+  "modes": [
+    {
+      "id": "health-center",
+      "name": "健康院省钱版",
+      "title": "时间线版本（健康院少花钱版）",
+      "description": "尽量在 HK 健康院完成免费疫苗，必要时补充自费项目。",
+      "declaredTotal": 38,
+      "sheetTotal": 38,
+      "totalsByChannel": {
+        "hk_free": 19,
+        "cn_free": 2,
+        "cn_self_domestic": 6,
+        "cn_self_imported": 5,
+        "hk_self": 6
+      },
+      "warnings": [
+        "原表中“流脑acyw135-nimenrix 2/3”同时出现在 8 月和 12 月，针次文字重复，建议人工复核。"
+      ],
+      "groups": [
+        {
+          "id": "health-center-出生",
+          "age": "出生",
+          "order": 0,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-1",
+              "label": "卡介苗",
+              "rawLabel": "卡介苗",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "出生",
+              "window": null
+            },
+            {
+              "id": "health-center-2",
+              "label": "乙肝1/3",
+              "rawLabel": "乙肝1/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "出生",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-1月",
+          "age": "1月",
+          "order": 1,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-3",
+              "label": "乙肝2/3",
+              "rawLabel": "乙肝2/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "1月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-2月",
+          "age": "2月",
+          "order": 2,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-4",
+              "label": "四合一（百白破+小儿麻痹）1/3",
+              "rawLabel": "🟦四合一（百白破+小儿麻痹）1/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "2月",
+              "window": null
+            },
+            {
+              "id": "health-center-5",
+              "label": "口服五价轮状1/3",
+              "rawLabel": "口服五价轮状1/3",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "2月",
+              "window": null
+            },
+            {
+              "id": "health-center-6",
+              "label": "b型脑炎（仅HK有）1/3",
+              "rawLabel": "b型脑炎（仅HK有）1/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "2月",
+              "window": null
+            },
+            {
+              "id": "health-center-7",
+              "label": "肺炎球菌1/2",
+              "rawLabel": "肺炎球菌1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "2月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-3月",
+          "age": "3月",
+          "order": 3,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-8",
+              "label": "HIB-b型流感1/4",
+              "rawLabel": "🟦HIB-b型流感1/4",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "3月",
+              "window": null
+            },
+            {
+              "id": "health-center-9",
+              "label": "口服五价轮状2/3",
+              "rawLabel": "口服五价轮状2/3",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "3月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-4月",
+          "age": "4月",
+          "order": 4,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-10",
+              "label": "四合一（百白破+小儿麻痹）2/3",
+              "rawLabel": "🟦四合一（百白破+小儿麻痹）2/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "4月",
+              "window": null
+            },
+            {
+              "id": "health-center-11",
+              "label": "HIB-b型流感2/4",
+              "rawLabel": "🟦HIB-b型流感2/4",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "4月",
+              "window": null
+            },
+            {
+              "id": "health-center-12",
+              "label": "口服五价轮状3/3",
+              "rawLabel": "口服五价轮状3/3",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "4月",
+              "window": null
+            },
+            {
+              "id": "health-center-13",
+              "label": "b型脑炎（仅HK有）2/3",
+              "rawLabel": "b型脑炎（仅HK有）2/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "4月",
+              "window": null
+            },
+            {
+              "id": "health-center-14",
+              "label": "肺炎球菌2/2",
+              "rawLabel": "肺炎球菌2/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "4月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-6月",
+          "age": "6月",
+          "order": 6,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-15",
+              "label": "四合一（百白破+小儿麻痹）3/3",
+              "rawLabel": "🟦四合一（百白破+小儿麻痹）3/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "6月",
+              "window": null
+            },
+            {
+              "id": "health-center-16",
+              "label": "HIB-b型流感3/4",
+              "rawLabel": "🟦HIB-b型流感3/4",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "6月",
+              "window": null
+            },
+            {
+              "id": "health-center-17",
+              "label": "流脑acyw135-nimenrix 1/3",
+              "rawLabel": "流脑acyw135-nimenrix 1/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "6月",
+              "window": null
+            },
+            {
+              "id": "health-center-18",
+              "label": "乙肝3/3",
+              "rawLabel": "🟦乙肝3/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "6月",
+              "window": null
+            },
+            {
+              "id": "health-center-19",
+              "label": "手足口疫苗1/2（仅内地有）",
+              "rawLabel": "手足口疫苗1/2（仅内地有）",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "6月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-8月",
+          "age": "8月",
+          "order": 8,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-20",
+              "label": "乙脑1/2",
+              "rawLabel": "乙脑1/2",
+              "channelKey": "cn_free",
+              "channel": "内地免费-社康",
+              "channelTheme": "green",
+              "age": "8月",
+              "window": null
+            },
+            {
+              "id": "health-center-21",
+              "label": "手足口疫苗2/2（仅内地有）",
+              "rawLabel": "手足口疫苗2/2（仅内地有）",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "8月",
+              "window": null
+            },
+            {
+              "id": "health-center-22",
+              "label": "流脑acyw135-nimenrix 2/3",
+              "rawLabel": "流脑acyw135-nimenrix 2/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "8月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-12月",
+          "age": "12月",
+          "order": 12,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-23",
+              "label": "MMR麻腮风1/2",
+              "rawLabel": "MMR麻腮风1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": null
+            },
+            {
+              "id": "health-center-24",
+              "label": "b型脑炎（仅HK有）3/3",
+              "rawLabel": "b型脑炎（仅HK有）3/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "12月",
+              "window": null
+            },
+            {
+              "id": "health-center-25",
+              "label": "水痘疫苗1/2",
+              "rawLabel": "水痘疫苗1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": null
+            },
+            {
+              "id": "health-center-26",
+              "label": "流脑acyw135-nimenrix 2/3",
+              "rawLabel": "流脑acyw135-nimenrix 2/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费（补充）",
+              "channelTheme": "purple",
+              "age": "12月",
+              "window": null
+            },
+            {
+              "id": "health-center-27",
+              "label": "13价肺炎球菌加强针",
+              "rawLabel": "13价肺炎球菌加强针",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-18月",
+          "age": "18月",
+          "order": 18,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-28",
+              "label": "四合一（百白破+小儿麻痹）加强",
+              "rawLabel": "四合一（百白破+小儿麻痹）加强",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "18月",
+              "window": null
+            },
+            {
+              "id": "health-center-29",
+              "label": "HIB-b型流感4/4",
+              "rawLabel": "🟦HIB-b型流感4/4",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "18月",
+              "window": null
+            },
+            {
+              "id": "health-center-30",
+              "label": "甲肝灭活1/2",
+              "rawLabel": "甲肝灭活1/2",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "18月",
+              "window": null
+            },
+            {
+              "id": "health-center-31",
+              "label": "MMR麻腮风+水痘混合2/2",
+              "rawLabel": "MMR麻腮风+水痘混合2/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "18月",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-每年日常",
+          "age": "每年日常",
+          "order": 24,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-32",
+              "label": "流感疫苗",
+              "rawLabel": "流感疫苗",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "每年日常",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-2岁",
+          "age": "2岁",
+          "order": 30,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-33",
+              "label": "乙脑2/2",
+              "rawLabel": "乙脑2/2",
+              "channelKey": "cn_free",
+              "channel": "内地免费-社康",
+              "channelTheme": "green",
+              "age": "2岁",
+              "window": null
+            },
+            {
+              "id": "health-center-34",
+              "label": "甲肝灭活2/2",
+              "rawLabel": "甲肝灭活2/2",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "2岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-6岁",
+          "age": "6岁",
+          "order": 40,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-35",
+              "label": "四合一（百白破+小儿麻痹）加强",
+              "rawLabel": "四合一（百白破+小儿麻痹）加强",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "6岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-11岁",
+          "age": "11岁",
+          "order": 50,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-36",
+              "label": "HPV1/2",
+              "rawLabel": "HPV1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "11岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "health-center-12岁",
+          "age": "12岁",
+          "order": 60,
+          "window": null,
+          "items": [
+            {
+              "id": "health-center-37",
+              "label": "HPV2/2",
+              "rawLabel": "HPV2/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12岁",
+              "window": null
+            },
+            {
+              "id": "health-center-38",
+              "label": "四合一（百白破+小儿麻痹）加强",
+              "rawLabel": "四合一（百白破+小儿麻痹）加强",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12岁",
+              "window": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "institution-lite",
+      "name": "机构减针版",
+      "title": "时间线版本（减针版）",
+      "description": "优先减少针数，在机构自费完成更多组合疫苗。",
+      "declaredTotal": 33,
+      "sheetTotal": 31,
+      "totalsByChannel": {
+        "hk_free": 14,
+        "hk_self": 8,
+        "cn_free": 2,
+        "cn_self_domestic": 2,
+        "cn_self_imported": 5
+      },
+      "warnings": [
+        "标题标注 33 针，但针数合计列是 31 针。",
+        "原表标题写“共33针”，但针数合计列为 31 针，页面以明细统计和针数合计列为准。",
+        "原表中“五合一（百白破+小儿麻痹+HIB）2/3”同时出现在 4 月和 18 月，针次文字重复，建议人工复核。"
+      ],
+      "groups": [
+        {
+          "id": "institution-lite-出生",
+          "age": "出生",
+          "order": 0,
+          "window": "2025-02-10",
+          "items": [
+            {
+              "id": "institution-lite-1",
+              "label": "卡介苗",
+              "rawLabel": "卡介苗",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "出生",
+              "window": "2025-02-10"
+            },
+            {
+              "id": "institution-lite-2",
+              "label": "乙肝1/3",
+              "rawLabel": "乙肝1/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "出生",
+              "window": "2025-02-10"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-1月",
+          "age": "1月",
+          "order": 1,
+          "window": "2月10日-3月10日",
+          "items": [
+            {
+              "id": "institution-lite-3",
+              "label": "乙肝2/3",
+              "rawLabel": "乙肝2/3",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "1月",
+              "window": "2月10日-3月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-2月",
+          "age": "2月",
+          "order": 2,
+          "window": "3月10日-4月10日",
+          "items": [
+            {
+              "id": "institution-lite-4",
+              "label": "肺炎球菌1/2-4.17",
+              "rawLabel": "肺炎球菌1/2-4.17",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "2月",
+              "window": "3月10日-4月10日"
+            },
+            {
+              "id": "institution-lite-5",
+              "label": "B型脑炎1/3-4.10",
+              "rawLabel": "B型脑炎1/3-4.10",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "2月",
+              "window": "3月10日-4月10日"
+            },
+            {
+              "id": "institution-lite-6",
+              "label": "口服五价轮状1/3-3.27",
+              "rawLabel": "口服五价轮状1/3-3.27",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "2月",
+              "window": "3月10日-4月10日"
+            },
+            {
+              "id": "institution-lite-7",
+              "label": "五合一（百白破+小儿麻痹+HIB）1/3 -4.10",
+              "rawLabel": "五合一（百白破+小儿麻痹+HIB）1/3 -4.10",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "2月",
+              "window": "3月10日-4月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-3月",
+          "age": "3月",
+          "order": 3,
+          "window": "4月10日-5月10日",
+          "items": [
+            {
+              "id": "institution-lite-8",
+              "label": "口服五价轮状2/3",
+              "rawLabel": "口服五价轮状2/3",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "3月",
+              "window": "4月10日-5月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-4月",
+          "age": "4月",
+          "order": 4,
+          "window": "5月10日-6月10日",
+          "items": [
+            {
+              "id": "institution-lite-9",
+              "label": "B型脑炎2/3-6.30",
+              "rawLabel": "B型脑炎2/3-6.30",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "4月",
+              "window": "5月10日-6月10日"
+            },
+            {
+              "id": "institution-lite-10",
+              "label": "口服五价轮状3/3",
+              "rawLabel": "口服五价轮状3/3",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "4月",
+              "window": "5月10日-6月10日"
+            },
+            {
+              "id": "institution-lite-11",
+              "label": "肺炎球菌2/2-6.13",
+              "rawLabel": "肺炎球菌2/2-6.13",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "4月",
+              "window": "5月10日-6月10日"
+            },
+            {
+              "id": "institution-lite-12",
+              "label": "五合一（百白破+小儿麻痹+HIB）2/3-6.30",
+              "rawLabel": "五合一（百白破+小儿麻痹+HIB）2/3-6.30",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "4月",
+              "window": "5月10日-6月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-6月",
+          "age": "6月",
+          "order": 6,
+          "window": "8月10日-9月10日",
+          "items": [
+            {
+              "id": "institution-lite-13",
+              "label": "六合一（百白破+小儿麻痹+HIB+乙肝）1/1",
+              "rawLabel": "六合一（百白破+小儿麻痹+HIB+乙肝）1/1",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "6月",
+              "window": "8月10日-9月10日"
+            },
+            {
+              "id": "institution-lite-14",
+              "label": "手足口疫苗1/2（仅内地有）",
+              "rawLabel": "手足口疫苗1/2（仅内地有）",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "6月",
+              "window": "8月10日-9月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-8月",
+          "age": "8月",
+          "order": 8,
+          "window": "10月10日-11月10日",
+          "items": [
+            {
+              "id": "institution-lite-15",
+              "label": "乙脑1/2",
+              "rawLabel": "乙脑1/2",
+              "channelKey": "cn_free",
+              "channel": "内地免费-社康",
+              "channelTheme": "green",
+              "age": "8月",
+              "window": "10月10日-11月10日"
+            },
+            {
+              "id": "institution-lite-16",
+              "label": "手足口疫苗2/2（仅内地有）",
+              "rawLabel": "手足口疫苗2/2（仅内地有）",
+              "channelKey": "cn_self_domestic",
+              "channel": "内地自费-社康（国产）",
+              "channelTheme": "orange",
+              "age": "8月",
+              "window": "10月10日-11月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-12月",
+          "age": "12月",
+          "order": 12,
+          "window": "2月10日-3月10日",
+          "items": [
+            {
+              "id": "institution-lite-17",
+              "label": "MMR麻腮风1/2",
+              "rawLabel": "MMR麻腮风1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": "2月10日-3月10日"
+            },
+            {
+              "id": "institution-lite-18",
+              "label": "B型脑炎3/3",
+              "rawLabel": "B型脑炎3/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "12月",
+              "window": "2月10日-3月10日"
+            },
+            {
+              "id": "institution-lite-19",
+              "label": "水痘疫苗1/2",
+              "rawLabel": "水痘疫苗1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": "2月10日-3月10日"
+            },
+            {
+              "id": "institution-lite-20",
+              "label": "流脑acyw135-nimenrix 1/1",
+              "rawLabel": "流脑acyw135-nimenrix 1/1",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "12月",
+              "window": "2月10日-3月10日"
+            },
+            {
+              "id": "institution-lite-21",
+              "label": "13价肺炎球菌加强针",
+              "rawLabel": "13价肺炎球菌加强针",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12月",
+              "window": "2月10日-3月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-18月",
+          "age": "18月",
+          "order": 18,
+          "window": "8月10日-9月10日",
+          "items": [
+            {
+              "id": "institution-lite-22",
+              "label": "甲肝灭活1/2",
+              "rawLabel": "甲肝灭活1/2",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "18月",
+              "window": "8月10日-9月10日"
+            },
+            {
+              "id": "institution-lite-23",
+              "label": "MMR麻腮风+水痘混合2/2",
+              "rawLabel": "MMR麻腮风+水痘混合2/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "18月",
+              "window": "8月10日-9月10日"
+            },
+            {
+              "id": "institution-lite-24",
+              "label": "五合一（百白破+小儿麻痹+HIB）2/3",
+              "rawLabel": "五合一（百白破+小儿麻痹+HIB）2/3",
+              "channelKey": "hk_self",
+              "channel": "香港自费",
+              "channelTheme": "purple",
+              "age": "18月",
+              "window": "8月10日-9月10日"
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-每年日常",
+          "age": "每年日常",
+          "order": 24,
+          "window": null,
+          "items": [
+            {
+              "id": "institution-lite-25",
+              "label": "流感疫苗",
+              "rawLabel": "流感疫苗",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "每年日常",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-2岁",
+          "age": "2岁",
+          "order": 30,
+          "window": null,
+          "items": [
+            {
+              "id": "institution-lite-26",
+              "label": "乙脑2/2",
+              "rawLabel": "乙脑2/2",
+              "channelKey": "cn_free",
+              "channel": "内地免费-社康",
+              "channelTheme": "green",
+              "age": "2岁",
+              "window": null
+            },
+            {
+              "id": "institution-lite-27",
+              "label": "甲肝灭活2/2",
+              "rawLabel": "甲肝灭活2/2",
+              "channelKey": "cn_self_imported",
+              "channel": "内地自费-社康（进口）",
+              "channelTheme": "gold",
+              "age": "2岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-6岁",
+          "age": "6岁",
+          "order": 40,
+          "window": null,
+          "items": [
+            {
+              "id": "institution-lite-28",
+              "label": "四合一（百白破+小儿麻痹）加强",
+              "rawLabel": "四合一（百白破+小儿麻痹）加强",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "6岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-11岁",
+          "age": "11岁",
+          "order": 50,
+          "window": null,
+          "items": [
+            {
+              "id": "institution-lite-29",
+              "label": "HPV1/2",
+              "rawLabel": "HPV1/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "11岁",
+              "window": null
+            }
+          ]
+        },
+        {
+          "id": "institution-lite-12岁",
+          "age": "12岁",
+          "order": 60,
+          "window": null,
+          "items": [
+            {
+              "id": "institution-lite-30",
+              "label": "HPV2/2",
+              "rawLabel": "HPV2/2",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12岁",
+              "window": null
+            },
+            {
+              "id": "institution-lite-31",
+              "label": "四合一（百白破+小儿麻痹）加强",
+              "rawLabel": "四合一（百白破+小儿麻痹）加强",
+              "channelKey": "hk_free",
+              "channel": "香港免费-健康院",
+              "channelTheme": "free",
+              "age": "12岁",
+              "window": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

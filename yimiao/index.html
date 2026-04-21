@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>疫苗月龄记录</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --soft: #f3f6fb;
+      --soft-2: #eef3fb;
+      --line: #e6ebf3;
+      --text: #1e2430;
+      --sub: #778196;
+      --green: #17a05d;
+      --green-soft: #e8f7ef;
+      --orange: #ef9a1f;
+      --orange-soft: #fff4e5;
+      --purple: #7868ff;
+      --purple-soft: #f0eeff;
+      --blue: #4d89ff;
+      --blue-soft: #edf4ff;
+      --shadow: 0 8px 24px rgba(27, 45, 83, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --max: 440px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #f8f9fc 0%, #f4f6fb 100%);
+      color: var(--text);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+    body { min-height: 100vh; }
+    button, input { font: inherit; }
+
+    .app {
+      width: min(100%, var(--max));
+      margin: 0 auto;
+      padding: 12px 12px 120px;
+    }
+
+    .top-card,
+    .segmented,
+    .focus-panel,
+    .quick-panel,
+    .section-card,
+    .month-card,
+    .footer-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .top-card {
+      border-radius: 0 0 26px 26px;
+      padding: 18px 16px 16px;
+      margin: -1px -1px 12px;
+      background: linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--sub);
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .top-card h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.16;
+      letter-spacing: -0.03em;
+    }
+
+    .top-card p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--sub);
+    }
+
+    .baby-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .baby-main,
+    .date-box {
+      border-radius: 16px;
+      background: var(--soft);
+      padding: 12px 14px;
+    }
+
+    .mini-label {
+      font-size: 11px;
+      color: var(--sub);
+      margin-bottom: 4px;
+    }
+
+    .baby-age {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .baby-next {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .date-box {
+      min-width: 132px;
+      background: #fff;
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .date-box input {
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 0;
+    }
+
+    .segmented {
+      position: sticky;
+      top: 10px;
+      z-index: 10;
+      border-radius: 18px;
+      padding: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(14px);
+    }
+
+    .seg-btn {
+      border: 0;
+      background: transparent;
+      border-radius: 14px;
+      padding: 12px 10px;
+      text-align: left;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .seg-btn small {
+      display: block;
+      font-size: 11px;
+      color: var(--sub);
+      margin-bottom: 4px;
+    }
+
+    .seg-btn strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .seg-btn.active {
+      background: linear-gradient(135deg, var(--green-soft) 0%, var(--blue-soft) 100%);
+      color: #0f6c3d;
+    }
+
+    .focus-panel,
+    .quick-panel,
+    .section-card,
+    .footer-card {
+      border-radius: 20px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .focus-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .focus-head h2,
+    .quick-panel h3,
+    .section-card h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .focus-head p,
+    .quick-panel p,
+    .section-card p {
+      margin: 6px 0 0;
+      color: var(--sub);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .chip-row,
+    .action-row,
+    .other-months {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--soft);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .chip.green { background: var(--green-soft); color: #157b44; }
+    .chip.orange { background: var(--orange-soft); color: #a56500; }
+    .chip.purple { background: var(--purple-soft); color: #5c4fe0; }
+    .chip.blue { background: var(--blue-soft); color: #2c69da; }
+
+    .progress-box {
+      margin: 12px 0;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      padding: 14px;
+    }
+
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 8px;
+    }
+
+    .progress-number {
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    .progress-number span {
+      font-size: 14px;
+      margin-left: 4px;
+      color: var(--sub);
+      font-weight: 600;
+    }
+
+    .progress-bar {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e7edf6;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      transition: width 0.2s ease;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .stat {
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .warning-list {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .warning-item {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid #f4e0b7;
+      background: #fff7ea;
+      color: #8a6200;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .quick-panel p { margin-bottom: 12px; }
+
+    .action-btn,
+    .ghost-btn,
+    .mini-btn,
+    .pill-btn {
+      border: 0;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .action-btn,
+    .ghost-btn {
+      padding: 11px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+    }
+
+    .action-btn { background: var(--green-soft); color: #157b44; }
+    .action-btn.orange { background: var(--orange-soft); color: #a56500; }
+    .ghost-btn { background: var(--soft); color: var(--text); }
+
+    .filter-line {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .switch {
+      width: 46px;
+      height: 28px;
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: #d5dce8;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+      transition: transform 0.2s ease;
+    }
+
+    .switch:checked { background: #8cd3ae; }
+    .switch:checked::after { transform: translateX(18px); }
+
+    .section-card { background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%); }
+
+    .month-card {
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .month-card.compact {
+      box-shadow: none;
+      border-color: var(--line);
+      background: #fff;
+    }
+
+    .month-head {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .month-card.compact .month-head {
+      padding: 12px 14px;
+    }
+
+    .month-title strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.15;
+    }
+
+    .month-card.compact .month-title strong {
+      font-size: 15px;
+    }
+
+    .month-sub {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .month-count {
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--soft);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      min-width: 56px;
+    }
+
+    .month-body {
+      padding: 0 14px 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .month-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mini-btn {
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      background: var(--soft);
+      color: var(--text);
+    }
+
+    .mini-btn.done { background: var(--green-soft); color: #157b44; }
+    .mini-btn.booked { background: var(--orange-soft); color: #a56500; }
+    .mini-btn.todo { background: var(--purple-soft); color: #5c4fe0; }
+
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fafcff;
+    }
+
+    .item-title {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+
+    .item-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .item-note {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 11px;
+      background: #fff;
+      outline: 0;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .item-tip {
+      margin-top: 7px;
+      font-size: 11px;
+      color: var(--sub);
+    }
+
+    .status-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .status-btn {
+      border: 0;
+      min-width: 84px;
+      padding: 12px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .status-btn.todo { background: var(--soft-2); color: #5f6b80; }
+    .status-btn.booked { background: var(--orange-soft); color: #9f6200; }
+    .status-btn.done { background: var(--green-soft); color: #157b44; }
+
+    .status-hint {
+      font-size: 11px;
+      color: var(--sub);
+      text-align: right;
+      line-height: 1.45;
+      max-width: 84px;
+    }
+
+    .other-months { margin-top: 10px; }
+
+    .pill-btn {
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .footer-card {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+
+    .empty {
+      border-radius: 18px;
+      padding: 28px 20px;
+      text-align: center;
+      background: #fff;
+      border: 1px dashed #d8dfeb;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+
+    @media (max-width: 380px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .baby-row { grid-template-columns: 1fr; }
+      .date-box { min-width: 0; }
+      .item { grid-template-columns: 1fr; }
+      .status-stack { align-items: stretch; }
+      .status-btn { width: 100%; }
+      .status-hint { text-align: left; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="top-card" id="topCard"></section>
+    <section class="segmented" id="modeSwitch"></section>
+    <section class="focus-panel" id="focusPanel"></section>
+    <section class="quick-panel" id="quickPanel"></section>
+    <section class="section-card" id="currentNextSection"></section>
+    <section class="section-card" id="otherSection"></section>
+    <section class="footer-card" id="footer"></section>
+  </main>
+
+  <script>
+    const DATA_URL = './data/vaccine_data.json';
+    const STORE_KEY = 'vera-vaccine-tracker-v3';
+    const PREF_KEY = 'vera-vaccine-preferences-v3';
+
+    const STATUS_INFO = {
+      todo: { label: '未打', className: 'todo' },
+      booked: { label: '已预约', className: 'booked' },
+      done: { label: '已打', className: 'done' }
+    };
+
+    const CHANNEL_INFO = {
+      hk_free: { label: 'HK免费', className: 'green' },
+      hk_self: { label: 'HK自费', className: 'purple' },
+      cn_free: { label: '内地免费', className: 'blue' },
+      cn_self_domestic: { label: '内地自费-国产', className: 'orange' },
+      cn_self_imported: { label: '内地自费-进口', className: 'orange' }
+    };
+
+    const AGE_MONTH_MAP = {
+      '出生': 0,
+      '1月': 1,
+      '2月': 2,
+      '3月': 3,
+      '4月': 4,
+      '6月': 6,
+      '8月': 8,
+      '12月': 12,
+      '18月': 18,
+      '每年日常': 19,
+      '2岁': 24,
+      '6岁': 72,
+      '11岁': 132,
+      '12岁': 144
+    };
+
+    const state = {
+      data: null,
+      modeId: null,
+      records: loadJson(STORE_KEY, {}),
+      prefs: loadJson(PREF_KEY, {}),
+      expanded: new Set(),
+    };
+
+    const el = {
+      topCard: document.getElementById('topCard'),
+      modeSwitch: document.getElementById('modeSwitch'),
+      focusPanel: document.getElementById('focusPanel'),
+      quickPanel: document.getElementById('quickPanel'),
+      currentNextSection: document.getElementById('currentNextSection'),
+      otherSection: document.getElementById('otherSection'),
+      footer: document.getElementById('footer'),
+    };
+
+    init();
+
+    async function init() {
+      const res = await fetch(DATA_URL);
+      const data = await res.json();
+      state.data = data;
+      state.modeId = state.prefs.modeId || data.modes[0].id;
+      if (!state.prefs.birthDate) state.prefs.birthDate = data.baby.birthDate;
+      autoExpand();
+      persistPrefs();
+      render();
+    }
+
+    function render() {
+      const mode = currentMode();
+      const currentAgeMonths = getCurrentAgeMonths();
+      const visibleGroups = getVisibleGroups(mode);
+      const focusGroups = getFocusGroups(visibleGroups, currentAgeMonths);
+      const focusIds = new Set(focusGroups.map(group => group.id));
+      const otherGroups = visibleGroups.filter(group => !focusIds.has(group.id));
+      renderTop(currentAgeMonths, focusGroups);
+      renderModes();
+      renderFocus(mode, focusGroups);
+      renderQuick(mode, focusGroups);
+      renderCurrentNext(focusGroups);
+      renderOther(otherGroups);
+      renderFooter(mode);
+      bind();
+    }
+
+    function renderTop(currentAgeMonths, focusGroups) {
+      const nextText = focusGroups[1] ? `${focusGroups[1].age}${focusGroups[1].window ? ' · ' + focusGroups[1].window : ''}` : '当前阶段后暂时没有下一段';
+      el.topCard.innerHTML = `
+        <div class="tag">当前月龄 + 下一个月龄优先</div>
+        <h1>疫苗月龄记录</h1>
+        <p>首页只突出当前和下一阶段，其他内容默认收得更狠，6 岁以后直接不显示。</p>
+        <div class="baby-row">
+          <div class="baby-main">
+            <div class="mini-label">宝宝当前月龄</div>
+            <div class="baby-age">${escapeHtml(formatAge(currentAgeMonths))}</div>
+            <div class="baby-next">下一个阶段：${escapeHtml(nextText)}</div>
+          </div>
+          <label class="date-box">
+            <div class="mini-label">生日</div>
+            <input id="birthDateInput" type="date" value="${escapeAttr(state.prefs.birthDate || '')}" />
+          </label>
+        </div>
+      `;
+    }
+
+    function renderModes() {
+      el.modeSwitch.innerHTML = state.data.modes.map(mode => `
+        <button class="seg-btn ${mode.id === state.modeId ? 'active' : ''}" data-mode-id="${mode.id}">
+          <small>${escapeHtml(String(mode.sheetTotal || mode.declaredTotal || mode.groups.length))} 针</small>
+          <strong>${escapeHtml(mode.name)}</strong>
+        </button>
+      `).join('');
+    }
+
+    function renderFocus(mode, focusGroups) {
+      const stats = getModeStats(mode);
+      const pct = stats.total ? Math.round(stats.done / stats.total * 100) : 0;
+      const focusText = focusGroups.map(group => group.age).join(' + ');
+      el.focusPanel.innerHTML = `
+        <div class="focus-head">
+          <div>
+            <h2>${escapeHtml(mode.name)}</h2>
+            <p>${escapeHtml(mode.description)}</p>
+          </div>
+          <div class="chip green">聚焦 ${escapeHtml(focusText || '当前阶段')}</div>
+        </div>
+        <div class="progress-box">
+          <div class="progress-top">
+            <div class="progress-number">${pct}<span>% 已打</span></div>
+            <div style="font-size:12px;color:var(--sub);">${stats.done}/${stats.total} 完成</div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="stats-grid">
+            <div class="stat"><strong>${stats.todo}</strong><span>未打</span></div>
+            <div class="stat"><strong>${stats.booked}</strong><span>已预约</span></div>
+            <div class="stat"><strong>${stats.done}</strong><span>已打</span></div>
+            <div class="stat"><strong>${mode.sheetTotal || mode.declaredTotal || stats.total}</strong><span>总针数</span></div>
+          </div>
+        </div>
+        <div class="chip-row">
+          <span class="chip green">HK免费 ${mode.totalsByChannel.hk_free || 0}</span>
+          <span class="chip purple">HK自费 ${mode.totalsByChannel.hk_self || 0}</span>
+          <span class="chip blue">内地免费 ${mode.totalsByChannel.cn_free || 0}</span>
+          <span class="chip orange">内地自费 ${(mode.totalsByChannel.cn_self_domestic || 0) + (mode.totalsByChannel.cn_self_imported || 0)}</span>
+        </div>
+        ${mode.warnings.length ? `<div class="warning-list">${mode.warnings.map(item => `<div class="warning-item">${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+      `;
+    }
+
+    function renderQuick(mode, focusGroups) {
+      const currentGroup = focusGroups[0];
+      const nextGroup = focusGroups[1] || focusGroups[0];
+      el.quickPanel.innerHTML = `
+        <h3>快捷操作</h3>
+        <p>默认先处理当前月龄，再处理下一个月龄。每段都能整组批量操作，不用逐条点。</p>
+        <div class="action-row">
+          <button class="action-btn" data-batch-target="${currentGroup?.id || ''}" data-batch-status="done">${escapeHtml(currentGroup ? currentGroup.age : '当前阶段')} 全标已打</button>
+          <button class="action-btn orange" data-batch-target="${nextGroup?.id || ''}" data-batch-status="booked">${escapeHtml(nextGroup ? nextGroup.age : '下一阶段')} 全标已预约</button>
+          <button class="ghost-btn" id="resetModeBtn">清空当前模式记录</button>
+        </div>
+        <div class="filter-line">
+          <div>
+            <div class="mini-label">显示设置</div>
+            <div style="font-size:14px;font-weight:700;">${state.prefs.onlyPending ? '只看未完成' : '显示当前与下一阶段 + 其他折叠'}</div>
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:12px;color:var(--sub);">只看未完成</span>
+            <input class="switch" id="onlyPendingToggle" type="checkbox" ${state.prefs.onlyPending ? 'checked' : ''} />
+          </label>
+        </div>
+      `;
+    }
+
+    function renderCurrentNext(focusGroups) {
+      if (!focusGroups.length) {
+        el.currentNextSection.innerHTML = `<div class="empty">当前没有可展示的月龄段。</div>`;
+        return;
+      }
+      el.currentNextSection.innerHTML = `
+        <h3>当前 + 下一个月龄</h3>
+        <p>这里只保留最该看的两段，默认展开。</p>
+        ${focusGroups.map(group => renderMonthCard(group, true)).join('')}
+      `;
+    }
+
+    function renderOther(groups) {
+      if (!groups.length) {
+        el.otherSection.innerHTML = `
+          <h3>其他阶段</h3>
+          <p>6 岁以后已隐藏，当前也没有其他需要显示的阶段。</p>
+        `;
+        return;
+      }
+      el.otherSection.innerHTML = `
+        <h3>其他阶段</h3>
+        <p>默认只留一行标题，想看再展开。</p>
+        ${groups.map(group => renderMonthCard(group, false)).join('')}
+      `;
+    }
+
+    function renderMonthCard(group, expandedByDefault) {
+      const stats = getGroupStats(group);
+      const expanded = expandedByDefault || state.expanded.has(group.id);
+      return `
+        <section class="month-card ${expandedByDefault ? '' : 'compact'}">
+          <div class="month-head" data-group-id="${group.id}">
+            <div class="month-title">
+              <strong>${escapeHtml(group.age)}</strong>
+              <div class="month-sub">${escapeHtml(group.window || '按该月龄处理')} · ${group.items.length} 项</div>
+            </div>
+            <div class="month-count">${stats.done}/${stats.total}</div>
+          </div>
+          ${expanded ? `
+            <div class="month-body">
+              <div class="month-actions">
+                <button class="mini-btn done" data-batch-target="${group.id}" data-batch-status="done">本段全已打</button>
+                <button class="mini-btn booked" data-batch-target="${group.id}" data-batch-status="booked">本段全预约</button>
+                <button class="mini-btn todo" data-batch-target="${group.id}" data-batch-status="todo">重置本段</button>
+              </div>
+              ${group.items.map(renderItem).join('')}
+            </div>
+          ` : ''}
+        </section>
+      `;
+    }
+
+    function renderItem(item) {
+      const record = state.records[item.id] || {};
+      const status = record.status || 'todo';
+      const info = STATUS_INFO[status];
+      const channel = CHANNEL_INFO[item.channelKey] || { label: item.channel, className: '' };
+      const updated = record.updatedAt ? `最近更新 ${record.updatedAt}` : '点右侧按钮切换状态';
+      return `
+        <div class="item">
+          <div>
+            <div class="item-title">${escapeHtml(item.label)}</div>
+            <div class="item-meta">
+              <span class="chip ${channel.className}">${escapeHtml(channel.label)}</span>
+              ${item.window ? `<span class="chip">${escapeHtml(item.window)}</span>` : ''}
+            </div>
+            <input class="item-note" data-note-id="${item.id}" value="${escapeAttr(record.note || '')}" placeholder="记录日期 / 机构 / 备注" />
+            <div class="item-tip">${escapeHtml(updated)}</div>
+          </div>
+          <div class="status-stack">
+            <button class="status-btn ${info.className}" data-cycle-id="${item.id}">${info.label}</button>
+            <div class="status-hint">点击切换<br/>未打 → 已预约 → 已打</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFooter(mode) {
+      el.footer.innerHTML = `
+        状态只保存在当前浏览器。当前页面会隐藏 6 岁以后内容；其他阶段默认只显示一行标题。当前模式：${escapeHtml(mode.name)}。如果你还想再砍信息量，我下一步可以直接做“仅看待处理项”的首页版本。`
+    }
+
+    function bind() {
+      document.querySelectorAll('[data-mode-id]').forEach(node => {
+        node.onclick = () => {
+          state.modeId = node.dataset.modeId;
+          state.prefs.modeId = state.modeId;
+          autoExpand();
+          persistPrefs();
+          render();
+        };
+      });
+
+      const birthInput = document.getElementById('birthDateInput');
+      if (birthInput) {
+        birthInput.onchange = () => {
+          state.prefs.birthDate = birthInput.value;
+          autoExpand();
+          persistPrefs();
+          render();
+        };
+      }
+
+      const onlyPendingToggle = document.getElementById('onlyPendingToggle');
+      if (onlyPendingToggle) {
+        onlyPendingToggle.onchange = () => {
+          state.prefs.onlyPending = onlyPendingToggle.checked;
+          autoExpand();
+          persistPrefs();
+          render();
+        };
+      }
+
+      const resetModeBtn = document.getElementById('resetModeBtn');
+      if (resetModeBtn) {
+        resetModeBtn.onclick = () => {
+          const mode = currentMode();
+          if (!confirm(`确认清空“${mode.name}”所有记录？`)) return;
+          mode.groups.flatMap(group => group.items).forEach(item => delete state.records[item.id]);
+          persistRecords();
+          render();
+        };
+      }
+
+      document.querySelectorAll('[data-group-id]').forEach(node => {
+        node.onclick = () => {
+          const id = node.dataset.groupId;
+          const focusIds = new Set(getFocusGroups(getVisibleGroups(currentMode()), getCurrentAgeMonths()).map(group => group.id));
+          if (focusIds.has(id)) return;
+          if (state.expanded.has(id)) state.expanded.delete(id); else state.expanded.add(id);
+          render();
+        };
+      });
+
+      document.querySelectorAll('[data-cycle-id]').forEach(node => {
+        node.onclick = () => setStatus(node.dataset.cycleId, nextStatus(statusOf(node.dataset.cycleId)));
+      });
+
+      document.querySelectorAll('[data-batch-target]').forEach(node => {
+        node.onclick = () => {
+          const mode = currentMode();
+          const group = mode.groups.find(item => item.id === node.dataset.batchTarget);
+          if (!group) return;
+          applyBatch(group, node.dataset.batchStatus);
+        };
+      });
+
+      document.querySelectorAll('[data-note-id]').forEach(node => {
+        node.onchange = () => {
+          const id = node.dataset.noteId;
+          const existing = state.records[id] || { status: 'todo' };
+          state.records[id] = {
+            ...existing,
+            note: node.value.trim(),
+            updatedAt: stamp()
+          };
+          persistRecords();
+          render();
+        };
+      });
+    }
+
+    function getVisibleGroups(mode) {
+      return mode.groups
+        .filter(group => toMonths(group.age) <= 72)
+        .filter(group => !state.prefs.onlyPending || group.items.some(item => statusOf(item.id) !== 'done'));
+    }
+
+    function getFocusGroups(groups, currentAgeMonths) {
+      if (!groups.length) return [];
+      const sorted = [...groups].sort((a, b) => toMonths(a.age) - toMonths(b.age));
+      let current = sorted[0];
+      for (const group of sorted) {
+        if (toMonths(group.age) <= currentAgeMonths) current = group;
+      }
+      let next = sorted.find(group => toMonths(group.age) > toMonths(current.age));
+      const result = [current];
+      if (next && next.id !== current.id) result.push(next);
+      return result;
+    }
+
+    function getModeStats(mode) {
+      const visibleGroups = getVisibleGroups(mode);
+      const stats = { total: 0, todo: 0, booked: 0, done: 0 };
+      visibleGroups.forEach(group => group.items.forEach(item => {
+        stats.total += 1;
+        stats[statusOf(item.id)] += 1;
+      }));
+      return stats;
+    }
+
+    function getGroupStats(group) {
+      const stats = { total: group.items.length, todo: 0, booked: 0, done: 0 };
+      group.items.forEach(item => stats[statusOf(item.id)] += 1);
+      return stats;
+    }
+
+    function autoExpand() {
+      const mode = currentMode();
+      if (!mode) return;
+      const currentAgeMonths = getCurrentAgeMonths();
+      const focusIds = new Set(getFocusGroups(getVisibleGroups(mode), currentAgeMonths).map(group => group.id));
+      state.expanded = focusIds;
+    }
+
+    function applyBatch(group, status) {
+      group.items.forEach(item => {
+        const existing = state.records[item.id] || {};
+        state.records[item.id] = {
+          ...existing,
+          status,
+          updatedAt: stamp()
+        };
+      });
+      persistRecords();
+      render();
+    }
+
+    function setStatus(id, status) {
+      const existing = state.records[id] || {};
+      state.records[id] = {
+        ...existing,
+        status,
+        updatedAt: stamp()
+      };
+      persistRecords();
+      render();
+    }
+
+    function currentMode() {
+      return state.data?.modes.find(mode => mode.id === state.modeId) || state.data?.modes[0];
+    }
+
+    function getCurrentAgeMonths() {
+      if (!state.prefs.birthDate) return 0;
+      const birth = new Date(state.prefs.birthDate + 'T00:00:00');
+      if (Number.isNaN(birth.getTime())) return 0;
+      const now = new Date();
+      let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+      if (now.getDate() < birth.getDate()) months -= 1;
+      return Math.max(months, 0);
+    }
+
+    function formatAge(months) {
+      if (months < 1) return '出生后未满 1 个月';
+      if (months < 24) return `${months} 个月`;
+      const years = Math.floor(months / 12);
+      const rest = months % 12;
+      return rest ? `${years} 岁 ${rest} 个月` : `${years} 岁`;
+    }
+
+    function toMonths(age) {
+      return AGE_MONTH_MAP[age] ?? 999;
+    }
+
+    function statusOf(id) {
+      return (state.records[id] && state.records[id].status) || 'todo';
+    }
+
+    function nextStatus(status) {
+      if (status === 'todo') return 'booked';
+      if (status === 'booked') return 'done';
+      return 'todo';
+    }
+
+    function stamp() {
+      return new Date().toLocaleString('zh-CN', { hour12: false }).replace(',', '');
+    }
+
+    function persistRecords() {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state.records));
+    }
+
+    function persistPrefs() {
+      localStorage.setItem(PREF_KEY, JSON.stringify(state.prefs));
+    }
+
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+  </script>
+</body>
+</html>
