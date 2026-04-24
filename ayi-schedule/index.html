@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>阿姨排班工具</title>
+<style>
+  :root {
+    --primary: #6C63FF;
+    --primary-light: #8B85FF;
+    --primary-dark: #4F46E5;
+    --accent: #FF6B6B;
+    --accent-light: #FF8E8E;
+    --green: #10B981;
+    --green-light: #34D399;
+    --orange: #F59E0B;
+    --orange-light: #FBBF24;
+    --bg: #F8F9FE;
+    --card: #FFFFFF;
+    --text: #1E1B4B;
+    --text-secondary: #6B7280;
+    --text-light: #9CA3AF;
+    --border: #E5E7EB;
+    --shadow: 0 4px 24px rgba(108, 99, 255, 0.08);
+    --shadow-lg: 0 8px 32px rgba(108, 99, 255, 0.12);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-xs: 8px;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    padding: 20px 20px 24px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: var(--bg);
+    border-radius: 24px 24px 0 0;
+  }
+
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .header-subtitle {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-top: 4px;
+  }
+
+  /* Container */
+  .container {
+    padding: 0 16px 120px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s ease;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .card-title .icon.purple { background: rgba(108,99,255,0.1); }
+  .card-title .icon.green { background: rgba(16,185,129,0.1); }
+  .card-title .icon.orange { background: rgba(245,158,11,0.1); }
+
+  /* Input Group */
+  .input-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .input-group {
+    flex: 1;
+    position: relative;
+  }
+
+  .input-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .input-group input {
+    width: 100%;
+    height: 44px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .input-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(108,99,255,0.1);
+  }
+
+  .input-group .unit {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(25%);
+    font-size: 13px;
+    color: var(--text-light);
+    pointer-events: none;
+  }
+
+  .daily-wage-display {
+    background: linear-gradient(135deg, rgba(108,99,255,0.06) 0%, rgba(139,133,255,0.06) 100%);
+    border-radius: var(--radius-xs);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .daily-wage-display .label {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .daily-wage-display .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  /* Calendar */
+  .calendar-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .calendar-nav .month-label {
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .calendar-nav button {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--bg);
+    border-radius: 10px;
+    font-size: 16px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .calendar-nav button:active {
+    transform: scale(0.92);
+    background: var(--border);
+  }
+
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .calendar-weekdays span {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-light);
+    padding: 4px 0;
+  }
+
+  .calendar-weekdays span:first-child,
+  .calendar-weekdays span:last-child {
+    color: var(--accent);
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .calendar-day {
+    aspect-ratio: 1;
+    border: none;
+    background: none;
+    border-radius: var(--radius-xs);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .calendar-day.empty {
+    cursor: default;
+  }
+
+  .calendar-day.today {
+    font-weight: 700;
+  }
+
+  .calendar-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+
+  /* 上班 */
+  .calendar-day.work {
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+  }
+
+  .calendar-day.work.today::after {
+    background: white;
+  }
+
+  /* 请假半天 */
+  .calendar-day.half-leave {
+    background: linear-gradient(135deg, var(--primary) 50%, var(--orange) 50%);
+    color: white;
+    font-weight: 600;
+  }
+
+  /* 请假一天 */
+  .calendar-day.full-leave {
+    background: var(--orange);
+    color: white;
+    font-weight: 600;
+  }
+
+  /* 法定假日 - 不上班 */
+  .calendar-day.holiday {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  /* 法定假日 - 上班（双倍/三倍） */
+  .calendar-day.holiday-work {
+    background: var(--green);
+    color: white;
+    font-weight: 600;
+  }
+
+  .calendar-day .day-label {
+    font-size: 9px;
+    position: absolute;
+    bottom: 2px;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .calendar-day.holiday .day-label,
+  .calendar-day.holiday-work .day-label {
+    font-size: 8px;
+  }
+
+  /* 周末底色 */
+  .calendar-day.weekend {
+    background: rgba(255, 107, 107, 0.06);
+    color: var(--accent);
+  }
+
+  /* 工作日休息（用户主动设为休息） */
+  .calendar-day.rest {
+    background: rgba(156, 163, 175, 0.1);
+    color: var(--text-secondary);
+  }
+
+  .calendar-day:active:not(.empty) {
+    transform: scale(0.9);
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .legend-dot.work { background: var(--primary); }
+  .legend-dot.half-leave { background: linear-gradient(135deg, var(--primary) 50%, var(--orange) 50%); }
+  .legend-dot.full-leave { background: var(--orange); }
+  .legend-dot.holiday { background: rgba(16,185,129,0.12); border: 1px solid var(--green); }
+  .legend-dot.holiday-work { background: var(--green); }
+  .legend-dot.weekend { background: rgba(255,107,107,0.06); border: 1px solid var(--accent); }
+
+  /* Summary */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .summary-item {
+    background: var(--bg);
+    border-radius: var(--radius-xs);
+    padding: 12px;
+    text-align: center;
+  }
+
+  .summary-item .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .summary-item .value {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .summary-item .value.purple { color: var(--primary); }
+  .summary-item .value.green { color: var(--green); }
+  .summary-item .value.orange { color: var(--orange); }
+  .summary-item .value.accent { color: var(--accent); }
+
+  .total-wage {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    text-align: center;
+    color: white;
+  }
+
+  .total-wage .label {
+    font-size: 13px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+  }
+
+  .total-wage .amount {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .total-wage .breakdown {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  /* Action Sheet */
+  .overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+  }
+
+  .overlay.show {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .action-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+    z-index: 101;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .action-sheet.show {
+    transform: translateY(0);
+  }
+
+  .action-sheet .handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .action-sheet .sheet-title {
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .action-sheet .option {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    border-radius: var(--radius-xs);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 10px;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.15s;
+  }
+
+  .action-sheet .option:active {
+    transform: scale(0.97);
+  }
+
+  .action-sheet .option .opt-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .action-sheet .option .opt-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .action-sheet .option.work-opt .opt-icon { background: rgba(108,99,255,0.1); }
+  .action-sheet .option.half-opt .opt-icon { background: rgba(245,158,11,0.1); }
+  .action-sheet .option.leave-opt .opt-icon { background: rgba(255,107,107,0.1); }
+  .action-sheet .option.clear-opt .opt-icon { background: rgba(156,163,175,0.1); }
+
+  .action-sheet .cancel-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    background: var(--bg);
+    border-radius: var(--radius-xs);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-top: 4px;
+  }
+
+  /* Holiday badge on day */
+  .calendar-day .holiday-badge {
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(30,27,75,0.9);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 200;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Data Persistence Indicator */
+  .save-indicator {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .save-indicator .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green-light);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">阿姨排班工具</div>
+  <div class="header-subtitle">轻松管理排班与工资计算</div>
+  <div class="save-indicator">
+    <span class="dot"></span>
+    <span>自动保存</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- 薪资设置 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon purple">💰</span>
+      薪资设置
+    </div>
+    <div class="input-row">
+      <div class="input-group">
+        <label>月薪（元）</label>
+        <input type="number" id="monthlySalary" placeholder="例如 6000" inputmode="numeric">
+        <span class="unit">元</span>
+      </div>
+      <div class="input-group">
+        <label>每月上班天数</label>
+        <input type="number" id="workDaysPerMonth" placeholder="例如 26" inputmode="numeric">
+        <span class="unit">天</span>
+      </div>
+    </div>
+    <div class="daily-wage-display">
+      <span class="label">日薪</span>
+      <span class="value" id="dailyWage">¥0.00</span>
+    </div>
+  </div>
+
+  <!-- 月历 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon green">📅</span>
+      排班日历
+    </div>
+    <div class="calendar-nav">
+      <button id="prevMonth">◀</button>
+      <span class="month-label" id="monthLabel">2026年3月</span>
+      <button id="nextMonth">▶</button>
+    </div>
+    <div class="calendar-weekdays">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot work"></div>上班</div>
+      <div class="legend-item"><div class="legend-dot half-leave"></div>上班半天</div>
+      <div class="legend-item"><div class="legend-dot full-leave"></div>请假</div>
+      <div class="legend-item"><div class="legend-dot holiday"></div>假日休息</div>
+      <div class="legend-item"><div class="legend-dot holiday-work"></div>假日上班</div>
+      <div class="legend-item"><div class="legend-dot weekend"></div>周末</div>
+    </div>
+  </div>
+
+  <!-- 工资汇总 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="icon orange">📊</span>
+      当月工资
+    </div>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="label">正常上班</div>
+        <div class="value purple" id="normalDays">0天</div>
+      </div>
+      <div class="summary-item">
+        <div class="label">上班半天</div>
+        <div class="value orange" id="halfDays">0天</div>
+      </div>
+      <div class="summary-item">
+        <div class="label">假日上班(2倍)</div>
+        <div class="value green" id="doubleDays">0天</div>
+      </div>
+      <div class="summary-item">
+        <div class="label">春节上班(3倍)</div>
+        <div class="value accent" id="tripleDays">0天</div>
+      </div>
+    </div>
+    <div class="total-wage">
+      <div class="label">当月应付工资</div>
+      <div class="amount" id="totalWage">¥0.00</div>
+      <div class="breakdown" id="wageBreakdown"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Sheet -->
+<div class="overlay" id="overlay"></div>
+<div class="action-sheet" id="actionSheet">
+  <div class="handle"></div>
+  <div class="sheet-title" id="sheetTitle">3月15日</div>
+  <div id="sheetOptions"></div>
+  <button class="cancel-btn" id="cancelBtn">取消</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ 法定假日数据 ============
+// 2025-2027年中国法定假日（仅放假日当天，不含调休）
+const HOLIDAYS = {
+  // 2025年
+  '2025-01-01': { name: '元旦', multiplier: 2 },
+  '2025-01-28': { name: '春节', multiplier: 3 },
+  '2025-01-29': { name: '春节', multiplier: 3 },
+  '2025-01-30': { name: '春节', multiplier: 3 },
+  '2025-01-31': { name: '春节', multiplier: 3 },
+  '2025-04-04': { name: '清明', multiplier: 2 },
+  '2025-05-01': { name: '劳动节', multiplier: 2 },
+  '2025-05-31': { name: '端午', multiplier: 2 },
+  '2025-10-01': { name: '国庆', multiplier: 2 },
+  '2025-10-02': { name: '国庆', multiplier: 2 },
+  '2025-10-03': { name: '国庆', multiplier: 2 },
+  '2025-10-06': { name: '中秋', multiplier: 2 },
+
+  // 2026年
+  '2026-01-01': { name: '元旦', multiplier: 2 },
+  '2026-02-17': { name: '春节', multiplier: 3 },
+  '2026-02-18': { name: '春节', multiplier: 3 },
+  '2026-02-19': { name: '春节', multiplier: 3 },
+  '2026-02-20': { name: '春节', multiplier: 3 },
+  '2026-04-05': { name: '清明', multiplier: 2 },
+  '2026-05-01': { name: '劳动节', multiplier: 2 },
+  '2026-06-19': { name: '端午', multiplier: 2 },
+  '2026-10-01': { name: '国庆', multiplier: 2 },
+  '2026-10-02': { name: '国庆', multiplier: 2 },
+  '2026-10-03': { name: '国庆', multiplier: 2 },
+  '2026-10-06': { name: '中秋', multiplier: 2 },
+
+  // 2027年
+  '2027-01-01': { name: '元旦', multiplier: 2 },
+  '2027-02-06': { name: '春节', multiplier: 3 },
+  '2027-02-07': { name: '春节', multiplier: 3 },
+  '2027-02-08': { name: '春节', multiplier: 3 },
+  '2027-02-09': { name: '春节', multiplier: 3 },
+  '2027-03-26': { name: '清明', multiplier: 2 },  // 预估
+  '2027-05-01': { name: '劳动节', multiplier: 2 },
+  '2027-06-09': { name: '端午', multiplier: 2 },
+  '2027-10-01': { name: '国庆', multiplier: 2 },
+  '2027-10-02': { name: '国庆', multiplier: 2 },
+  '2027-10-03': { name: '国庆', multiplier: 2 },
+  '2027-10-25': { name: '中秋', multiplier: 2 },  // 预估
+};
+
+// ============ 状态管理 ============
+let currentYear = 2026;
+let currentMonth = 3; // 1-based
+let monthlySalary = 0;
+let workDaysPerMonth = 26;
+
+// dayStates: { 'YYYY-MM-DD': 'work' | 'half' | 'leave' | 'holiday-work' }
+// 没有记录 = 不上班（普通日）/ 假日休息（假日）
+let dayStates = {};
+
+// ============ 工具函数 ============
+function padZero(n) { return n < 10 ? '0' + n : '' + n; }
+
+function dateKey(y, m, d) {
+  return `${y}-${padZero(m)}-${padZero(d)}`;
+}
+
+function getHoliday(key) {
+  return HOLIDAYS[key] || null;
+}
+
+function getDaysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+function getFirstDayOfWeek(y, m) {
+  return new Date(y, m - 1, 1).getDay();
+}
+
+function getDailyWage() {
+  if (!monthlySalary || !workDaysPerMonth || workDaysPerMonth === 0) return 0;
+  return monthlySalary / workDaysPerMonth;
+}
+
+function isToday(y, m, d) {
+  const now = new Date();
+  return now.getFullYear() === y && (now.getMonth() + 1) === m && now.getDate() === d;
+}
+
+function isWeekend(y, m, d) {
+  const dow = new Date(y, m - 1, d).getDay();
+  return dow === 0 || dow === 6;
+}
+
+// 自动为当前月份的工作日（周一至周五，非假日）填充"上班"状态
+// 仅填充尚未有任何标记的日子
+function autoFillWorkdays() {
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const holiday = getHoliday(key);
+    // 非周末、非假日、且没有手动标记过的日子 → 自动标记上班
+    if (!isWeekend(currentYear, currentMonth, d) && !holiday && !dayStates[key]) {
+      dayStates[key] = 'work';
+    }
+  }
+  saveData();
+}
+
+// ============ 渲染日历 ============
+function renderCalendar() {
+  // 自动为工作日填充上班状态
+  autoFillWorkdays();
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
+
+  document.getElementById('monthLabel').textContent = `${currentYear}年${currentMonth}月`;
+
+  // 空白填充
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-day empty';
+    grid.appendChild(empty);
+  }
+
+  // 日期
+  for (let d = 1; d <= daysInMonth; d++) {
+    const btn = document.createElement('button');
+    btn.className = 'calendar-day';
+    const key = dateKey(currentYear, currentMonth, d);
+    const holiday = getHoliday(key);
+    const state = dayStates[key];
+    const weekend = isWeekend(currentYear, currentMonth, d);
+
+    btn.textContent = d;
+
+    if (isToday(currentYear, currentMonth, d)) {
+      btn.classList.add('today');
+    }
+
+    if (holiday) {
+      // 法定假日
+      if (state === 'holiday-work') {
+        btn.classList.add('holiday-work');
+        const badge = document.createElement('span');
+        badge.className = 'day-label';
+        badge.textContent = holiday.multiplier === 3 ? '3倍' : '2倍';
+        btn.appendChild(badge);
+      } else {
+        btn.classList.add('holiday');
+        const badge = document.createElement('span');
+        badge.className = 'day-label';
+        badge.textContent = holiday.name;
+        btn.appendChild(badge);
+      }
+    } else if (state === 'work') {
+      btn.classList.add('work');
+    } else if (state === 'half') {
+      btn.classList.add('half-leave');
+      const badge = document.createElement('span');
+      badge.className = 'day-label';
+      badge.textContent = '半天';
+      badge.style.color = 'white';
+      btn.appendChild(badge);
+    } else if (state === 'leave') {
+      btn.classList.add('full-leave');
+      const badge = document.createElement('span');
+      badge.className = 'day-label';
+      badge.textContent = '请假';
+      badge.style.color = 'white';
+      btn.appendChild(badge);
+    } else if (state === 'rest') {
+      btn.classList.add('rest');
+      const badge = document.createElement('span');
+      badge.className = 'day-label';
+      badge.textContent = '休息';
+      btn.appendChild(badge);
+    } else if (!holiday && state !== 'rest' && weekend) {
+      // 周末无标记 → 显示周末样式（休息）
+      btn.classList.add('weekend');
+    }
+
+    btn.addEventListener('click', () => openActionSheet(d, key, holiday));
+    grid.appendChild(btn);
+  }
+
+  calculateWage();
+}
+
+// ============ Action Sheet ============
+function openActionSheet(day, key, holiday) {
+  const sheet = document.getElementById('actionSheet');
+  const overlay = document.getElementById('overlay');
+  const title = document.getElementById('sheetTitle');
+  const options = document.getElementById('sheetOptions');
+
+  title.textContent = `${currentMonth}月${day}日` + (holiday ? ` · ${holiday.name}` : '');
+  options.innerHTML = '';
+
+  const currentState = dayStates[key];
+
+  if (holiday) {
+    // 假日选项
+    const opt1 = createOption('🏖️', '假日休息', `不上班，正常发工资（${holiday.multiplier === 3 ? '三' : '二'}倍基数日）`, 'work-opt', () => {
+      dayStates[key] = 'rest';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：${holiday.name}休息`);
+    });
+    if (!currentState) opt1.style.borderColor = 'var(--green)';
+
+    const opt2 = createOption('💪', '假日上班', `上班，获得${holiday.multiplier === 3 ? '三' : '二'}倍工资`, 'half-opt', () => {
+      dayStates[key] = 'holiday-work';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：${holiday.name}上班 ${holiday.multiplier}倍工资`);
+    });
+    if (currentState === 'holiday-work') opt2.style.borderColor = 'var(--green)';
+
+    options.appendChild(opt1);
+    options.appendChild(opt2);
+  } else {
+    // 普通日选项
+    const weekend = isWeekend(currentYear, currentMonth, day);
+
+    const opt1 = createOption('💼', '上班', '全天正常上班', 'work-opt', () => {
+      dayStates[key] = 'work';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：上班`);
+    });
+    if (currentState === 'work') opt1.style.borderColor = 'var(--primary)';
+
+    const opt2 = createOption('🌤️', '上班半天', '上半天班，扣半天工资', 'half-opt', () => {
+      dayStates[key] = 'half';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：上班半天`);
+    });
+    if (currentState === 'half') opt2.style.borderColor = 'var(--orange)';
+
+    const opt3 = createOption('📋', '请假一天', '全天请假，扣一天工资', 'leave-opt', () => {
+      dayStates[key] = 'leave';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：请假`);
+    });
+    if (currentState === 'leave') opt3.style.borderColor = 'var(--accent)';
+
+    const opt4 = createOption('😴', '休息', '这天不上班，不计工资', 'clear-opt', () => {
+      dayStates[key] = 'rest';
+      closeSheet();
+      renderCalendar();
+      saveData();
+      showToast(`${currentMonth}月${day}日：休息`);
+    });
+    if (currentState === 'rest') opt4.style.borderColor = 'var(--primary)';
+    if (!currentState && weekend) opt4.style.borderColor = 'var(--text-light)';
+
+    options.appendChild(opt1);
+    options.appendChild(opt2);
+    options.appendChild(opt3);
+    options.appendChild(opt4);
+  }
+
+  // Show
+  requestAnimationFrame(() => {
+    overlay.classList.add('show');
+    sheet.classList.add('show');
+  });
+}
+
+function createOption(icon, title, desc, cls, onClick) {
+  const btn = document.createElement('button');
+  btn.className = `option ${cls}`;
+  btn.innerHTML = `
+    <span class="opt-icon">${icon}</span>
+    <div>
+      <div>${title}</div>
+      <div class="opt-desc">${desc}</div>
+    </div>
+  `;
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function closeSheet() {
+  document.getElementById('actionSheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+document.getElementById('overlay').addEventListener('click', closeSheet);
+document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+
+// ============ 工资计算 ============
+function calculateWage() {
+  const dailyWage = getDailyWage();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+
+  let normalWorkDays = 0;    // 正常全天上班
+  let halfDays = 0;          // 上班半天
+  let doubleWorkDays = 0;    // 法定假日上班（2倍）
+  let tripleWorkDays = 0;    // 春节上班（3倍）
+  let holidayRestDays = 0;   // 法定假日休息（有工资）
+  let leaveDays = 0;         // 请假天数
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = dateKey(currentYear, currentMonth, d);
+    const holiday = getHoliday(key);
+    const state = dayStates[key];
+
+    if (holiday) {
+      if (state === 'holiday-work') {
+        if (holiday.multiplier === 3) {
+          tripleWorkDays++;
+        } else {
+          doubleWorkDays++;
+        }
+      } else {
+        holidayRestDays++;
+      }
+    } else {
+      if (state === 'work') {
+        normalWorkDays++;
+      } else if (state === 'half') {
+        halfDays++;
+      } else if (state === 'leave') {
+        leaveDays++;
+      }
+    }
+  }
+
+  // 计算工资
+  const normalPay = normalWorkDays * dailyWage;
+  const halfPay = halfDays * dailyWage * 0.5;
+  const holidayRestPay = holidayRestDays * dailyWage; // 假日不上班也有工资
+  const doublePay = doubleWorkDays * dailyWage * 2;
+  const triplePay = tripleWorkDays * dailyWage * 3;
+
+  const totalWage = normalPay + halfPay + holidayRestPay + doublePay + triplePay;
+
+  // 更新UI
+  document.getElementById('normalDays').textContent = `${normalWorkDays}天`;
+  document.getElementById('halfDays').textContent = `${halfDays}天`;
+  document.getElementById('doubleDays').textContent = `${doubleWorkDays}天`;
+  document.getElementById('tripleDays').textContent = `${tripleWorkDays}天`;
+  document.getElementById('totalWage').textContent = `¥${totalWage.toFixed(2)}`;
+
+  // 工资明细
+  let breakdownParts = [];
+  if (normalWorkDays > 0) breakdownParts.push(`正常${normalWorkDays}天 ¥${normalPay.toFixed(0)}`);
+  if (halfDays > 0) breakdownParts.push(`半天${halfDays}天 ¥${halfPay.toFixed(0)}`);
+  if (holidayRestDays > 0) breakdownParts.push(`假日休${holidayRestDays}天 ¥${holidayRestPay.toFixed(0)}`);
+  if (doubleWorkDays > 0) breakdownParts.push(`2倍${doubleWorkDays}天 ¥${doublePay.toFixed(0)}`);
+  if (tripleWorkDays > 0) breakdownParts.push(`3倍${tripleWorkDays}天 ¥${triplePay.toFixed(0)}`);
+
+  document.getElementById('wageBreakdown').textContent = breakdownParts.join(' + ') || '请先设置薪资并标记上班日';
+}
+
+// ============ 月份导航 ============
+document.getElementById('prevMonth').addEventListener('click', () => {
+  currentMonth--;
+  if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+  renderCalendar();
+});
+
+document.getElementById('nextMonth').addEventListener('click', () => {
+  currentMonth++;
+  if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+  renderCalendar();
+});
+
+// ============ 薪资输入 ============
+document.getElementById('monthlySalary').addEventListener('input', (e) => {
+  monthlySalary = parseFloat(e.target.value) || 0;
+  updateDailyWage();
+  calculateWage();
+  saveData();
+});
+
+document.getElementById('workDaysPerMonth').addEventListener('input', (e) => {
+  workDaysPerMonth = parseFloat(e.target.value) || 0;
+  updateDailyWage();
+  calculateWage();
+  saveData();
+});
+
+function updateDailyWage() {
+  const dw = getDailyWage();
+  document.getElementById('dailyWage').textContent = dw > 0 ? `¥${dw.toFixed(2)}` : '¥0.00';
+}
+
+// ============ Toast ============
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+// ============ 数据持久化（localStorage）============
+function saveData() {
+  const data = {
+    monthlySalary,
+    workDaysPerMonth,
+    dayStates,
+    currentYear,
+    currentMonth,
+  };
+  try {
+    localStorage.setItem('ayi_scheduler', JSON.stringify(data));
+  } catch(e) {}
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem('ayi_scheduler');
+    if (raw) {
+      const data = JSON.parse(raw);
+      monthlySalary = data.monthlySalary || 0;
+      workDaysPerMonth = data.workDaysPerMonth || 26;
+      dayStates = data.dayStates || {};
+      currentYear = data.currentYear || new Date().getFullYear();
+      currentMonth = data.currentMonth || (new Date().getMonth() + 1);
+
+      document.getElementById('monthlySalary').value = monthlySalary || '';
+      document.getElementById('workDaysPerMonth').value = workDaysPerMonth || '';
+      updateDailyWage();
+    }
+  } catch(e) {}
+}
+
+// ============ 初始化 ============
+loadData();
+renderCalendar();
+</script>
+</body>
+</html>
