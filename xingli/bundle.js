@@ -1524,10 +1524,29 @@
       if (!remaining.length) {
         return '<div class="empty-panel"><div class="empty-icon">\u{1F389}</div><div class="empty-title">\u5168\u90E8\u6253\u5305\u5B8C\u6210</div><div class="empty-hint">\u8FD9\u6B21\u51FA\u95E8\u9700\u8981\u5E26\u7684\u4E1C\u897F\u90FD\u51C6\u5907\u597D\u4E86\u3002</div></div>';
       }
-      return remaining.map(renderPackItemCard).join("");
+      // 按小包分组
+      const bags = trip.bags || DEFAULT_BAGS;
+      const groups = bags
+        .map((bag) => ({ bag, items: remaining.filter((item) => item.bag === bag.id) }))
+        .filter((group) => group.items.length);
+      const unassigned = remaining.filter((item) => !bags.some((bag) => bag.id === item.bag));
+      if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
+      return groups.map((group) => {
+        return '<div class="bag-group" id="bag-remain-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6\u672A\u6253</span></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      }).join("");
     }
     if (S.packView === "all") {
-      return trip.items.map(renderPackItemCard).join("");
+      const bags = trip.bags || DEFAULT_BAGS;
+      const groups = bags
+        .map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) }))
+        .filter((group) => group.items.length);
+      const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
+      if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
+      return groups.map((group) => {
+        const packed = group.items.filter((item) => item.packed).length;
+        const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
+        return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">' + packed + "/" + group.items.length + '</span><span class="bag-toggle" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">\u25BC</span></div></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      }).join("");
     }
     return renderBagsPackView(trip);
   }
