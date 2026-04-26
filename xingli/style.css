@@ -886,11 +886,14 @@ input, select, textarea { appearance: none; }
 .bag-icon { font-size: 18px; flex-shrink: 0; line-height: 1; }
 .bag-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--ink); }
 .bag-progress-count { font-size: 12px; color: var(--ink-2); font-weight: 600; flex-shrink: 0; }
-.bag-group-items { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
+.bag-group-items { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 10px; }
 .bag-group-items .list-item-card { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; }
 .bag-group-items .list-item-name { font-size: 13px; }
 .bag-group-items .item-qty { font-size: 11px; }
 .bag-group.collapsed .bag-group-items { display: none; }
+.plan-card { padding: 8px 10px !important; min-height: unset !important; }
+.plan-card-name { font-size: 13px; line-height: 1.4; display: flex; align-items: center; gap: 4px; }
+.plan-card-qty { font-size: 11px; color: var(--ink-2); flex-shrink: 0; }
 .bag-toggle { font-size: 14px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
 .bag-group.collapsed .bag-toggle { transform: rotate(-90deg); }
 

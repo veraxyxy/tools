@@ -1523,10 +1523,7 @@
     }).join("");
   }
   function renderTripPlanItemCard(item) {
-    const cat = catInfo(item.category);
-    const sourceText = formatItemSource(item);
-    const smartBadge = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? "\u6570\u91CF\u5DF2\u624B\u8C03" : smartRuleShort(item.smartRule)) + "</span>" : "";
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + '"><button class="check-button ' + (item.packed ? "checked" : "") + `" onclick="togglePackItem('` + item.id + `')">\u2713</button><div class="list-item-main" onclick="openTripItemModal('` + item.id + `')"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + smartBadge + (sourceText ? '<span class="item-pill">' + esc(sourceText) + "</span>" : "") + "</div>" + (item.notes ? '<div class="item-notes">\u5907\u6CE8\uFF1A' + esc(item.notes) + "</div>" : "") + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="openTripItemModal(\'' + item.id + '\')"><div class="plan-card-name">' + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
   }
   function renderPackContent(trip) {
     if (!trip.items.length) return renderTripEmpty();
