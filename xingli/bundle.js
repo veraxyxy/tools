@@ -1592,7 +1592,7 @@
     if (body) body.classList.toggle("collapsed", S.tripInfoCollapsed);
   }
   function renderPackItemCard(item) {
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-name">' + esc(item.name) + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="togglePackItem(\'' + item.id + '\')"><div class="plan-card-name">' + (item.packed ? '<span class="packed-dot">✓</span>' : '') + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
   }
   function setTripMode(mode) {
     S.tripMode = mode;

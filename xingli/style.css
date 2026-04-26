@@ -894,6 +894,8 @@ input, select, textarea { appearance: none; }
 .plan-card { padding: 8px 10px !important; min-height: unset !important; }
 .plan-card-name { font-size: 13px; line-height: 1.4; display: flex; align-items: center; gap: 4px; }
 .plan-card-qty { font-size: 11px; color: var(--ink-2); flex-shrink: 0; }
+.plan-card.packed .plan-card-name { opacity: 0.45; text-decoration: line-through; }
+.packed-dot { font-size: 11px; color: var(--primary); flex-shrink: 0; }
 .bag-toggle { font-size: 14px; color: var(--ink-3); transition: transform 0.2s; flex-shrink: 0; }
 .bag-group.collapsed .bag-toggle { transform: rotate(-90deg); }
 
