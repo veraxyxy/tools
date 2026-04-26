@@ -1092,6 +1092,10 @@
   function getModuleKey(source, id) {
     return `${source}:${id}`;
   }
+  function isModuleOnCurrentTrip(source, id) {
+    if (!S.currentTrip?.sourceModules?.length) return false;
+    return S.currentTrip.sourceModules.some((m) => m.source === source && m.id === id);
+  }
   function splitModuleKey(key) {
     return key.split(":");
   }
@@ -1347,15 +1351,31 @@
   function renderItemLibraryPage() {
     const summaryBox = document.getElementById("ilibrarySummary");
     const gridBox = document.getElementById("ilibraryGrid");
+    const filterRow = document.getElementById("ilibraryFilterRow");
     if (!gridBox) return;
+    // 渲染分类筛选
+    if (filterRow) {
+      const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
+      filterRow.innerHTML = options.map(
+        (option) => '<button class="filter-chip ' + (S.ilibraryFilter === option.id ? "active" : "") + `" onclick="setILibraryFilter('` + option.id + `')">` + esc(option.name) + "</button>"
+      ).join("");
+    }
     const allItems = getItemLibrary();
     const keyword = (S.ilibrarySearch || "").toLowerCase();
-    const items = allItems.filter((item) => !keyword || item.name.toLowerCase().includes(keyword));
+    const items = allItems.filter((item) => {
+      const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
+      const filterMatch = !S.ilibraryFilter || S.ilibraryFilter === "all" || item.category === S.ilibraryFilter;
+      return searchMatch && filterMatch;
+    });
     const customCount = allItems.filter((item) => item.source === "user").length;
     if (summaryBox) {
       summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "");
     }
     gridBox.innerHTML = items.length ? items.map(renderILibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-icon">📦</div><div class="empty-title">\u6CA1\u6709\u7269\u54C1</div><div class="empty-hint">\u70B9\u51E0\u4E2A\u5B9D\u8D1D\u5C0F\u5305\uFF0C\u7269\u54C1\u4F1A\u81EA\u52A8\u52A0\u8F7D</div></div>';
+  }
+  function setILibraryFilter(filterId) {
+    S.ilibraryFilter = filterId;
+    renderItemLibraryPage();
   }
   function renderItemPickerItems() {
     const gridBox = document.getElementById("itemPickerItems");
@@ -1549,6 +1569,11 @@
   }
   function setTripMode(mode) {
     S.tripMode = mode;
+    // 进入打包模式时，默认折叠所有小包
+    if (mode === "pack") {
+      const bags = S.currentTrip?.bags || DEFAULT_BAGS;
+      S.collapsedBags = new Set(bags.map((b) => b.id));
+    }
     renderHeader();
     renderTripPage();
   }
@@ -1640,18 +1665,22 @@
   function renderOfficialModuleCard(module, view = "normal") {
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
+    const alreadyAdded = isModuleOnCurrentTrip("official", module.id);
+    const addedClass = alreadyAdded ? " added" : "";
     if (view === "compact") {
-      return `<div class="kit-card compact recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
+      return `<div class="kit-card compact recommended${addedClass}" onclick="${alreadyAdded ? '' : `openModuleDetail('official','${module.id}')`}"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : module.icon}</div><div class="kit-card-name">${esc(module.name)}${alreadyAdded ? ' ✓' : ''}</div></div></div>`;
     }
-    return `<div class="kit-card recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + `</div><div class="inline-actions"><span class="kit-badge">\u5B98\u65B9\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('official','` + module.id + `')" title="\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc) + '</div><div class="tag-row">' + (module.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u968F\u5929\u6570/\u4EBA\u6570\u53D8\u5316</div></div>";
+    return `<div class="kit-card recommended${addedClass}" onclick="${alreadyAdded ? '' : `openModuleDetail('official','${module.id}')`}"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : module.icon}</div><div class="inline-actions"><span class="kit-badge">${alreadyAdded ? '\u5DF2\u5B58\u5728' : '\u5B98\u65B9\u5C0F\u5305'}</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('official','${module.id}')" title="\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + (alreadyAdded ? ' ✓' : '') + '</div><div class="kit-card-desc">' + esc(module.desc) + '</div><div class="tag-row">' + (module.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u968F\u5929\u6570/\u4EBA\u6570\u53D8\u5316</div></div>";
   }
   function renderMyModuleCard(module, view = "normal") {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
+    const alreadyAdded = isModuleOnCurrentTrip("custom", module.id);
+    const addedClass = alreadyAdded ? " added" : "";
     if (view === "compact") {
-      return `<div class="kit-card compact" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
+      return `<div class="kit-card compact${addedClass}" onclick="${alreadyAdded ? '' : `openModuleDetail('custom','${module.id}')`}"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : esc(module.icon || "\u{1F9F0}")}</div><div class="kit-card-name">${esc(module.name)}${alreadyAdded ? ' ✓' : ''}</div></div></div>`;
     }
-    return `<div class="kit-card" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + `</div><div class="inline-actions"><span class="kit-badge soft">\u6211\u7684\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('custom','` + module.id + `')" title="\u7F16\u8F91\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc || "\u4F60\u81EA\u5DF1\u7EF4\u62A4\u7684\u53EF\u590D\u7528\u5C0F\u5305\u6A21\u5757") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u53EF\u667A\u80FD\u586B\u5145</div></div>";
+    return `<div class="kit-card${addedClass}" onclick="${alreadyAdded ? '' : `openModuleDetail('custom','${module.id}')`}"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : esc(module.icon || "\u{1F9F0}")}</div><div class="inline-actions"><span class="kit-badge soft">${alreadyAdded ? '\u5DF2\u5B58\u5728' : '\u6211\u7684\u5C0F\u5305'}</span>${alreadyAdded ? '' : `<button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('custom','` + module.id + `')" title="\u7F16\u8F91\u5C0F\u5305">\u270F\uFE0F</button>`}</div></div><div class="kit-card-name">` + esc(module.name) + (alreadyAdded ? ' ✓' : '') + '</div><div class="kit-card-desc">' + esc(module.desc || "\u4F60\u81EA\u5DF1\u7EF4\u62A4\u7684\u53EF\u590D\u7528\u5C0F\u5305\u6A21\u5757") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u53EF\u667A\u80FD\u586B\u5145</div></div>";
   }
   function setKitView(view) {
     S.kitView = view;

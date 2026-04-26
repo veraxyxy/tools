@@ -728,11 +728,11 @@ input, select, textarea { appearance: none; }
 
 /* ===== Kit grid ===== */
 .kit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.kit-card { 
-    position: relative; 
-    cursor: pointer; 
-    min-height: 180px; 
-    transition: transform 0.2s ease, box-shadow 0.2s ease; 
+.kit-card {
+    position: relative;
+    cursor: pointer;
+    min-height: 180px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     border: 1px solid transparent;
 }
 .kit-card:hover {
@@ -741,6 +741,14 @@ input, select, textarea { appearance: none; }
     border-color: var(--line);
 }
 .kit-card:active { transform: scale(0.98); }
+.kit-card.added {
+    opacity: 0.5;
+    cursor: default;
+}
+.kit-card.added:hover {
+    transform: none;
+    box-shadow: none;
+}
 .kit-card.recommended { 
     background: linear-gradient(145deg, #fff7fa 0%, #fef5f0 50%, #f5f7ff 100%); 
     border-color: rgba(255, 107, 138, 0.1);
