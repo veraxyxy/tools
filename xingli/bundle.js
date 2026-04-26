@@ -1498,7 +1498,7 @@
         '<button class="btn-primary" onclick="openManualItemModal()">\u624B\u52A8\u6DFB\u52A0\u7269\u54C1</button>'
       ].join("");
       subBar.innerHTML = '<div class="info-card subtle">\u884C\u7A0B\u91CC\u53EA\u9700\u8981\u52FE\u9009\u8FD9\u6B21\u8981\u5E26\u7684\u5C0F\u5305\uFF1B\u5982\u679C\u52FE\u9009\u4E86\u5B9D\u5B9D\u63D2\u4EF6\u5305\uFF0C\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u8865\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305\uFF0C\u5E76\u7ED9\u5C3F\u4E0D\u6E7F\u3001\u5907\u7528\u8863\u88E4\u3001\u6E7F\u5DFE\u8FD9\u7C7B\u7269\u54C1\u6309\u5929\u6570\u548C\u573A\u666F\u91CD\u65B0\u5EFA\u8BAE\u6570\u91CF\u3002</div>';
-      content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join("") : renderTripEmpty();
+      content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
       actionBar.innerHTML = [
         '<button class="btn-secondary" onclick="markAllPacked()">\u6807\u8BB0\u5168\u90E8\u5B8C\u6210</button>',
@@ -1510,6 +1510,17 @@
   }
   function renderTripEmpty() {
     return '<div class="empty-panel"><div class="empty-icon">\u{1F9F3}</div><div class="empty-title">\u8FD9\u5F20\u884C\u7A0B\u5355\u8FD8\u662F\u7A7A\u7684</div><div class="empty-hint">\u53BB\u52FE\u9009\u4E00\u4E2A\u6216\u591A\u4E2A\u5C0F\u5305\uFF0C\u6216\u8005\u76F4\u63A5\u624B\u52A8\u52A0\u5355\u4E2A\u7269\u54C1\u3002</div></div>';
+  }
+  function renderPlanBagGroups(trip) {
+    const bags = trip.bags || DEFAULT_BAGS;
+    const groups = bags
+      .map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) }))
+      .filter((group) => group.items.length);
+    const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
+    if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
+    return groups.map((group) => {
+      return '<div class="bag-group" id="plan-bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6</span></div><div class="bag-group-items">' + group.items.map(renderTripPlanItemCard).join("") + "</div></div>";
+    }).join("");
   }
   function renderTripPlanItemCard(item) {
     const cat = catInfo(item.category);
