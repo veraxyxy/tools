@@ -65,14 +65,8 @@
                 <div class="kit-grid" id="myModuleGrid"></div>
             </section>
 
-            <section class="page" data-page="items">
-                <div class="page-note" id="itemContextBanner"></div>
-                <div class="search-bar search-bar-large">
-                    <input id="itemSearchInput" type="text" placeholder="搜索物品名称" oninput="updateItemSearch(this.value)">
-                </div>
-                <div class="filter-row" id="itemFilterRow"></div>
-                <div class="library-summary-row" id="itemLibrarySummary"></div>
-                <div class="item-library-grid" id="itemLibraryGrid"></div>
+            <section class="page" data-page="lists">
+                <div id="listsContent"></div>
             </section>
 
             <section class="page" data-page="me">
@@ -92,9 +86,10 @@
                         <span>恢复官方小包</span>
                         <span class="me-menu-arrow">›</span>
                     </button>
-                    <button class="me-menu-item danger" onclick="clearAllData()">
-                        <span class="me-menu-icon">🗑️</span>
-                        <span>清除所有数据</span>
+                    <div class="me-menu-divider"></div>
+                    <button class="me-menu-item" onclick="openMainPage('itemlibrary')">
+                        <span class="me-menu-icon">📦</span>
+                        <span>物品库管理</span>
                         <span class="me-menu-arrow">›</span>
                     </button>
                 </div>
@@ -102,6 +97,16 @@
                     <div class="me-footer-text">行理 · 小包行程助手 v1.0</div>
                     <div class="me-footer-text">数据保存在本机浏览器中</div>
                 </div>
+            </section>
+
+            <section class="page" data-page="itemlibrary">
+                <div class="ilibrary-page-header">
+                    <div class="search-bar">
+                        <input id="ilibrarySearchInput" type="text" placeholder="搜索物品名称" oninput="updateILibrarySearch(this.value)">
+                    </div>
+                </div>
+                <div class="library-summary-row" id="ilibrarySummary"></div>
+                <div class="item-library-grid" id="ilibraryGrid"></div>
             </section>
         </main>
 
@@ -114,15 +119,37 @@
                 <span class="nav-icon">🧰</span>
                 <span>小包</span>
             </button>
-            <button class="nav-item" data-nav="items" onclick="openMainPage('items')">
-                <span class="nav-icon">📦</span>
-                <span>物品库</span>
+            <button class="nav-item" data-nav="lists" onclick="openMainPage('lists')">
+                <span class="nav-icon">📋</span>
+                <span>清单</span>
             </button>
             <button class="nav-item" data-nav="me" onclick="openMainPage('me')">
                 <span class="nav-icon">👤</span>
                 <span>我的</span>
             </button>
         </nav>
+    </div>
+
+    <div class="modal-overlay" id="itemPickerModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>从物品库添加</h3>
+                <button class="btn-close" onclick="closeModal('itemPickerModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding:12px 16px">
+                <div class="search-bar" style="margin-bottom:10px">
+                    <input id="itemPickerSearch" type="text" placeholder="搜索物品名称" oninput="updateItemPickerSearch(this.value)">
+                </div>
+                <div class="picker-grid" id="itemPickerItems" style="max-height:420px;overflow-y:auto"></div>
+            </div>
+            <div class="modal-footer between">
+                <span class="picker-meta" id="itemPickerCount">已选 0 件</span>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" onclick="closeModal('itemPickerModal')">取消</button>
+                    <button class="btn-primary" id="itemPickerConfirmBtn" onclick="confirmItemPicker()">添加</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="modal-overlay" id="onboardingModal">
@@ -198,7 +225,6 @@
                         <p class="kit-detail-desc" id="moduleDetailDesc"></p>
                     </div>
                 </div>
-                <div class="tag-row" id="moduleDetailTags"></div>
                 <div class="info-card subtle" id="moduleDetailSummary"></div>
                 <div class="stack-list compact" id="moduleDetailItems"></div>
             </div>
@@ -242,9 +268,12 @@
                 <div class="form-row vertical">
                     <label>物品标签</label>
                     <div class="item-tags" id="libraryItemTagsDisplay"></div>
-                    <div class="tag-input-row">
-                        <input id="libraryItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
-                        <button class="tag-add-btn" onclick="addLibraryItemTag()">添加</button>
+                    <span class="tag-section-toggle" id="libraryItemTagToggle" onclick="toggleLibraryItemTagSection()">+ 添加标签</span>
+                    <div class="tag-section-body" id="libraryItemTagSection">
+                        <div class="tag-input-row">
+                            <input id="libraryItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
+                            <button class="tag-add-btn" onclick="addLibraryItemTag()">添加</button>
+                        </div>
                     </div>
                 </div>
                 <div class="info-card subtle" id="libraryItemSmartHint">衣物类和宝宝高频消耗物品会默认参与智能填充。</div>
@@ -326,9 +355,12 @@
                 <div class="form-row vertical">
                     <label>物品标签</label>
                     <div class="item-tags" id="tripItemTagsDisplay"></div>
-                    <div class="tag-input-row">
-                        <input id="tripItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
-                        <button class="tag-add-btn" onclick="addTripItemTag()">添加</button>
+                    <span class="tag-section-toggle" id="tripItemTagToggle" onclick="toggleTripItemTagSection()">+ 添加标签</span>
+                    <div class="tag-section-body" id="tripItemTagSection">
+                        <div class="tag-input-row">
+                            <input id="tripItemTagInput" type="text" class="tag-input" placeholder="输入标签后回车添加，如：重要 借的">
+                            <button class="tag-add-btn" onclick="addTripItemTag()">添加</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -349,7 +381,7 @@
                 <button class="btn-close" onclick="closeModal('createModuleModal')">✕</button>
             </div>
             <div class="modal-body large">
-                <div class="info-card subtle builder-hint-card" id="moduleBuilderHint">从物品库里按住并滑过卡片即可连续多选；也可以手动输入新物品并立即加入当前小包。</div>
+                <div class="info-card subtle builder-hint-card" id="moduleBuilderHint">从物品库中按下卡片即可选中，滑动可连续多选；也可手动输入新物品并立即加入当前小包。</div>
                 <div class="form-row vertical">
                     <label for="moduleBuilderName">小包名称</label>
                     <input id="moduleBuilderName" type="text" placeholder="例如：洗漱包 / 化妆包 / 宝宝基础包">

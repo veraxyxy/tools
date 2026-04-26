@@ -1140,6 +1140,10 @@
     moduleSearch: "",
     itemFilter: "all",
     itemSearch: "",
+    ilibrarySearch: "",
+    itemPickerSelection: /* @__PURE__ */ new Set(),
+    itemPickerSearch: "",
+    meItemSearch: "",
     returnPage: null,
     libraryModalEditId: null,
     tripItemEditId: null,
@@ -1218,7 +1222,8 @@
     renderBottomNav();
     if (page === "home") renderHome();
     if (page === "kits") renderModuleLibrary();
-    if (page === "items") renderItemLibrary();
+    if (page === "lists") renderListsPage();
+    if (page === "itemlibrary") renderItemLibraryPage();
     if (page === "list") renderTripPage();
     if (page === "me") renderMePage();
   }
@@ -1230,6 +1235,10 @@
   function goBack() {
     if (S.currentPage === "list") {
       nav("home");
+      return;
+    }
+    if (S.currentPage === "itemlibrary") {
+      nav("me");
       return;
     }
     if (S.returnPage) {
@@ -1256,9 +1265,13 @@
       title.textContent = "\u5C0F\u5305";
       eyebrow.textContent = S.currentModuleAction === "add" ? "\u628A\u5C0F\u5305\u52A0\u8FDB\u5F53\u524D\u884C\u7A0B\u5355" : "\u5148\u6C89\u6DC0\uFF0C\u518D\u590D\u7528";
       right.innerHTML = '<button class="btn-icon" onclick="openCreateModuleModal()" aria-label="\u65B0\u5EFA\u5C0F\u5305">\uFF0B</button>';
-    } else if (S.currentPage === "items") {
-      title.textContent = "\u7269\u54C1\u5E93";
-      eyebrow.textContent = S.currentTrip ? "\u4ECE\u7269\u54C1\u5E93\u7ED9\u5F53\u524D\u884C\u7A0B\u8865\u8D27" : "\u6C89\u6DC0\u4F60\u7684\u6807\u51C6\u7269\u54C1\u8D44\u4EA7";
+    } else if (S.currentPage === "lists") {
+      title.textContent = "\u6E05\u5355";
+      eyebrow.textContent = "\u6240\u6709\u884C\u7A0B\u6C47\u603B";
+      right.innerHTML = "";
+    } else if (S.currentPage === "itemlibrary") {
+      title.textContent = "\u7269\u54C1\u5E93\u7BA1\u7406";
+      eyebrow.textContent = "\u6DFB\u52A0\u3001\u7F16\u8F91\u3001\u5220\u9664\u4F60\u7684\u7269\u54C1";
       right.innerHTML = '<button class="btn-icon" onclick="openLibraryItemModal()" aria-label="\u65B0\u589E\u7269\u54C1">\uFF0B</button>';
     } else if (S.currentPage === "list") {
       title.textContent = "\u884C\u7A0B\u8BE6\u60C5";
@@ -1312,8 +1325,111 @@
     }
     content.innerHTML = html;
   }
+  function renderListsPage() {
+    const trips = getTrips();
+    const box = document.getElementById("listsContent");
+    if (!box) return;
+    if (!trips.length) {
+      box.innerHTML = '<div class="empty-panel" style="margin-top:40px"><div class="empty-icon">📋</div><div class="empty-title">还没有清单</div><div class="empty-hint">去首页新建一个行程吧</div></div>';
+      return;
+    }
+    const active = trips.filter((t) => getTripStatus(t).key !== "done");
+    const done = trips.filter((t) => getTripStatus(t).key === "done");
+    let html = '<div class="lists-page-header"><button class="btn-primary" onclick="openCreateTripModal()" style="width:100%">+ 新建行程</button></div>';
+    if (active.length) {
+      html += '<section class="section"><div class="section-head"><h3 class="section-title">进行中</h3></div><div class="trip-list-compact">' + active.map(renderTripCardCompact).join("") + "</div></section>";
+    }
+    if (done.length) {
+      html += '<section class="section"><div class="section-head"><h3 class="section-title">已完成</h3></div><div class="trip-list-compact">' + done.map(renderTripCardCompact).join("") + "</div></section>";
+    }
+    box.innerHTML = html;
+  }
+  function renderItemLibraryPage() {
+    const summaryBox = document.getElementById("ilibrarySummary");
+    const gridBox = document.getElementById("ilibraryGrid");
+    if (!gridBox) return;
+    const allItems = getItemLibrary();
+    const keyword = (S.ilibrarySearch || "").toLowerCase();
+    const items = allItems.filter((item) => !keyword || item.name.toLowerCase().includes(keyword));
+    const customCount = allItems.filter((item) => item.source === "user").length;
+    if (summaryBox) {
+      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "");
+    }
+    gridBox.innerHTML = items.length ? items.map(renderILibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-icon">📦</div><div class="empty-title">\u6CA1\u6709\u7269\u54C1</div><div class="empty-hint">\u70B9\u51E0\u4E2A\u5B9D\u8D1D\u5C0F\u5305\uFF0C\u7269\u54C1\u4F1A\u81EA\u52A8\u52A0\u8F7D</div></div>';
+  }
+  function renderItemPickerItems() {
+    const gridBox = document.getElementById("itemPickerItems");
+    const countEl = document.getElementById("itemPickerCount");
+    const searchInput = document.getElementById("itemPickerSearch");
+    if (!gridBox) return;
+    const keyword = (S.itemPickerSearch || "").toLowerCase();
+    const items = getItemLibrary().filter((item) => !keyword || item.name.toLowerCase().includes(keyword));
+    if (searchInput) searchInput.value = S.itemPickerSearch || "";
+    gridBox.innerHTML = items.length ? items.map((item) => {
+      const selected = S.itemPickerSelection.has(item.id);
+      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '" onclick="toggleItemPickerItem(\'' + item.id + '\')"><div class="picker-item-name">' + esc(item.name) + "</div></div>";
+    }).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div></div>';
+    if (countEl) countEl.textContent = "\u5DF2\u9009 " + S.itemPickerSelection.size + " \u4EF6";
+  }
+  function toggleItemPickerItem(itemId) {
+    if (S.itemPickerSelection.has(itemId)) {
+      S.itemPickerSelection.delete(itemId);
+    } else {
+      S.itemPickerSelection.add(itemId);
+    }
+    renderItemPickerItems();
+  }
+  function updateItemPickerSearch(value) {
+    S.itemPickerSearch = value.trim();
+    renderItemPickerItems();
+  }
+  function confirmItemPicker() {
+    if (!S.currentTrip || !S.itemPickerSelection.size) {
+      closeModal("itemPickerModal");
+      return;
+    }
+    const library = getItemLibrary();
+    const items = [];
+    S.itemPickerSelection.forEach((id) => {
+      const libItem = library.find((item) => item.id === id);
+      if (libItem) {
+        items.push(normalizeTripItem({
+          name: libItem.name,
+          category: libItem.category,
+          bag: libItem.bag,
+          qty: libItem.defaultQty,
+          smartRule: libItem.smartRule,
+          smartConfig: libItem.smartConfig,
+          smartLocked: libItem.smartLocked,
+          tags: libItem.tags
+        }));
+      }
+    });
+    mergeItemsIntoCurrentTrip(items, "manual");
+    closeModal("itemPickerModal");
+    toast("\u5DF2\u6DFB\u52A0 " + items.length + " \u4EF6\u7269\u54C1");
+  }
+  function renderILibraryCard(item) {
+    const cat = catInfo(item.category);
+    const isUser = item.source === "user";
+    const delBtn = isUser
+      ? `<button class="ilibrary-del-btn" onclick="event.stopPropagation();deleteILibraryItem('` + item.id + `')">\u5220</button>`
+      : "";
+    const editBtn = `<button class="ilibrary-edit-btn" onclick="event.stopPropagation();openLibraryItemModal('` + item.id + `')">\u7F16</button>`;
+    return '<div class="library-card ' + (isUser ? "user-built" : "") + '" onclick="openLibraryItemModal(\'' + item.id + '\')"><div class="library-card-body"><div class="library-name">' + esc(item.name) + '</div><div class="library-meta">' + esc(cat.name) + " \xB7 \xD7" + item.defaultQty + "</div></div><div class=\"library-actions\">" + delBtn + editBtn + "</div></div>";
+  }
+  function deleteILibraryItem(itemId) {
+    if (!confirm("\u5220\u9664\u8BE5\u7269\u54C1\uFF1F\u8BE5\u64CD\u4F5C\u4E0D\u53EF\u64A4\u6D88\u3002")) return;
+    const items = getItemLibrary().filter((item) => item.id !== itemId);
+    saveItemLibrary(items);
+    renderItemLibraryPage();
+  }
+  function updateILibrarySearch(value) {
+    S.ilibrarySearch = value.trim();
+    renderItemLibraryPage();
+  }
   function renderNewUserGuide() {
-    return `<div class="home-features"><div class="feature-card" onclick="openMainPage('kits')"><div class="feature-icon">\u{1F9F0}</div><div class="feature-body"><div class="feature-title">\u6574\u7406\u5C0F\u5305</div><div class="feature-desc">\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E 9 \u4E2A\u5B98\u65B9\u5C0F\u5305\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openCreateTripModal()"><div class="feature-icon">\u{1F4DD}</div><div class="feature-body"><div class="feature-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="feature-desc">\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openMainPage('items')"><div class="feature-icon">\u{1F392}</div><div class="feature-body"><div class="feature-title">\u7269\u54C1\u5E93</div><div class="feature-desc">\u7BA1\u7406\u4F60\u7684\u7269\u54C1\u5E93\uFF0C\u6DFB\u52A0\u4E2A\u4EBA\u5E38\u7528\u7269\u54C1\uFF0C\u6253\u5305\u65F6\u968F\u624B\u6311\u9009\u3002</div></div><div class="home-cta-arrow">\u203A</div></div></div>`;
+    return `<div class="home-features"><div class="feature-card" onclick="openMainPage('kits')"><div class="feature-icon">\u{1F9F0}</div><div class="feature-body"><div class="feature-title">\u6574\u7406\u5C0F\u5305</div><div class="feature-desc">\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E 9 \u4E2A\u5B98\u65B9\u5C0F\u5305\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openCreateTripModal()"><div class="feature-icon">\u{1F4DD}</div><div class="feature-body"><div class="feature-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="feature-desc">\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openMainPage('me')"><div class="feature-icon">\u{1F392}</div><div class="feature-body"><div class="feature-title">\u7269\u54C1\u5E93</div><div class="feature-desc">\u7BA1\u7406\u4F60\u7684\u7269\u54C1\u5E93\uFF0C\u6DFB\u52A0\u4E2A\u4EBA\u5E38\u7528\u7269\u54C1\uFF0C\u6253\u5305\u65F6\u968F\u624B\u6311\u9009\u3002</div></div><div class="home-cta-arrow">\u203A</div></div></div>`;
   }
   function renderActiveTrip(trip) {
     const progress = getTripProgress(trip);
@@ -1352,7 +1468,8 @@
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
     const collapsed = S.tripInfoCollapsed ? " collapsed" : "";
-    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" oninput="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" oninput="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><button class="btn-recompute" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ` + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
+    const isPack = S.tripMode === "pack";
+    summaryBox.innerHTML = '<div class="list-summary-card' + (isPack ? " pack-mode" : "") + '"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" oninput="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" oninput="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><button class="btn-recompute" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ` + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
     switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === "plan" ? "active" : "") + `" onclick="setTripMode('plan')">\u89C4\u5212\u6A21\u5F0F</button><button class="mode-tab ` + (S.tripMode === "pack" ? "active" : "") + `" onclick="setTripMode('pack')">\u6253\u5305\u6A21\u5F0F</button>`;
     if (S.tripMode === "plan") {
       actionBar.innerHTML = [
@@ -1377,9 +1494,8 @@
   function renderTripPlanItemCard(item) {
     const cat = catInfo(item.category);
     const sourceText = formatItemSource(item);
-    const tagsHtml = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
     const smartBadge = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? "\u6570\u91CF\u5DF2\u624B\u8C03" : smartRuleShort(item.smartRule)) + "</span>" : "";
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + '"><button class="check-button ' + (item.packed ? "checked" : "") + `" onclick="togglePackItem('` + item.id + `')">\u2713</button><div class="list-item-main" onclick="openTripItemModal('` + item.id + `')"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + smartBadge + (sourceText ? '<span class="item-pill">' + esc(sourceText) + "</span>" : "") + "</div>" + (item.notes ? '<div class="item-notes">\u5907\u6CE8\uFF1A' + esc(item.notes) + "</div>" : "") + (tagsHtml ? '<div class="item-subline">' + tagsHtml + "</div>" : "") + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<div class="list-item-card' + (item.packed ? " packed" : "") + '"><button class="check-button ' + (item.packed ? "checked" : "") + `" onclick="togglePackItem('` + item.id + `')">\u2713</button><div class="list-item-main" onclick="openTripItemModal('` + item.id + `')"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + smartBadge + (sourceText ? '<span class="item-pill">' + esc(sourceText) + "</span>" : "") + "</div>" + (item.notes ? '<div class="item-notes">\u5907\u6CE8\uFF1A' + esc(item.notes) + "</div>" : "") + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
   }
   function renderPackContent(trip) {
     if (!trip.items.length) return renderTripEmpty();
@@ -1407,7 +1523,7 @@
     return groups.map((group) => {
       const packed = group.items.filter((item) => item.packed).length;
       const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
-      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">` + packed + "/" + group.items.length + `</span><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
     }).join("");
   }
   function toggleBagCollapse(bagId) {
@@ -1429,11 +1545,7 @@
     if (body) body.classList.toggle("collapsed", S.tripInfoCollapsed);
   }
   function renderPackItemCard(item) {
-    const cat = catInfo(item.category);
-    const tags = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
-    const sourceModules = item.sourceModules || [];
-    const sourcePill = sourceModules.length > 0 ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(", ") + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + "\u7B49" : sourceModules[0]) + "</span>" : "";
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>") + (tags ? tags : "") + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-name">' + esc(item.name) + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
   }
   function setTripMode(mode) {
     S.tripMode = mode;
@@ -1576,7 +1688,7 @@
     closeModal("moduleDetailModal");
     if (S.currentModuleAction === "add" && S.currentTrip) {
       addModuleToCurrentTrip(source, id);
-      nav("list");
+      // 不立即返回，让用户继续选择其他小包
       return;
     }
     openCreateTripModal([getModuleKey(source, id)]);
@@ -1631,10 +1743,8 @@
     ).join("");
   }
   function renderLibraryCard(item) {
-    const cat = catInfo(item.category);
     const addButton = S.currentTrip ? `<button class="library-action primary" onclick="event.stopPropagation();addLibraryItemToCurrentTrip('` + item.id + `')">+ \u52A0\u5165</button>` : "";
-    const tagsHtml = (item.tags || []).map((tag) => '<span class="library-item-tag">' + esc(tag) + "</span>").join("");
-    return '<div class="library-card ' + (item.source === "user" ? "user-built" : "") + `" onclick="openLibraryItemModal('` + item.id + `')"><div class="library-card-body"><div class="library-name">` + esc(item.name) + '</div><div class="library-meta">' + esc(cat.name) + " \xB7 " + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \xD7" + item.defaultQty + "</div>" + (tagsHtml ? '<div class="library-item-tags">' + tagsHtml + "</div>" : "") + "</div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
+    return '<div class="library-card ' + (item.source === "user" ? "user-built" : "") + `" onclick="openLibraryItemModal('` + item.id + `')"><div class="library-card-body"><div class="library-name">` + esc(item.name) + "</div></div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
   }
   function parseBulkNames(text) {
     return uniqueStrings(
@@ -1764,8 +1874,10 @@
   }
   function goSelectItemsForTrip() {
     if (!S.currentTrip) return;
-    S.returnPage = "list";
-    nav("items");
+    S.itemPickerSelection = /* @__PURE__ */ new Set();
+    S.itemPickerSearch = "";
+    openModal("itemPickerModal");
+    renderItemPickerItems();
   }
   function addModuleToCurrentTrip(source, id) {
     if (!S.currentTrip) return;
@@ -1785,7 +1897,6 @@
     if (strategy === "module") applyTripSmartFill(S.currentTrip, false);
     persistCurrentTrip();
     renderTripPage();
-    renderItemLibrary();
     renderHome();
   }
   function openLibraryItemModal(itemId = null) {
@@ -1802,6 +1913,8 @@
     S.currentEditingTags = Array.isArray(item?.tags) ? [...item.tags] : [];
     renderLibraryItemTags();
     document.getElementById("libraryItemTagInput").value = "";
+    // 每次打开时折叠标签输入区
+    collapseLibraryItemTagSection();
     updateLibrarySmartHint();
     showModal("libraryItemModal");
     setTimeout(() => document.getElementById("libraryItemName").focus(), 50);
@@ -1828,6 +1941,19 @@
   function removeLibraryItemTag(tag) {
     S.currentEditingTags = S.currentEditingTags.filter((t) => t !== tag);
     renderLibraryItemTags();
+  }
+  function toggleLibraryItemTagSection() {
+    const body = document.getElementById("libraryItemTagSection");
+    const toggle = document.getElementById("libraryItemTagToggle");
+    if (!body || !toggle) return;
+    const expanded = body.classList.toggle("expanded");
+    toggle.textContent = expanded ? "\u2212\u6536\u8D77" : "+ \u6DFB\u52A0\u6807\u7B7E";
+  }
+  function collapseLibraryItemTagSection() {
+    const body = document.getElementById("libraryItemTagSection");
+    const toggle = document.getElementById("libraryItemTagToggle");
+    if (body) body.classList.remove("expanded");
+    if (toggle) toggle.textContent = "+ \u6DFB\u52A0\u6807\u7B7E";
   }
   function updateLibrarySmartHint() {
     const hint = document.getElementById("libraryItemSmartHint");
@@ -1970,6 +2096,8 @@
     S.currentEditingTags = Array.isArray(item.tags) ? [...item.tags] : [];
     renderTripItemTags();
     document.getElementById("tripItemTagInput").value = "";
+    // 每次打开时折叠标签输入区
+    collapseTripItemTagSection();
     updateTripItemSmartMeta();
     showModal("tripItemModal");
   }
@@ -1995,6 +2123,19 @@
   function removeTripItemTag(tag) {
     S.currentEditingTags = S.currentEditingTags.filter((t) => t !== tag);
     renderTripItemTags();
+  }
+  function toggleTripItemTagSection() {
+    const body = document.getElementById("tripItemTagSection");
+    const toggle = document.getElementById("tripItemTagToggle");
+    if (!body || !toggle) return;
+    const expanded = body.classList.toggle("expanded");
+    toggle.textContent = expanded ? "\u2212\u6536\u8D77" : "+ \u6DFB\u52A0\u6807\u7B7E";
+  }
+  function collapseTripItemTagSection() {
+    const body = document.getElementById("tripItemTagSection");
+    const toggle = document.getElementById("tripItemTagToggle");
+    if (body) body.classList.remove("expanded");
+    if (toggle) toggle.textContent = "+ \u6DFB\u52A0\u6807\u7B7E";
   }
   function updateTripItemSmartMeta() {
     const meta = document.getElementById("tripItemSmartMeta");
@@ -2169,7 +2310,7 @@
     box.innerHTML = items.length ? items.map((item) => {
       const selected = S.moduleBuilderSelection.has(item.id);
       const cat = catInfo(item.category);
-      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '"><div class="picker-item-top"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="mini-badge picker-tile-state">' + (selected ? "\u5DF2\u9009" : "\u6ED1\u9009") + '</span></div><div class="picker-item-name">' + esc(item.name) + '</div><div class="picker-item-meta">\u9ED8\u8BA4 \xD7' + item.defaultQty + " \xB7 " + esc(smartRuleShort(item.smartRule)) + "</div></div>";
+      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '"><div class="picker-item-name">' + esc(item.name) + "</div></div>";
     }).join("") : '<div class="empty-panel full-span"><div class="empty-title">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div><div class="empty-hint">\u6362\u4E2A\u5173\u952E\u8BCD\u8BD5\u8BD5\u3002</div></div>';
     syncModuleBuilderMeta();
   }
@@ -2195,10 +2336,14 @@
     const itemId = tile.dataset.itemId;
     const shouldSelect = !S.moduleBuilderSelection.has(itemId);
     S.moduleBuilderGesture = {
-      active: true,
+      active: false,
       pointerId: event.pointerId,
       mode: shouldSelect ? "add" : "remove",
-      visited: /* @__PURE__ */ new Set()
+      visited: /* @__PURE__ */ new Set(),
+      itemId: itemId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false
     };
     try {
       box.setPointerCapture(event.pointerId);
@@ -2208,9 +2353,20 @@
     event.preventDefault();
   }
   function handleModuleBuilderPointerMove(event) {
-    if (!S.moduleBuilderGesture.active || S.moduleBuilderGesture.pointerId !== event.pointerId) return;
+    if (S.moduleBuilderGesture.pointerId !== event.pointerId) return;
     const box = document.getElementById("moduleBuilderItems");
     if (!box) return;
+    // 移动超过 30px 才进入滑动多选模式
+    if (!S.moduleBuilderGesture.moved) {
+      const dx = event.clientX - S.moduleBuilderGesture.startX;
+      const dy = event.clientY - S.moduleBuilderGesture.startY;
+      if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+        S.moduleBuilderGesture.active = true;
+        S.moduleBuilderGesture.visited = /* @__PURE__ */ new Set();
+        S.moduleBuilderGesture.moved = true;
+      }
+    }
+    if (!S.moduleBuilderGesture.active) return;
     const node = document.elementFromPoint(event.clientX, event.clientY);
     const tile = node && node.closest ? node.closest(".picker-item") : null;
     if (!tile || !box.contains(tile)) return;
@@ -2234,7 +2390,20 @@
     syncModuleBuilderMeta();
   }
   function endModuleBuilderGesture(event) {
-    if (!S.moduleBuilderGesture.active) return;
+    if (S.moduleBuilderGesture.timer) {
+      clearTimeout(S.moduleBuilderGesture.timer);
+      S.moduleBuilderGesture.timer = null;
+    }
+    if (!S.moduleBuilderGesture.active) {
+      // 从未进入多选模式（短按/滑过），重置状态
+      S.moduleBuilderGesture = {
+        active: false,
+        pointerId: null,
+        mode: "add",
+        visited: /* @__PURE__ */ new Set()
+      };
+      return;
+    }
     if (event?.pointerId != null && event.pointerId !== S.moduleBuilderGesture.pointerId) return;
     const box = document.getElementById("moduleBuilderItems");
     try {
@@ -2526,6 +2695,35 @@
             <div class="me-stat-label">${stat.label}</div>
         </div>
     `).join("");
+  }
+  function updateMeItemSearch(value) {
+    S.meItemSearch = value.trim();
+    renderMeItemLibrary();
+  }
+  function renderMeItemLibrary() {
+    const summaryBox = document.getElementById("meItemLibrarySummary");
+    const gridBox = document.getElementById("meItemLibraryGrid");
+    const filterRow = document.getElementById("meItemFilterRow");
+    const searchInput = document.getElementById("meItemSearchInput");
+    if (!gridBox) return;
+    const allItems = getItemLibrary();
+    const keyword = (S.meItemSearch || "").toLowerCase();
+    const items = allItems.filter((item) => {
+      const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
+      return searchMatch;
+    });
+    const customCount = allItems.filter((item) => item.source === "user").length;
+    if (summaryBox) {
+      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "");
+    }
+    if (filterRow) {
+      const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
+      filterRow.innerHTML = '<div class="filter-row">' + options.map(
+        (option) => '<button class="filter-chip active">' + esc(option.name) + "</button>"
+      ).join("") + "</div>";
+    }
+    if (searchInput) searchInput.value = S.meItemSearch || "";
+    gridBox.innerHTML = items.length ? items.map(renderLibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div></div>';
   }
   function resetOfficialModules() {
     if (!confirm("\u786E\u5B9A\u6062\u590D\u6240\u6709\u5B98\u65B9\u5C0F\u5305\u5230\u521D\u59CB\u72B6\u6001\uFF1F\u4F60\u81EA\u5EFA\u7684\u5C0F\u5305\u4E0D\u4F1A\u53D7\u5F71\u54CD\u3002")) return;
