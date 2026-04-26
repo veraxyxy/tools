@@ -1523,7 +1523,7 @@
     }).join("");
   }
   function renderTripPlanItemCard(item) {
-    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="openTripItemModal(\'' + item.id + '\')"><div class="plan-card-name">' + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
+    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="openTripItemModal(\'' + item.id + '\')"><div class="plan-card-name">' + (item.packed ? '<span class="packed-dot">✓</span>' : '') + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
   }
   function renderPackContent(trip) {
     if (!trip.items.length) return renderTripEmpty();
