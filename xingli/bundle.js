@@ -1280,7 +1280,7 @@
     } else if (S.currentPage === "list") {
       title.textContent = "\u884C\u7A0B\u8BE6\u60C5";
       eyebrow.textContent = S.tripMode === "plan" ? "\u89C4\u5212\u6A21\u5F0F\uFF1A\u7EC4\u5408\u5C0F\u5305\u3001\u8865\u5145\u7269\u54C1\u3001\u667A\u80FD\u5EFA\u8BAE" : "\u6253\u5305\u6A21\u5F0F\uFF1A\u5BF9\u7167\u5B9E\u7269\u52FE\u9009";
-      right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="\u5207\u6362\u6A21\u5F0F">' + (S.tripMode === "plan" ? "\u{1F392}" : "\u270F\uFE0F") + "</button>";
+      right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="\u5207\u6362\u6A21\u5F0F">' + (S.tripMode === "plan" ? "\u{1F392}" : "\u270F\uFE0F") + "</button>" + (S.tripMode === "pack" ? '<button class="btn-secondary btn-small" onclick="markAllUnpacked()" style="margin-left:6px">\u6062\u590D</button>' : "");
     } else if (S.currentPage === "me") {
       title.textContent = "\u6211\u7684";
       eyebrow.textContent = "\u8BBE\u7F6E\u4E0E\u6570\u636E\u7BA1\u7406";
@@ -1500,10 +1500,7 @@
       subBar.innerHTML = '<div class="info-card subtle">\u884C\u7A0B\u91CC\u53EA\u9700\u8981\u52FE\u9009\u8FD9\u6B21\u8981\u5E26\u7684\u5C0F\u5305\uFF1B\u5982\u679C\u52FE\u9009\u4E86\u5B9D\u5B9D\u63D2\u4EF6\u5305\uFF0C\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u8865\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305\uFF0C\u5E76\u7ED9\u5C3F\u4E0D\u6E7F\u3001\u5907\u7528\u8863\u88E4\u3001\u6E7F\u5DFE\u8FD9\u7C7B\u7269\u54C1\u6309\u5929\u6570\u548C\u573A\u666F\u91CD\u65B0\u5EFA\u8BAE\u6570\u91CF\u3002</div>';
       content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
-      actionBar.innerHTML = [
-        '<button class="btn-secondary" onclick="markAllPacked()">\u6807\u8BB0\u5168\u90E8\u5B8C\u6210</button>',
-        '<button class="btn-secondary" onclick="markAllUnpacked()">\u6062\u590D\u4E3A\u672A\u6253\u5305</button>'
-      ].join("");
+      actionBar.innerHTML = "";
       subBar.innerHTML = '<div class="pack-view-switch"><button class="pack-view-tab ' + (S.packView === "bags" ? "active" : "") + `" onclick="setPackView('bags')">\u6309\u5C0F\u5305\u770B</button><button class="pack-view-tab ` + (S.packView === "remaining" ? "active" : "") + `" onclick="setPackView('remaining')">\u672A\u6253\u5305</button><button class="pack-view-tab ` + (S.packView === "all" ? "active" : "") + `" onclick="setPackView('all')">\u5168\u90E8</button></div>`;
       content.innerHTML = renderPackContent(trip);
     }

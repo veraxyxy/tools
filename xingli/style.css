@@ -691,8 +691,13 @@ input, select, textarea { appearance: none; }
     transform: translateY(0);
     box-shadow: 0 4px 12px rgba(255, 107, 138, 0.3);
 }
-.btn-secondary { 
-    color: var(--ink); 
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 10px;
+}
+.btn-secondary {
+    color: var(--ink);
     background: var(--card); 
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--line);
