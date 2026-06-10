@@ -24,6 +24,7 @@ import {
     getTripProgress, getTripStatus, formatTripMeta, formatTripSourceSummary, formatItemSource,
     getModuleKey, splitModuleKey, getBabyBaseModule,
     isBabyModuleEntity, isBabyBaseModuleEntity, upsertTripSourceModule, ensureBabyBaseModuleOnTripRecord,
+    resyncTripFromSourceModules, isModuleOnTrip, removeModuleFromTrip,
 } from './src/data/index.js';
 
 let S = {
@@ -53,6 +54,8 @@ let S = {
         visited: new Set(),
     },
     tripBuilderSelection: new Set(),
+    moduleBuilderItems: [],
+    moduleItemEditContext: null,
     kitView: 'compact',
     collapsedBags: new Set(),
     tripInfoCollapsed: false,
@@ -68,6 +71,8 @@ function init() {
     fillCatSelect('manualItemCategory');
     fillCatSelect('tripItemCategory');
     fillCatSelect('moduleQuickItemCategory');
+    fillCatSelect('moduleItemCategory');
+    fillBagSelect('moduleItemBag', null, DEFAULT_BAGS);
     bindFormEvents();
     nav('home');
     if (!localStorage.getItem(STORAGE_KEYS.onboarded)) {
@@ -106,6 +111,25 @@ function bindFormEvents() {
 
     document.getElementById('libraryItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLibraryItemTag(); } });
     document.getElementById('tripItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTripItemTag(); } });
+
+    document.getElementById('moduleItemCategory')?.addEventListener('change', () => {
+        syncBagWithCategory('moduleItemCategory', 'moduleItemBag', DEFAULT_BAGS);
+        updateModuleItemSmartHint();
+    });
+    document.getElementById('moduleItemQty')?.addEventListener('input', updateModuleItemSmartHint);
+
+    document.getElementById('libraryItemTagsDisplay')?.addEventListener('click', e => {
+        const btn = e.target.closest('.item-tag-remove');
+        if (!btn) return;
+        e.preventDefault();
+        removeLibraryItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
+    });
+    document.getElementById('tripItemTagsDisplay')?.addEventListener('click', e => {
+        const btn = e.target.closest('.item-tag-remove');
+        if (!btn) return;
+        e.preventDefault();
+        removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
+    });
 }
 
 function nav(page) {
@@ -125,6 +149,27 @@ function openMainPage(page) {
     S.returnPage = null;
     S.currentModuleAction = 'browse';
     nav(page);
+}
+
+function openTripPage() {
+    S.returnPage = null;
+    S.currentModuleAction = 'browse';
+
+    if (S.currentTrip) {
+        nav('list');
+        return;
+    }
+
+    const trips = getTrips();
+    if (!trips.length) {
+        S.currentTripId = null;
+        S.currentTrip = null;
+        nav('list');
+        return;
+    }
+
+    const active = trips.find(trip => getTripStatus(trip).key !== 'done') || trips[0];
+    openTrip(active.id, 'plan');
 }
 
 function goBack() {
@@ -185,10 +230,9 @@ function renderHome() {
     const modules = getMyModules();
     const library = getItemLibrary();
     const active = trips.find(trip => getTripStatus(trip).key !== 'done') || null;
-    const done = trips.filter(trip => getTripStatus(trip).key === 'done');
     const rest = trips.filter(trip => trip.id !== active?.id);
     const recent = rest.filter(t => getTripStatus(t).key !== 'done').slice(0, 3);
-    const history = done;
+    const history = getDoneTrips();
 
     const isNewUser = !trips.length && !modules.length;
     const heroEl = document.getElementById('homeHero');
@@ -311,7 +355,9 @@ function renderActiveTrip(trip) {
 function renderTripCardCompact(trip) {
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
-    return '<div class="trip-card-compact" onclick="openTrip(\'' + trip.id + '\',\'plan\')">' +
+    const openMode = status.key === 'done' ? 'plan' : 'pack';
+    return '<div class="trip-card-compact">' +
+        '<div class="trip-card-compact-main" onclick="openTrip(\'' + trip.id + '\',\'' + openMode + '\')">' +
         '<div class="trip-compact-icon">' + status.icon + '</div>' +
         '<div class="trip-compact-body">' +
         '<div class="trip-compact-name">' + esc(trip.name) + '</div>' +
@@ -322,24 +368,28 @@ function renderTripCardCompact(trip) {
         '<span class="progress-ring-text">' + progress.pct + '%</span>' +
         '</div>' +
         '</div>' +
-        '</div>';
+        '</div>' +
+        '<div class="trip-compact-actions">' +
+        '<button type="button" class="icon-action compact" onclick="duplicateTrip(\'' + trip.id + '\')" title="复制行程" aria-label="复制行程">📋</button>' +
+        '<button type="button" class="icon-action compact" onclick="deleteTrip(\'' + trip.id + '\')" title="删除行程" aria-label="删除行程">🗑️</button>' +
+        '</div></div>';
 }
 
-function renderTripCard(trip) {
-    const progress = getTripProgress(trip);
-    const status = getTripStatus(trip);
-    const openMode = status.key === 'done' ? 'plan' : 'pack';
-    return '<div class="saved-list-card">' +
-        '<div class="saved-list-icon">' + status.icon + '</div>' +
-        '<div class="saved-list-info" onclick="openTrip(\'' + trip.id + '\',\'plan\')">' +
-        '<div class="saved-list-name">' + esc(trip.name) + '</div>' +
-        '<div class="saved-list-meta">' + esc(formatTripMeta(trip)) + ' · ' + esc(formatTripSourceSummary(trip)) + '</div>' +
-        renderProgress(progress) +
+function renderTripSourceModulesBar(trip) {
+    const modules = trip.sourceModules || [];
+    if (!modules.length) {
+        return '<div class="info-card subtle">还没有关联小包。点「从小包添加」把标准化小包加进来。</div>';
+    }
+    return '<div class="trip-modules-panel">' +
+        '<div class="trip-modules-head">' +
+        '<span class="trip-modules-label">已选小包</span>' +
+        '<span class="trip-modules-hint">点 × 移除；改小包定义后请重新同步</span>' +
         '</div>' +
-        '<div class="saved-list-actions">' +
-        '<button class="icon-action" onclick="event.stopPropagation();openTrip(\'' + trip.id + '\',\'' + openMode + '\')" title="打开">🎒</button>' +
-        '<button class="icon-action" onclick="event.stopPropagation();duplicateTrip(\'' + trip.id + '\')" title="复制">📋</button>' +
-        '<button class="icon-action" onclick="event.stopPropagation();deleteRecord(\'' + trip.id + '\')" title="删除">🗑️</button>' +
+        '<div class="trip-module-chips">' +
+        modules.map(module =>
+            '<span class="trip-module-chip">' + esc(module.name) +
+            '<button type="button" class="chip-remove" onclick="removeModuleFromCurrentTrip(\'' + module.source + '\', \'' + module.id + '\')" aria-label="移除 ' + esc(module.name) + '">×</button></span>'
+        ).join('') +
         '</div></div>';
 }
 
@@ -350,8 +400,12 @@ function renderProgress(progress) {
         '</div>';
 }
 
+function getDoneTrips() {
+    return getTrips().filter(trip => getTripStatus(trip).key === 'done');
+}
+
 function toggleHomeHistory() {
-    if (!getTrips().slice(3).length) return;
+    if (getDoneTrips().length <= 2) return;
     S.homeHistoryExpanded = !S.homeHistoryExpanded;
     renderHome();
 }
@@ -364,7 +418,14 @@ function renderTripPage() {
     const content = document.getElementById('listContent');
 
     if (!S.currentTrip) {
-        summaryBox.innerHTML = '<div class="empty-panel"><div class="empty-icon">📭</div><div class="empty-title">还没有打开的行程</div><div class="empty-hint">先去勾选几个小包，再回来这里继续整理。</div></div>';
+        summaryBox.innerHTML = '<div class="empty-panel">' +
+            '<div class="empty-icon">📭</div>' +
+            '<div class="empty-title">还没有打开的行程</div>' +
+            '<div class="empty-hint">从首页进入进行中的行程，或新建一张行程单开始整理。</div>' +
+            '<div class="empty-actions">' +
+            '<button class="btn-secondary" type="button" onclick="openMainPage(\'home\')">回首页</button>' +
+            '<button class="btn-primary" type="button" onclick="openCreateTripModal()">新建行程</button>' +
+            '</div></div>';
         switchBox.innerHTML = '';
         actionBar.innerHTML = '';
         subBar.innerHTML = '';
@@ -378,10 +439,19 @@ function renderTripPage() {
     const smartCount = trip.items.filter(item => item.smartRule !== 'fixed').length;
 
     const collapsed = S.tripInfoCollapsed ? ' collapsed' : '';
+    const allTrips = getTrips();
+    const tripSwitcher = allTrips.length > 1
+        ? '<div class="trip-switch-row">' +
+        '<span class="trip-switch-label">切换行程</span>' +
+        '<select class="trip-switch-select" aria-label="切换行程" onchange="openTrip(this.value, S.tripMode)">' +
+        allTrips.map(entry => '<option value="' + entry.id + '"' + (entry.id === trip.id ? ' selected' : '') + '>' + esc(entry.name) + '</option>').join('') +
+        '</select></div>'
+        : '';
     summaryBox.innerHTML = '<div class="list-summary-card">' +
         '<div class="list-summary-top">' +
         '<div>' +
         '<div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div>' +
+        tripSwitcher +
         '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + ' · ' + esc(formatTripMeta(trip)) + '</div>' +
         '</div>' +
         '<button class="pill-button" onclick="saveCurrentTripAsModule()">存为小包</button>' +
@@ -396,7 +466,7 @@ function renderTripPage() {
         '<div class="trip-info-row-label">天数</div>' +
         '<div class="stepper">' +
         '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', -1)">−</button>' +
-        '<input type="number" min="1" max="90" value="' + trip.days + '" oninput="updateCurrentTripSetting(\'days\', this.value)">' +
+        '<input type="number" min="1" max="90" value="' + trip.days + '" aria-label="行程天数" onchange="updateCurrentTripSetting(\'days\', this.value)">' +
         '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', 1)">+</button>' +
         '</div>' +
         '</div>' +
@@ -404,13 +474,20 @@ function renderTripPage() {
         '<div class="trip-info-row-label">人数</div>' +
         '<div class="stepper">' +
         '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', -1)">−</button>' +
-        '<input type="number" min="1" max="20" value="' + trip.people + '" oninput="updateCurrentTripSetting(\'people\', this.value)">' +
+        '<input type="number" min="1" max="20" value="' + trip.people + '" aria-label="出行人数" onchange="updateCurrentTripSetting(\'people\', this.value)">' +
         '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', 1)">+</button>' +
         '</div>' +
         '</div>' +
-        '<button class="btn-recompute" onclick="reapplyTripSmartFill()">重新智能填充</button>' +
+        '<div class="trip-info-actions">' +
+        ((trip.sourceModules || []).length
+            ? '<button type="button" class="btn-recompute" onclick="resyncCurrentTripFromModules()">按小包重新同步</button>'
+            : '') +
+        '<button type="button" class="btn-recompute' + ((trip.sourceModules || []).length ? ' outline' : '') + '" onclick="reapplyTripSmartFill()">重新智能填充</button>' +
         '</div>' +
-        '<div class="trip-smart-note">已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。</div>' +
+        '</div>' +
+        '<div class="trip-smart-note">' + ((trip.sourceModules || []).length
+            ? '改过小包定义后，可点「按小包重新同步」更新本行程；手调数量与打包勾选会尽量保留。'
+            : '已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。') + '</div>' +
         '</div>';
 
     switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === 'plan' ? 'active' : '') + '" onclick="setTripMode(\'plan\')">规划模式</button>' +
@@ -422,7 +499,7 @@ function renderTripPage() {
             '<button class="btn-secondary" onclick="goSelectItemsForTrip()">从物品库添加</button>',
             '<button class="btn-primary" onclick="openManualItemModal()">手动添加物品</button>',
         ].join('');
-        subBar.innerHTML = '<div class="info-card subtle">行程里只需要勾选这次要带的小包；如果勾选了宝宝插件包，系统会自动补上宝宝基础包，并给尿不湿、备用衣裤、湿巾这类物品按天数和场景重新建议数量。</div>';
+        subBar.innerHTML = renderTripSourceModulesBar(trip);
         content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join('') : renderTripEmpty();
     } else {
         actionBar.innerHTML = [
@@ -611,7 +688,7 @@ function updateCurrentTripSetting(field, rawValue) {
 
     applyTripSmartFill(S.currentTrip, false);
     persistCurrentTrip();
-    renderTripPage();
+    refreshTripSettingViews();
     renderHome();
 }
 
@@ -619,9 +696,111 @@ function reapplyTripSmartFill() {
     if (!S.currentTrip) return;
     applyTripSmartFill(S.currentTrip, true);
     persistCurrentTrip();
-    renderTripPage();
+    refreshTripSettingViews();
     renderHome();
     toast('已重新按天数和人数智能填充');
+}
+
+function resyncCurrentTripFromModules() {
+    if (!S.currentTrip) return;
+    if (!(S.currentTrip.sourceModules || []).length) {
+        toast('当前行程没有关联小包，无法同步');
+        return;
+    }
+    if (!confirm('将按小包最新定义重新生成本行程中的小包物品。\n\n· 手动添加的物品会保留\n· 已打包勾选、备注和标签会保留\n· 你手动改过的数量会保留\n\n继续？')) {
+        return;
+    }
+
+    const result = resyncTripFromSourceModules(S.currentTrip);
+    persistCurrentTrip();
+    refreshTripSettingViews();
+    renderHome();
+
+    if (!result.changed) {
+        toast('已与小包定义一致，无需变更');
+        return;
+    }
+
+    const parts = [];
+    if (result.added) parts.push(`新增 ${result.added} 件`);
+    if (result.removed) parts.push(`移除 ${result.removed} 件`);
+    if (result.updated) parts.push(`更新 ${result.updated} 件`);
+    if (result.mergedDuplicates) parts.push(`合并同名 ${result.mergedDuplicates} 件`);
+    toast(parts.length ? `已从小包同步（${result.moduleCount} 个小包）：${parts.join('，')}` : '已按小包重新同步');
+}
+
+function removeModuleFromCurrentTrip(source, id) {
+    if (!S.currentTrip) return;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    if (!confirm(`确定从当前行程移除「${entity.name}」？\n\n仅来自这个小包的物品会被移除；若物品同时来自多个小包，会保留并去掉该来源。`)) {
+        return;
+    }
+
+    const result = removeModuleFromTrip(S.currentTrip, source, id);
+    if (!result.changed) return;
+
+    applyTripSmartFill(S.currentTrip, false);
+    persistCurrentTrip();
+    renderTripPage();
+    renderHome();
+    toast(result.removedItems
+        ? `已移除「${result.moduleName}」，并删掉 ${result.removedItems} 件仅属于它的物品`
+        : `已移除「${result.moduleName}」`);
+}
+
+function refreshTripListContent() {
+    const content = document.getElementById('listContent');
+    if (!content || !S.currentTrip) return;
+    const trip = S.currentTrip;
+    if (S.tripMode === 'plan') {
+        content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join('') : renderTripEmpty();
+    } else {
+        content.innerHTML = renderPackContent(trip);
+    }
+}
+
+function patchTripSummaryMetrics() {
+    if (!S.currentTrip) return;
+    const summaryBox = document.getElementById('listSummary');
+    if (!summaryBox) return;
+
+    const trip = S.currentTrip;
+    const progress = getTripProgress(trip);
+    const status = getTripStatus(trip);
+    const smartCount = trip.items.filter(item => item.smartRule !== 'fixed').length;
+
+    const progressEl = summaryBox.querySelector('.saved-list-progress');
+    if (progressEl) progressEl.outerHTML = renderProgress(progress);
+
+    const statusChip = summaryBox.querySelector('.status-chip');
+    if (statusChip) {
+        statusChip.className = 'status-chip ' + status.key;
+        statusChip.textContent = status.label;
+    }
+
+    const metaEl = summaryBox.querySelector('.list-summary-meta');
+    if (metaEl) metaEl.textContent = formatTripSourceSummary(trip) + ' · ' + formatTripMeta(trip);
+
+    const smartNote = summaryBox.querySelector('.trip-smart-note');
+    if (smartNote) {
+        smartNote.textContent = '已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。';
+    }
+
+    const rows = summaryBox.querySelectorAll('.trip-info-row');
+    const daysInput = rows[0]?.querySelector('input');
+    const peopleInput = rows[1]?.querySelector('input');
+    if (daysInput && document.activeElement !== daysInput) daysInput.value = trip.days;
+    if (peopleInput && document.activeElement !== peopleInput) peopleInput.value = trip.people;
+}
+
+function refreshTripSettingViews() {
+    if (S.currentPage !== 'list' || !S.currentTrip) {
+        renderTripPage();
+        return;
+    }
+    patchTripSummaryMetrics();
+    refreshTripListContent();
 }
 
 function updateModuleSearch(value) {
@@ -740,47 +919,269 @@ function setKitView(view) {
 
 function openModuleDetail(source, id) {
     S.currentModule = { source, id };
+    renderModuleDetailModal(source, id);
+    showModal('moduleDetailModal');
+}
+
+function renderModuleDetailModal(source, id) {
     const entity = getModuleEntity(source, id);
     if (!entity) return;
 
     const days = getPreviewDays();
     const people = getPreviewPeople();
-    const preview = source === 'official'
-        ? resolveOfficialModuleItems(entity, days, people)
-        : resolveCustomModuleItems(entity, days, people);
-    const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
+    const moduleItems = (entity.items || []).map(normalizeModuleItem);
+    const previewContext = {
+        days,
+        people,
+        sourceModules: [{ source, id: entity.id, name: entity.name }],
+    };
+    const smartCount = moduleItems.filter(item => item.smartRule !== 'fixed').length;
 
     document.getElementById('moduleDetailTitle').textContent = entity.name;
     document.getElementById('moduleDetailIcon').textContent = entity.icon || '🧰';
     document.getElementById('moduleDetailSubtitle').textContent = source === 'official'
-        ? '官方小包 · 可编辑'
-        : '我的小包 · 可编辑';
+        ? '官方小包 · 点击物品可改默认设置'
+        : '我的小包 · 点击物品可改默认设置';
     document.getElementById('moduleDetailDesc').textContent = entity.desc || '可复用的小包模块。';
     document.getElementById('moduleDetailTags').innerHTML = (entity.tags || []).map(tag => '<span class="tag">' + esc(tag) + '</span>').join('') || '<span class="tag">标准化小包</span>';
-    document.getElementById('moduleDetailSummary').textContent = `按当前 ${days} 天 / ${people} 人预览，共 ${preview.length} 件物品，其中 ${smartCount} 项会随天数或人数变化。`;
-    document.getElementById('moduleDetailItems').innerHTML = preview.map(item => renderReadonlyModuleItemCard(item, S.currentTrip?.bags || DEFAULT_BAGS)).join('');
+    document.getElementById('moduleDetailSummary').textContent = `按当前 ${days} 天 / ${people} 人预览，共 ${moduleItems.length} 件物品，其中 ${smartCount} 项会随天数或人数变化。修改会保存到小包里，之后新建行程都会生效。`;
+    document.getElementById('moduleDetailItems').innerHTML = moduleItems.length
+        ? moduleItems.map(item => renderModuleDetailItemCard(item, source, id, previewContext, S.currentTrip?.bags || DEFAULT_BAGS)).join('')
+        : '<div class="empty-panel"><div class="empty-hint">这个小包还没有物品，点下方「编辑小包」去添加。</div></div>';
     document.getElementById('moduleEditBtn').style.display = 'inline-flex';
     document.getElementById('moduleEditBtn').textContent = source === 'official' ? '编辑官方小包' : '编辑小包';
-    document.getElementById('modulePrimaryBtn').textContent = S.currentModuleAction === 'add' && S.currentTrip ? '加入当前行程' : '用于新行程';
-    showModal('moduleDetailModal');
+    const alreadyOnTrip = S.currentModuleAction === 'add' && S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
+    const primaryBtn = document.getElementById('modulePrimaryBtn');
+    primaryBtn.textContent = alreadyOnTrip
+        ? '已在当前行程'
+        : (S.currentModuleAction === 'add' && S.currentTrip ? '加入当前行程' : '用于新行程');
+    primaryBtn.disabled = alreadyOnTrip;
+    primaryBtn.classList.toggle('disabled', alreadyOnTrip);
 }
 
-function renderReadonlyModuleItemCard(item, bags) {
+function renderModuleDetailItemCard(item, source, moduleId, previewContext, bags) {
     const cat = catInfo(item.category);
+    const previewQty = computeSmartQty(
+        item.defaultQty,
+        item.smartRule,
+        previewContext.days,
+        previewContext.people,
+        item.smartConfig,
+        previewContext
+    );
     const smart = item.smartRule !== 'fixed'
         ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + '</span>'
         : '';
-    return '<div class="list-item-card">' +
+    return '<div class="list-item-card editable" onclick="openModuleItemModal(\'module\', \'' + source + '\', \'' + moduleId + '\', \'' + item.id + '\')">' +
         '<div class="list-item-main">' +
         '<div class="list-item-name">' + esc(item.name) + '</div>' +
         '<div class="item-subline">' +
         '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
         '<span class="item-pill">' + esc(bagName(item.bag, bags)) + '</span>' +
         smart +
+        '<span class="item-pill subtle-pill">默认 ×' + item.defaultQty + '</span>' +
         '</div>' +
         '</div>' +
-        '<div class="item-qty">×' + item.qty + '</div>' +
+        '<div class="item-qty">预览 ×' + previewQty + '</div>' +
         '</div>';
+}
+
+function tripOrModuleItemToModuleItem(item) {
+    return normalizeModuleItem({
+        id: String(item.id || '').startsWith('module-item-') ? item.id : ('module-item-' + gid()),
+        name: item.name,
+        category: item.category,
+        bag: item.bag,
+        defaultQty: item.defaultQty || item.smartBaseQty || item.qty || 1,
+        smartRule: item.smartRule,
+        smartConfig: item.smartConfig,
+    });
+}
+
+function syncModuleBuilderSelectionFromItems() {
+    const library = getItemLibrary();
+    S.moduleBuilderSelection = new Set(
+        S.moduleBuilderItems
+            .map(item => library.find(asset => asset.name === item.name)?.id)
+            .filter(Boolean)
+    );
+}
+
+function upsertLibraryFromModuleItem(moduleItem) {
+    const library = getItemLibrary();
+    const idx = library.findIndex(entry => entry.name === moduleItem.name);
+    const next = normalizeLibraryItem({
+        ...(idx >= 0 ? library[idx] : {}),
+        id: idx >= 0 ? library[idx].id : ('asset-' + gid()),
+        name: moduleItem.name,
+        category: moduleItem.category,
+        defaultQty: moduleItem.defaultQty,
+        bag: moduleItem.bag,
+        smartRule: moduleItem.smartRule,
+        smartConfig: moduleItem.smartConfig,
+        source: idx >= 0 ? library[idx].source : 'user',
+    });
+    if (idx >= 0) library[idx] = next;
+    else library.unshift(next);
+    saveItemLibrary(library);
+}
+
+function saveModuleEntityItems(source, moduleId, items) {
+    if (source === 'official') {
+        const modules = getOfficialModules();
+        const idx = modules.findIndex(module => module.id === moduleId);
+        if (idx < 0) return null;
+        modules[idx] = normalizeOfficialModule({
+            ...modules[idx],
+            items: items.map(normalizeModuleItem),
+        });
+        saveOfficialModules(modules);
+        return modules[idx];
+    }
+
+    const module = getMyModules().find(entry => entry.id === moduleId);
+    if (!module) return null;
+    const next = normalizeModuleRecord({
+        ...module,
+        items: items.map(normalizeModuleItem),
+        updatedAt: new Date().toISOString(),
+    });
+    saveRecord(next);
+    return next;
+}
+
+function findModuleItemContext(itemId) {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return null;
+
+    if (ctx.mode === 'builder') {
+        const item = S.moduleBuilderItems.find(entry => entry.id === itemId);
+        return item ? { item, items: S.moduleBuilderItems } : null;
+    }
+
+    const entity = getModuleEntity(ctx.source, ctx.moduleId);
+    if (!entity) return null;
+    const item = (entity.items || []).find(entry => entry.id === itemId);
+    return item ? { item, entity } : null;
+}
+
+function openModuleItemModal(mode, source, moduleId, itemId) {
+    const ctx = { mode, source: source || null, moduleId: moduleId || null, itemId };
+    S.moduleItemEditContext = ctx;
+
+    let item = null;
+    if (mode === 'builder') {
+        item = S.moduleBuilderItems.find(entry => entry.id === itemId);
+    } else {
+        const entity = getModuleEntity(source, moduleId);
+        item = entity?.items?.find(entry => entry.id === itemId);
+    }
+    if (!item) return;
+
+    item = normalizeModuleItem(item);
+    document.getElementById('moduleItemModalTitle').textContent = item.name;
+    document.getElementById('moduleItemQty').value = item.defaultQty;
+    fillCatSelect('moduleItemCategory', item.category);
+    fillBagSelect('moduleItemBag', item.bag, DEFAULT_BAGS);
+    document.getElementById('moduleItemDeleteBtn').style.display = 'inline-flex';
+    updateModuleItemSmartHint();
+    showModal('moduleItemModal');
+}
+
+function updateModuleItemSmartHint() {
+    const hint = document.getElementById('moduleItemSmartHint');
+    const ctx = S.moduleItemEditContext;
+    if (!hint || !ctx) return;
+
+    const found = findModuleItemContext(ctx.itemId);
+    if (!found?.item) return;
+
+    const category = document.getElementById('moduleItemCategory')?.value || found.item.category;
+    const qty = Math.max(1, parseInt(document.getElementById('moduleItemQty')?.value) || 1);
+    const { smartRule, smartConfig } = resolveItemSmartPlan(found.item.name, category, found.item.smartRule, found.item.smartConfig);
+    const previewContext = ctx.mode === 'module' && ctx.moduleId
+        ? { sourceModules: [{ source: ctx.source, id: ctx.moduleId, name: getModuleEntity(ctx.source, ctx.moduleId)?.name || '' }] }
+        : null;
+    const previewQty = smartRule === 'fixed'
+        ? qty
+        : computeSmartQty(qty, smartRule, getPreviewDays(), getPreviewPeople(), smartConfig, previewContext);
+
+    hint.textContent = smartRule === 'fixed'
+        ? `默认固定数量 ×${qty}。保存后，之后用这个包创建行程都会按此默认量生成。`
+        : `默认基础量 ×${qty}，按「${smartRuleLabel(smartRule, smartConfig)}」智能建议；当前预览约 ×${previewQty}。保存后新建行程都会沿用这里的默认设置。`;
+}
+
+function saveModuleItemEdit() {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return;
+
+    const found = findModuleItemContext(ctx.itemId);
+    if (!found?.item) return;
+
+    const nextItem = normalizeModuleItem({
+        ...found.item,
+        defaultQty: Math.max(1, parseInt(document.getElementById('moduleItemQty').value) || 1),
+        category: document.getElementById('moduleItemCategory').value,
+        bag: document.getElementById('moduleItemBag').value,
+    });
+    const { smartRule, smartConfig } = resolveItemSmartPlan(nextItem.name, nextItem.category, found.item.smartRule, found.item.smartConfig);
+    nextItem.smartRule = smartRule;
+    nextItem.smartConfig = smartConfig;
+
+    if (ctx.mode === 'builder') {
+        const idx = S.moduleBuilderItems.findIndex(entry => entry.id === ctx.itemId);
+        if (idx >= 0) S.moduleBuilderItems[idx] = nextItem;
+        upsertLibraryFromModuleItem(nextItem);
+        syncModuleBuilderSelectionFromItems();
+        closeModal('moduleItemModal');
+        renderModuleBuilderSelectedItems();
+        renderModuleBuilderItems();
+        renderItemLibrary();
+        toast('小包物品已更新');
+        return;
+    }
+
+    const entity = found.entity;
+    const items = (entity.items || []).map(item => item.id === ctx.itemId ? nextItem : normalizeModuleItem(item));
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    upsertLibraryFromModuleItem(nextItem);
+    closeModal('moduleItemModal');
+    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+        renderModuleDetailModal(ctx.source, ctx.moduleId);
+    }
+    renderModuleLibrary();
+    toast('已保存到小包里，之后新建行程都会按此默认设置生成');
+}
+
+function deleteModuleItemEdit() {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return;
+
+    if (ctx.mode === 'builder') {
+        const target = S.moduleBuilderItems.find(entry => entry.id === ctx.itemId);
+        S.moduleBuilderItems = S.moduleBuilderItems.filter(entry => entry.id !== ctx.itemId);
+        if (target) {
+            const library = getItemLibrary();
+            const assetId = library.find(asset => asset.name === target.name)?.id;
+            if (assetId) S.moduleBuilderSelection.delete(assetId);
+        }
+        closeModal('moduleItemModal');
+        renderModuleBuilderSelectedItems();
+        renderModuleBuilderItems();
+        toast('已从小包中移除');
+        return;
+    }
+
+    const entity = getModuleEntity(ctx.source, ctx.moduleId);
+    if (!entity) return;
+    const items = (entity.items || []).filter(item => item.id !== ctx.itemId);
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    closeModal('moduleItemModal');
+    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+        renderModuleDetailModal(ctx.source, ctx.moduleId);
+    }
+    renderModuleLibrary();
+    toast('已从小包中移除');
 }
 
 function useCurrentModule() {
@@ -1052,6 +1453,10 @@ function goSelectItemsForTrip() {
 
 function addModuleToCurrentTrip(source, id) {
     if (!S.currentTrip) return;
+    if (isModuleOnTrip(S.currentTrip, source, id)) {
+        toast('这个小包已在当前行程中');
+        return;
+    }
     const entity = getModuleEntity(source, id);
     if (!entity) return;
     if (isBabyModuleEntity(entity) && !isBabyBaseModuleEntity(entity)) {
@@ -1112,9 +1517,9 @@ function openLibraryItemModal(itemId = null) {
 function renderLibraryItemTags() {
     const el = document.getElementById('libraryItemTagsDisplay');
     if (!el) return;
-    el.innerHTML = S.currentEditingTags.map(tag =>
+    el.innerHTML = S.currentEditingTags.map((tag, index) =>
         '<span class="item-tag-pill">' + esc(tag) +
-        '<span class="item-tag-remove" onclick="removeLibraryItemTag(\'' + esc(tag) + '\')">✕</span></span>'
+        '<button type="button" class="item-tag-remove" data-tag-index="' + index + '" aria-label="移除标签 ' + esc(tag) + '">✕</button></span>'
     ).join('');
 }
 
@@ -1128,8 +1533,9 @@ function addLibraryItemTag() {
     if (input) input.value = '';
 }
 
-function removeLibraryItemTag(tag) {
-    S.currentEditingTags = S.currentEditingTags.filter(t => t !== tag);
+function removeLibraryItemTagByIndex(index) {
+    if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
+    S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
     renderLibraryItemTags();
 }
 
@@ -1314,9 +1720,9 @@ function openTripItemModal(itemId) {
 function renderTripItemTags() {
     const el = document.getElementById('tripItemTagsDisplay');
     if (!el) return;
-    el.innerHTML = S.currentEditingTags.map(tag =>
+    el.innerHTML = S.currentEditingTags.map((tag, index) =>
         '<span class="item-tag-pill">' + esc(tag) +
-        '<span class="item-tag-remove" onclick="removeTripItemTag(\'' + esc(tag) + '\')">✕</span></span>'
+        '<button type="button" class="item-tag-remove" data-tag-index="' + index + '" aria-label="移除标签 ' + esc(tag) + '">✕</button></span>'
     ).join('');
 }
 
@@ -1330,8 +1736,9 @@ function addTripItemTag() {
     if (input) input.value = '';
 }
 
-function removeTripItemTag(tag) {
-    S.currentEditingTags = S.currentEditingTags.filter(t => t !== tag);
+function removeTripItemTagByIndex(index) {
+    if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
+    S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
     renderTripItemTags();
 }
 
@@ -1347,11 +1754,18 @@ function updateTripItemSmartMeta() {
     }
 
     const qty = Math.max(1, parseInt(document.getElementById('tripItemQty').value) || 1);
-    const suggested = computeSmartQty(item.smartBaseQty || 1, item.smartRule, S.currentTrip.days, S.currentTrip.people);
+    const suggested = computeSmartQty(
+        item.smartBaseQty || 1,
+        item.smartRule,
+        S.currentTrip.days,
+        S.currentTrip.people,
+        item.smartConfig,
+        S.currentTrip
+    );
     meta.style.display = 'block';
     meta.textContent = qty === suggested
-        ? `智能填充：${smartRuleLabel(item.smartRule)}。当前建议数量 ×${suggested}。`
-        : `智能填充：${smartRuleLabel(item.smartRule)}。当前建议 ×${suggested}；你现在填写的是 ×${qty}，保存后会优先按你的手动数量保留。`;
+        ? `智能填充：${smartRuleLabel(item.smartRule, item.smartConfig)}。当前建议数量 ×${suggested}。`
+        : `智能填充：${smartRuleLabel(item.smartRule, item.smartConfig)}。当前建议 ×${suggested}；你现在填写的是 ×${qty}，保存后会优先按你的手动数量保留。`;
 }
 
 function saveCurrentTripItem() {
@@ -1365,7 +1779,14 @@ function saveCurrentTripItem() {
     item.notes = document.getElementById('tripItemNotes').value.trim();
     item.tags = [...S.currentEditingTags];
     if (item.smartRule !== 'fixed') {
-        const suggested = computeSmartQty(item.smartBaseQty || 1, item.smartRule, S.currentTrip.days, S.currentTrip.people);
+        const suggested = computeSmartQty(
+            item.smartBaseQty || 1,
+            item.smartRule,
+            S.currentTrip.days,
+            S.currentTrip.people,
+            item.smartConfig,
+            S.currentTrip
+        );
         item.smartLocked = item.qty !== suggested;
     }
 
@@ -1420,12 +1841,10 @@ function openCreateModuleModal(initialItems = null, options = {}) {
     const baseItems = editModule ? editModule.items : (initialItems || []);
 
     syncItemsIntoLibrary(baseItems);
-    const library = getItemLibrary();
-    const selected = baseItems.map(item => library.find(asset => asset.name === item.name)?.id).filter(Boolean);
-
     S.moduleBuilderDraftId = editModule?.id || null;
     S.moduleBuilderDraftSource = editModule ? editSource : 'custom';
-    S.moduleBuilderSelection = new Set(selected);
+    S.moduleBuilderItems = (baseItems || []).map(item => tripOrModuleItemToModuleItem(item));
+    syncModuleBuilderSelectionFromItems();
     S.moduleBuilderSearch = '';
 
     document.getElementById('moduleBuilderModalTitle').textContent = editModule
@@ -1434,8 +1853,8 @@ function openCreateModuleModal(initialItems = null, options = {}) {
     document.getElementById('moduleBuilderSaveBtn').textContent = editModule ? '保存小包修改' : '保存到我的小包';
     document.getElementById('moduleBuilderDeleteBtn').style.visibility = editModule ? 'visible' : 'hidden';
     document.getElementById('moduleBuilderHint').textContent = editModule
-        ? '已带出原有物品；按住并滑过卡片可连续补选或取消，也能手动输一个新物品马上加进当前小包。'
-        : '从物品库里按住并滑过卡片即可连续多选；也可以先手动输入一个新物品再选入小包。';
+        ? '上方「小包内物品」可点击逐项调整；下方物品库可继续滑选补货。保存后，之后新建行程都会按这里的默认设置生成。'
+        : '从物品库滑选加入小包；加入后可在上方「小包内物品」点击调整默认数量。保存后新建行程都会沿用这些设置。';
 
     document.getElementById('moduleBuilderName').value = editModule?.name || '';
     document.getElementById('moduleBuilderIcon').value = editModule?.icon || '🧰';
@@ -1444,6 +1863,7 @@ function openCreateModuleModal(initialItems = null, options = {}) {
     document.getElementById('moduleQuickItemName').value = '';
     document.getElementById('moduleQuickItemQty').value = 1;
     document.getElementById('moduleQuickItemCategory').value = 'misc';
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     showModal('createModuleModal');
     setTimeout(() => document.getElementById('moduleBuilderName').focus(), 50);
@@ -1456,6 +1876,8 @@ function updateModuleBuilderSearch(value) {
 
 function clearModuleBuilderSelection() {
     S.moduleBuilderSelection = new Set();
+    S.moduleBuilderItems = [];
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
 }
 
@@ -1509,12 +1931,45 @@ function addBuilderCustomItem() {
     }
 
     S.moduleBuilderSelection.add(target.id);
+    if (!S.moduleBuilderItems.some(item => item.name === target.name)) {
+        S.moduleBuilderItems.push(createModuleItemFromAsset(target));
+    }
     document.getElementById('moduleQuickItemName').value = '';
     document.getElementById('moduleQuickItemQty').value = 1;
     document.getElementById('moduleQuickItemCategory').value = 'misc';
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     renderItemLibrary();
     toast('新物品已加入物品库，并选入当前小包');
+}
+
+function renderModuleBuilderSelectedItems() {
+    const box = document.getElementById('moduleBuilderSelectedItems');
+    const section = document.getElementById('moduleBuilderSelectedSection');
+    const meta = document.getElementById('moduleBuilderSelectedMeta');
+    if (!box || !section) return;
+
+    const items = S.moduleBuilderItems || [];
+    section.style.display = items.length ? 'block' : 'none';
+    if (meta) meta.textContent = items.length ? `共 ${items.length} 件 · 点击可改默认数量、分类和归属小包` : '点击物品可改默认数量、分类和归属小包';
+
+    box.innerHTML = items.length
+        ? items.map(item => {
+            const cat = catInfo(item.category);
+            const smart = item.smartRule !== 'fixed'
+                ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + '</span>'
+                : '';
+            return '<div class="list-item-card editable compact" onclick="openModuleItemModal(\'builder\', null, null, \'' + item.id + '\')">' +
+                '<div class="list-item-main">' +
+                '<div class="list-item-name">' + esc(item.name) + '</div>' +
+                '<div class="item-subline">' +
+                '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
+                '<span class="item-pill">' + esc(bagName(item.bag, DEFAULT_BAGS)) + '</span>' +
+                smart +
+                '</div></div>' +
+                '<div class="item-qty">×' + item.defaultQty + '</div></div>';
+        }).join('')
+        : '';
 }
 
 function renderModuleBuilderItems() {
@@ -1553,8 +2008,9 @@ function renderModuleBuilderItems() {
 function syncModuleBuilderMeta() {
     const meta = document.getElementById('moduleBuilderCount');
     const clearBtn = document.getElementById('moduleBuilderClearBtn');
-    if (meta) meta.textContent = `已选 ${S.moduleBuilderSelection.size} 件`;
-    if (clearBtn) clearBtn.textContent = S.moduleBuilderSelection.size ? `清空（${S.moduleBuilderSelection.size}）` : '清空选择';
+    const count = S.moduleBuilderItems?.length || 0;
+    if (meta) meta.textContent = `已选 ${count} 件`;
+    if (clearBtn) clearBtn.textContent = count ? `清空（${count}）` : '清空选择';
 }
 
 function setupModuleBuilderGesture() {
@@ -1609,8 +2065,19 @@ function applyModuleBuilderGesture(itemId) {
 }
 
 function setModuleBuilderItemSelected(itemId, selected) {
-    if (selected) S.moduleBuilderSelection.add(itemId);
-    else S.moduleBuilderSelection.delete(itemId);
+    const library = getItemLibrary();
+    const asset = library.find(entry => entry.id === itemId);
+    if (!asset) return;
+
+    if (selected) {
+        S.moduleBuilderSelection.add(itemId);
+        if (!S.moduleBuilderItems.some(item => item.name === asset.name)) {
+            S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
+        }
+    } else {
+        S.moduleBuilderSelection.delete(itemId);
+        S.moduleBuilderItems = S.moduleBuilderItems.filter(item => item.name !== asset.name);
+    }
 
     const tile = document.querySelector('.picker-item[data-item-id="' + itemId + '"]');
     if (tile) {
@@ -1618,6 +2085,7 @@ function setModuleBuilderItemSelected(itemId, selected) {
         const state = tile.querySelector('.picker-tile-state');
         if (state) state.textContent = selected ? '已选' : '滑选';
     }
+    renderModuleBuilderSelectedItems();
     syncModuleBuilderMeta();
 }
 
@@ -1645,17 +2113,11 @@ function saveCustomModule() {
         return;
     }
 
-    const selectedIds = Array.from(S.moduleBuilderSelection);
-    if (!selectedIds.length) {
+    const items = (S.moduleBuilderItems || []).map(normalizeModuleItem);
+    if (!items.length) {
         toast('请至少选择一个物品');
         return;
     }
-
-    const library = getItemLibrary();
-    const items = selectedIds.map(id => {
-        const asset = library.find(entry => entry.id === id);
-        return asset ? createModuleItemFromAsset(asset) : null;
-    }).filter(Boolean);
 
     if (S.moduleBuilderDraftSource === 'official') {
         const officialModules = getOfficialModules();
@@ -1676,11 +2138,12 @@ function saveCustomModule() {
         const idx = officialModules.findIndex(item => item.id === nextModule.id);
         if (idx >= 0) officialModules[idx] = nextModule;
         else officialModules.unshift(nextModule);
+        items.forEach(upsertLibraryFromModuleItem);
         saveOfficialModules(officialModules);
         closeModal('createModuleModal');
         renderModuleLibrary();
         renderHome();
-        toast('官方小包已更新');
+        toast('官方小包已更新，之后新建行程都会按新设置生成');
         return;
     }
 
@@ -1698,11 +2161,12 @@ function saveCustomModule() {
         updatedAt: new Date().toISOString(),
     });
 
+    items.forEach(upsertLibraryFromModuleItem);
     saveRecord(module);
     closeModal('createModuleModal');
     renderModuleLibrary();
     renderHome();
-    toast(existing ? '小包已更新' : '已保存到我的小包');
+    toast(existing ? '小包已更新，之后新建行程都会按新设置生成' : '已保存到我的小包');
 }
 
 function deleteCurrentModuleDraft() {
@@ -1729,6 +2193,13 @@ function saveCurrentTripAsModule() {
     openCreateModuleModal(S.currentTrip.items);
     document.getElementById('moduleBuilderName').value = S.currentTrip.name + ' 小包';
     document.getElementById('moduleBuilderDesc').value = `由行程「${S.currentTrip.name}」沉淀而来，可在后续 Trips 中复用。`;
+}
+
+function deleteTrip(id) {
+    const target = getTrips().find(trip => trip.id === id);
+    if (!target) return;
+    if (!confirm(`确定删除行程「${target.name}」吗？此操作不可撤销。`)) return;
+    deleteRecord(id);
 }
 
 function duplicateTrip(id) {
@@ -1983,29 +2454,30 @@ function clearAllData() {
 // Expose functions to global scope for HTML onclick/oninput handlers
 Object.assign(window, {
     // nav & pages
-    openMainPage, goBack, nav,
+    openMainPage, openTripPage, goBack, nav,
     // trip builder
     openCreateTripModal, confirmCreateTrip, stepValue,
     toggleTripBuilderModule, changeCurrentTripSetting,
     // trip page
     openTrip, setTripMode, toggleTripMode, setPackView,
     togglePackItem, toggleBagCollapse, toggleTripInfoCard, markAllPacked, markAllUnpacked,
-    reapplyTripSmartFill, saveCurrentTripAsModule,
+    reapplyTripSmartFill, resyncCurrentTripFromModules, removeModuleFromCurrentTrip, saveCurrentTripAsModule,
     goSelectModuleForTrip, goSelectItemsForTrip,
     // module
     openCreateModuleModal, saveCustomModule, deleteCurrentModuleDraft,
     clearModuleBuilderSelection, addBuilderCustomItem,
     useCurrentModule, openEditCurrentModule, openModuleDetail,
+    openModuleItemModal, saveModuleItemEdit, deleteModuleItemEdit,
     setModuleFilter, updateModuleSearch, updateModuleBuilderSearch,
     // library
     saveLibraryItem, deleteLibraryItem, openLibraryItemModal,
-    addLibraryItemTag, removeLibraryItemTag,
+    addLibraryItemTag,
     setItemFilter, updateItemSearch,
     // manual item
     openManualItemModal, saveManualTripItem,
     // trip item edit
     openTripItemModal, saveCurrentTripItem, deleteCurrentTripItem,
-    addTripItemTag, removeTripItemTag,
+    addTripItemTag,
     // modals
     showModal, closeModal,
     // onboarding
@@ -2013,7 +2485,7 @@ Object.assign(window, {
     // me page
     resetOfficialModules, clearAllData,
     // home extras
-    toggleHomeHistory, duplicateTrip,
+    toggleHomeHistory, duplicateTrip, deleteTrip,
     // kit view
     setKitView,
 });

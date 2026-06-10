@@ -1,7 +1,7 @@
 import { BABY_MODULE_IDS } from './constants.js';
 import { gid, uniqueStrings, guessCat, suggestBagForItem } from './utils.js';
 import { normalizeTripItem, normalizeModuleItem } from './models.js';
-import { resolveItemSmartPlan, computeSmartQty, mergeTripItems } from './smartFill.js';
+import { resolveItemSmartPlan, computeSmartQty, mergeTripItems, applyTripSmartFill } from './smartFill.js';
 import { getOfficialModules, getMyModules } from './store.js';
 
 export function getModuleEntity(source, id) {
@@ -142,6 +142,50 @@ export function upsertTripSourceModule(trip, sourceModule) {
     }
 }
 
+export function isModuleOnTrip(trip, source, moduleId) {
+    return (trip?.sourceModules || []).some(module => module.source === source && module.id === moduleId);
+}
+
+export function removeModuleFromTrip(trip, source, moduleId) {
+    const entity = getModuleEntity(source, moduleId);
+    if (!entity || !trip) return { changed: false, trip, moduleName: '', removedItems: 0 };
+
+    const moduleName = entity.name;
+    if (!isModuleOnTrip(trip, source, moduleId)) {
+        return { changed: false, trip, moduleName, removedItems: 0 };
+    }
+
+    trip.sourceModules = (trip.sourceModules || []).filter(
+        module => !(module.source === source && module.id === moduleId)
+    );
+
+    let removedItems = 0;
+    const nextItems = [];
+    (trip.items || []).forEach(item => {
+        const sources = [...(item.sourceModules || [])];
+        if (!sources.length) {
+            nextItems.push(item);
+            return;
+        }
+        if (!sources.includes(moduleName)) {
+            nextItems.push(item);
+            return;
+        }
+        const remaining = sources.filter(name => name !== moduleName);
+        if (!remaining.length) {
+            removedItems += 1;
+            return;
+        }
+        nextItems.push({
+            ...item,
+            sourceModules: uniqueStrings(remaining),
+        });
+    });
+
+    trip.items = nextItems.map(normalizeTripItem);
+    return { changed: true, trip, moduleName, removedItems };
+}
+
 export function ensureBabyBaseModuleOnTripRecord(trip) {
     if (!trip) return;
     const baseModule = getBabyBaseModule();
@@ -150,4 +194,160 @@ export function ensureBabyBaseModuleOnTripRecord(trip) {
     const items = resolveOfficialModuleItems(baseModule, trip.days, trip.people);
     mergeTripItems(trip.items, items, trip, 'module');
     upsertTripSourceModule(trip, { source: 'official', id: baseModule.id, name: baseModule.name });
+}
+
+export function tripItemSnapshotKey(item) {
+    return `${item.name}::${item.category}`;
+}
+
+export function getTripModuleEntries(trip) {
+    const entries = [];
+    const seen = new Set();
+    (trip?.sourceModules || []).forEach(meta => {
+        const entity = getModuleEntity(meta.source, meta.id);
+        if (!entity) return;
+        const key = `${meta.source}:${meta.id}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        entries.push({
+            source: meta.source,
+            module: entity,
+            meta: { source: meta.source, id: meta.id, name: meta.name || entity.name },
+        });
+    });
+    return entries;
+}
+
+export function ensureBabyBaseInModuleEntries(entries) {
+    const hasBabyAddon = entries.some(entry => isBabyModuleEntity(entry.module) && !isBabyBaseModuleEntity(entry.module));
+    if (!hasBabyAddon) return entries;
+    if (entries.some(entry => isBabyBaseModuleEntity(entry.module))) return entries;
+    const baseModule = getBabyBaseModule();
+    if (!baseModule) return entries;
+    return [{
+        source: 'official',
+        module: baseModule,
+        meta: { source: 'official', id: baseModule.id, name: baseModule.name },
+    }, ...entries];
+}
+
+export function buildTripItemsFromModuleEntries(trip, entries) {
+    const sourceModules = entries.map(entry => entry.meta);
+    const tripContext = {
+        days: trip.days,
+        people: trip.people,
+        sourceModules,
+    };
+    const items = [];
+    entries.forEach(({ source, module }) => {
+        const resolved = source === 'official'
+            ? resolveOfficialModuleItems(module, trip.days, trip.people)
+            : resolveCustomModuleItems(module, trip.days, trip.people);
+        mergeTripItems(items, resolved, tripContext, 'module');
+    });
+    applyTripSmartFill({ days: trip.days, people: trip.people, items, sourceModules }, false);
+    return { items, sourceModules };
+}
+
+/**
+ * 按行程关联的小包定义重新生成小包来源物品。
+ * 手动添加的物品（无 sourceModules）会保留；打包状态、备注、标签、手调数量尽量保留。
+ */
+export function resyncTripFromSourceModules(trip, options = {}) {
+    const preservePacked = options.preservePacked !== false;
+    const preserveLocked = options.preserveLocked !== false;
+    const preserveManualFields = options.preserveManualFields !== false;
+
+    const manualItems = (trip.items || []).filter(item => !(item.sourceModules || []).length);
+    const oldModuleSnapshots = new Map();
+    (trip.items || []).filter(item => (item.sourceModules || []).length)
+        .forEach(item => oldModuleSnapshots.set(tripItemSnapshotKey(item), normalizeTripItem(item)));
+
+    const hadModuleRefs = (trip.sourceModules || []).length > 0;
+    const entries = ensureBabyBaseInModuleEntries(getTripModuleEntries(trip));
+
+    if (!entries.length) {
+        if (!hadModuleRefs) {
+            return { changed: false, trip, added: 0, removed: 0, updated: 0, moduleCount: 0 };
+        }
+        trip.sourceModules = [];
+        trip.items = manualItems.map(normalizeTripItem);
+        return {
+            changed: oldModuleSnapshots.size > 0,
+            trip,
+            added: 0,
+            removed: oldModuleSnapshots.size,
+            updated: 0,
+            moduleCount: 0,
+        };
+    }
+
+    const beforeKeys = new Set(oldModuleSnapshots.keys());
+    const { items: moduleItems, sourceModules } = buildTripItemsFromModuleEntries(trip, entries);
+    const afterKeys = new Set(moduleItems.map(tripItemSnapshotKey));
+
+    moduleItems.forEach(item => {
+        const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
+        if (!old) return;
+        if (preservePacked) item.packed = old.packed;
+        if (preserveManualFields) {
+            if (old.notes) item.notes = old.notes;
+            if (old.tags?.length) item.tags = [...old.tags];
+        }
+        if (preserveLocked && old.smartLocked) {
+            item.smartLocked = true;
+            item.qty = old.qty;
+        }
+    });
+
+    const keptManual = [];
+    let mergedDuplicates = 0;
+    manualItems.forEach(item => {
+        const key = tripItemSnapshotKey(item);
+        const moduleItem = moduleItems.find(entry => tripItemSnapshotKey(entry) === key);
+        if (!moduleItem) {
+            keptManual.push(item);
+            return;
+        }
+        mergedDuplicates += 1;
+        moduleItem.qty = Math.max(moduleItem.qty || 1, item.qty || 1);
+        if (preservePacked && item.packed) moduleItem.packed = true;
+        if (preserveManualFields) {
+            if (item.notes && !moduleItem.notes) moduleItem.notes = item.notes;
+            if (item.tags?.length) {
+                moduleItem.tags = uniqueStrings([...(moduleItem.tags || []), ...item.tags]);
+            }
+        }
+        if (preserveLocked && item.smartLocked) {
+            moduleItem.smartLocked = true;
+            moduleItem.qty = item.qty;
+        }
+    });
+
+    trip.sourceModules = sourceModules;
+    trip.items = [...moduleItems.map(normalizeTripItem), ...keptManual.map(normalizeTripItem)];
+    applyTripSmartFill(trip, false);
+
+    let added = 0;
+    let removed = 0;
+    let updated = 0;
+    afterKeys.forEach(key => { if (!beforeKeys.has(key)) added += 1; });
+    beforeKeys.forEach(key => { if (!afterKeys.has(key)) removed += 1; });
+    moduleItems.forEach(item => {
+        const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
+        if (!old) return;
+        if (old.qty !== item.qty || old.smartBaseQty !== item.smartBaseQty || old.smartRule !== item.smartRule) {
+            updated += 1;
+        }
+    });
+
+    return {
+        changed: added > 0 || removed > 0 || updated > 0 || mergedDuplicates > 0,
+        trip,
+        added,
+        removed,
+        updated,
+        mergedDuplicates,
+        moduleCount: entries.length,
+    };
 }

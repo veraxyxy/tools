@@ -116,6 +116,10 @@
                 <span class="nav-icon">🏠</span>
                 <span>首页</span>
             </button>
+            <button class="nav-item" data-nav="list" onclick="openTripPage()">
+                <span class="nav-icon">📝</span>
+                <span>行程</span>
+            </button>
             <button class="nav-item" data-nav="kits" onclick="openMainPage('kits')">
                 <span class="nav-icon">🧰</span>
                 <span>小包</span>
@@ -375,6 +379,37 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="moduleItemModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="moduleItemModalTitle">编辑小包物品</h3>
+                <button class="btn-close" onclick="closeModal('moduleItemModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-card subtle" id="moduleItemSmartHint">修改会保存到小包里，之后新建行程都会按这里的默认设置生成。</div>
+                <div class="form-row vertical">
+                    <label for="moduleItemQty">默认数量</label>
+                    <input id="moduleItemQty" type="number" min="1" value="1">
+                </div>
+                <div class="form-row vertical">
+                    <label for="moduleItemCategory">分类</label>
+                    <select id="moduleItemCategory"></select>
+                </div>
+                <div class="form-row vertical">
+                    <label for="moduleItemBag">归属小包</label>
+                    <select id="moduleItemBag"></select>
+                </div>
+            </div>
+            <div class="modal-footer between">
+                <button class="btn-ghost danger" id="moduleItemDeleteBtn" onclick="deleteModuleItemEdit()">从小包移除</button>
+                <div class="modal-footer-actions">
+                    <button class="btn-secondary" onclick="closeModal('moduleItemModal')">取消</button>
+                    <button class="btn-primary" onclick="saveModuleItemEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="createModuleModal">
         <div class="modal">
             <div class="modal-header">
@@ -382,7 +417,16 @@
                 <button class="btn-close" onclick="closeModal('createModuleModal')">✕</button>
             </div>
             <div class="modal-body large">
-                <div class="info-card subtle builder-hint-card" id="moduleBuilderHint">从物品库中按下卡片即可选中，滑动可连续多选；也可手动输入新物品并立即加入当前小包。</div>
+                <div class="info-card subtle builder-hint-card" id="moduleBuilderHint">从物品库中按下卡片即可选中，滑动可连续多选；也可手动输入新物品并立即加入当前小包。加入后可在下方「小包内物品」逐项调整。</div>
+                <div class="module-selected-section" id="moduleBuilderSelectedSection">
+                    <div class="builder-header compact">
+                        <div>
+                            <div class="builder-title">小包内物品</div>
+                            <div class="builder-meta" id="moduleBuilderSelectedMeta">点击物品可改默认数量、分类和归属小包</div>
+                        </div>
+                    </div>
+                    <div class="stack-list compact" id="moduleBuilderSelectedItems"></div>
+                </div>
                 <div class="form-row vertical">
                     <label for="moduleBuilderName">小包名称</label>
                     <input id="moduleBuilderName" type="text" placeholder="例如：洗漱包 / 化妆包 / 宝宝基础包">

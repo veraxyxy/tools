@@ -1092,10 +1092,6 @@
   function getModuleKey(source, id) {
     return `${source}:${id}`;
   }
-  function isModuleOnCurrentTrip(source, id) {
-    if (!S.currentTrip?.sourceModules?.length) return false;
-    return S.currentTrip.sourceModules.some((m) => m.source === source && m.id === id);
-  }
   function splitModuleKey(key) {
     return key.split(":");
   }
@@ -1120,6 +1116,44 @@
       trip.sourceModules = existing;
     }
   }
+  function isModuleOnTrip(trip, source, moduleId) {
+    return (trip?.sourceModules || []).some((module) => module.source === source && module.id === moduleId);
+  }
+  function removeModuleFromTrip(trip, source, moduleId) {
+    const entity = getModuleEntity(source, moduleId);
+    if (!entity || !trip) return { changed: false, trip, moduleName: "", removedItems: 0 };
+    const moduleName = entity.name;
+    if (!isModuleOnTrip(trip, source, moduleId)) {
+      return { changed: false, trip, moduleName, removedItems: 0 };
+    }
+    trip.sourceModules = (trip.sourceModules || []).filter(
+      (module) => !(module.source === source && module.id === moduleId)
+    );
+    let removedItems = 0;
+    const nextItems = [];
+    (trip.items || []).forEach((item) => {
+      const sources = [...item.sourceModules || []];
+      if (!sources.length) {
+        nextItems.push(item);
+        return;
+      }
+      if (!sources.includes(moduleName)) {
+        nextItems.push(item);
+        return;
+      }
+      const remaining = sources.filter((name) => name !== moduleName);
+      if (!remaining.length) {
+        removedItems += 1;
+        return;
+      }
+      nextItems.push({
+        ...item,
+        sourceModules: uniqueStrings(remaining)
+      });
+    });
+    trip.items = nextItems.map(normalizeTripItem);
+    return { changed: true, trip, moduleName, removedItems };
+  }
   function ensureBabyBaseModuleOnTripRecord(trip) {
     if (!trip) return;
     const baseModule = getBabyBaseModule();
@@ -1128,6 +1162,145 @@
     const items = resolveOfficialModuleItems(baseModule, trip.days, trip.people);
     mergeTripItems(trip.items, items, trip, "module");
     upsertTripSourceModule(trip, { source: "official", id: baseModule.id, name: baseModule.name });
+  }
+  function tripItemSnapshotKey(item) {
+    return `${item.name}::${item.category}`;
+  }
+  function getTripModuleEntries(trip) {
+    const entries = [];
+    const seen = /* @__PURE__ */ new Set();
+    (trip?.sourceModules || []).forEach((meta) => {
+      const entity = getModuleEntity(meta.source, meta.id);
+      if (!entity) return;
+      const key = `${meta.source}:${meta.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      entries.push({
+        source: meta.source,
+        module: entity,
+        meta: { source: meta.source, id: meta.id, name: meta.name || entity.name }
+      });
+    });
+    return entries;
+  }
+  function ensureBabyBaseInModuleEntries(entries) {
+    const hasBabyAddon = entries.some((entry) => isBabyModuleEntity(entry.module) && !isBabyBaseModuleEntity(entry.module));
+    if (!hasBabyAddon) return entries;
+    if (entries.some((entry) => isBabyBaseModuleEntity(entry.module))) return entries;
+    const baseModule = getBabyBaseModule();
+    if (!baseModule) return entries;
+    return [{
+      source: "official",
+      module: baseModule,
+      meta: { source: "official", id: baseModule.id, name: baseModule.name }
+    }, ...entries];
+  }
+  function buildTripItemsFromModuleEntries(trip, entries) {
+    const sourceModules = entries.map((entry) => entry.meta);
+    const tripContext = {
+      days: trip.days,
+      people: trip.people,
+      sourceModules
+    };
+    const items = [];
+    entries.forEach(({ source, module }) => {
+      const resolved = source === "official" ? resolveOfficialModuleItems(module, trip.days, trip.people) : resolveCustomModuleItems(module, trip.days, trip.people);
+      mergeTripItems(items, resolved, tripContext, "module");
+    });
+    applyTripSmartFill({ days: trip.days, people: trip.people, items, sourceModules }, false);
+    return { items, sourceModules };
+  }
+  function resyncTripFromSourceModules(trip, options = {}) {
+    const preservePacked = options.preservePacked !== false;
+    const preserveLocked = options.preserveLocked !== false;
+    const preserveManualFields = options.preserveManualFields !== false;
+    const manualItems = (trip.items || []).filter((item) => !(item.sourceModules || []).length);
+    const oldModuleSnapshots = /* @__PURE__ */ new Map();
+    (trip.items || []).filter((item) => (item.sourceModules || []).length).forEach((item) => oldModuleSnapshots.set(tripItemSnapshotKey(item), normalizeTripItem(item)));
+    const hadModuleRefs = (trip.sourceModules || []).length > 0;
+    const entries = ensureBabyBaseInModuleEntries(getTripModuleEntries(trip));
+    if (!entries.length) {
+      if (!hadModuleRefs) {
+        return { changed: false, trip, added: 0, removed: 0, updated: 0, moduleCount: 0 };
+      }
+      trip.sourceModules = [];
+      trip.items = manualItems.map(normalizeTripItem);
+      return {
+        changed: oldModuleSnapshots.size > 0,
+        trip,
+        added: 0,
+        removed: oldModuleSnapshots.size,
+        updated: 0,
+        moduleCount: 0
+      };
+    }
+    const beforeKeys = new Set(oldModuleSnapshots.keys());
+    const { items: moduleItems, sourceModules } = buildTripItemsFromModuleEntries(trip, entries);
+    const afterKeys = new Set(moduleItems.map(tripItemSnapshotKey));
+    moduleItems.forEach((item) => {
+      const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
+      if (!old) return;
+      if (preservePacked) item.packed = old.packed;
+      if (preserveManualFields) {
+        if (old.notes) item.notes = old.notes;
+        if (old.tags?.length) item.tags = [...old.tags];
+      }
+      if (preserveLocked && old.smartLocked) {
+        item.smartLocked = true;
+        item.qty = old.qty;
+      }
+    });
+    const keptManual = [];
+    let mergedDuplicates = 0;
+    manualItems.forEach((item) => {
+      const key = tripItemSnapshotKey(item);
+      const moduleItem = moduleItems.find((entry) => tripItemSnapshotKey(entry) === key);
+      if (!moduleItem) {
+        keptManual.push(item);
+        return;
+      }
+      mergedDuplicates += 1;
+      moduleItem.qty = Math.max(moduleItem.qty || 1, item.qty || 1);
+      if (preservePacked && item.packed) moduleItem.packed = true;
+      if (preserveManualFields) {
+        if (item.notes && !moduleItem.notes) moduleItem.notes = item.notes;
+        if (item.tags?.length) {
+          moduleItem.tags = uniqueStrings([...moduleItem.tags || [], ...item.tags]);
+        }
+      }
+      if (preserveLocked && item.smartLocked) {
+        moduleItem.smartLocked = true;
+        moduleItem.qty = item.qty;
+      }
+    });
+    trip.sourceModules = sourceModules;
+    trip.items = [...moduleItems.map(normalizeTripItem), ...keptManual.map(normalizeTripItem)];
+    applyTripSmartFill(trip, false);
+    let added = 0;
+    let removed = 0;
+    let updated = 0;
+    afterKeys.forEach((key) => {
+      if (!beforeKeys.has(key)) added += 1;
+    });
+    beforeKeys.forEach((key) => {
+      if (!afterKeys.has(key)) removed += 1;
+    });
+    moduleItems.forEach((item) => {
+      const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
+      if (!old) return;
+      if (old.qty !== item.qty || old.smartBaseQty !== item.smartBaseQty || old.smartRule !== item.smartRule) {
+        updated += 1;
+      }
+    });
+    return {
+      changed: added > 0 || removed > 0 || updated > 0 || mergedDuplicates > 0,
+      trip,
+      added,
+      removed,
+      updated,
+      mergedDuplicates,
+      moduleCount: entries.length
+    };
   }
 
   // app.js
@@ -1144,10 +1317,6 @@
     moduleSearch: "",
     itemFilter: "all",
     itemSearch: "",
-    ilibrarySearch: "",
-    itemPickerSelection: /* @__PURE__ */ new Set(),
-    itemPickerSearch: "",
-    meItemSearch: "",
     returnPage: null,
     libraryModalEditId: null,
     tripItemEditId: null,
@@ -1162,6 +1331,8 @@
       visited: /* @__PURE__ */ new Set()
     },
     tripBuilderSelection: /* @__PURE__ */ new Set(),
+    moduleBuilderItems: [],
+    moduleItemEditContext: null,
     kitView: "compact",
     collapsedBags: /* @__PURE__ */ new Set(),
     tripInfoCollapsed: false,
@@ -1176,6 +1347,8 @@
     fillCatSelect("manualItemCategory");
     fillCatSelect("tripItemCategory");
     fillCatSelect("moduleQuickItemCategory");
+    fillCatSelect("moduleItemCategory");
+    fillBagSelect("moduleItemBag", null, DEFAULT_BAGS);
     bindFormEvents();
     nav("home");
     if (!localStorage.getItem(STORAGE_KEYS.onboarded)) {
@@ -1218,6 +1391,23 @@
         addTripItemTag();
       }
     });
+    document.getElementById("moduleItemCategory")?.addEventListener("change", () => {
+      syncBagWithCategory("moduleItemCategory", "moduleItemBag", DEFAULT_BAGS);
+      updateModuleItemSmartHint();
+    });
+    document.getElementById("moduleItemQty")?.addEventListener("input", updateModuleItemSmartHint);
+    document.getElementById("libraryItemTagsDisplay")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".item-tag-remove");
+      if (!btn) return;
+      e.preventDefault();
+      removeLibraryItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
+    });
+    document.getElementById("tripItemTagsDisplay")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".item-tag-remove");
+      if (!btn) return;
+      e.preventDefault();
+      removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
+    });
   }
   function nav(page) {
     S.currentPage = page;
@@ -1226,8 +1416,7 @@
     renderBottomNav();
     if (page === "home") renderHome();
     if (page === "kits") renderModuleLibrary();
-    if (page === "lists") renderListsPage();
-    if (page === "itemlibrary") renderItemLibraryPage();
+    if (page === "items") renderItemLibrary();
     if (page === "list") renderTripPage();
     if (page === "me") renderMePage();
   }
@@ -1236,13 +1425,26 @@
     S.currentModuleAction = "browse";
     nav(page);
   }
+  function openTripPage() {
+    S.returnPage = null;
+    S.currentModuleAction = "browse";
+    if (S.currentTrip) {
+      nav("list");
+      return;
+    }
+    const trips = getTrips();
+    if (!trips.length) {
+      S.currentTripId = null;
+      S.currentTrip = null;
+      nav("list");
+      return;
+    }
+    const active = trips.find((trip) => getTripStatus(trip).key !== "done") || trips[0];
+    openTrip(active.id, "plan");
+  }
   function goBack() {
     if (S.currentPage === "list") {
       nav("home");
-      return;
-    }
-    if (S.currentPage === "itemlibrary") {
-      nav("me");
       return;
     }
     if (S.returnPage) {
@@ -1269,18 +1471,14 @@
       title.textContent = "\u5C0F\u5305";
       eyebrow.textContent = S.currentModuleAction === "add" ? "\u628A\u5C0F\u5305\u52A0\u8FDB\u5F53\u524D\u884C\u7A0B\u5355" : "\u5148\u6C89\u6DC0\uFF0C\u518D\u590D\u7528";
       right.innerHTML = '<button class="btn-icon" onclick="openCreateModuleModal()" aria-label="\u65B0\u5EFA\u5C0F\u5305">\uFF0B</button>';
-    } else if (S.currentPage === "lists") {
-      title.textContent = "\u6E05\u5355";
-      eyebrow.textContent = "\u6240\u6709\u884C\u7A0B\u6C47\u603B";
-      right.innerHTML = "";
-    } else if (S.currentPage === "itemlibrary") {
-      title.textContent = "\u7269\u54C1\u5E93\u7BA1\u7406";
-      eyebrow.textContent = "\u6DFB\u52A0\u3001\u7F16\u8F91\u3001\u5220\u9664\u4F60\u7684\u7269\u54C1";
+    } else if (S.currentPage === "items") {
+      title.textContent = "\u7269\u54C1\u5E93";
+      eyebrow.textContent = S.currentTrip ? "\u4ECE\u7269\u54C1\u5E93\u7ED9\u5F53\u524D\u884C\u7A0B\u8865\u8D27" : "\u6C89\u6DC0\u4F60\u7684\u6807\u51C6\u7269\u54C1\u8D44\u4EA7";
       right.innerHTML = '<button class="btn-icon" onclick="openLibraryItemModal()" aria-label="\u65B0\u589E\u7269\u54C1">\uFF0B</button>';
     } else if (S.currentPage === "list") {
       title.textContent = "\u884C\u7A0B\u8BE6\u60C5";
       eyebrow.textContent = S.tripMode === "plan" ? "\u89C4\u5212\u6A21\u5F0F\uFF1A\u7EC4\u5408\u5C0F\u5305\u3001\u8865\u5145\u7269\u54C1\u3001\u667A\u80FD\u5EFA\u8BAE" : "\u6253\u5305\u6A21\u5F0F\uFF1A\u5BF9\u7167\u5B9E\u7269\u52FE\u9009";
-      right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="\u5207\u6362\u6A21\u5F0F">' + (S.tripMode === "plan" ? "\u{1F392}" : "\u270F\uFE0F") + "</button>" + (S.tripMode === "pack" ? '<button class="btn-secondary btn-small" onclick="markAllUnpacked()" style="margin-left:6px">\u6062\u590D</button>' : "");
+      right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="\u5207\u6362\u6A21\u5F0F">' + (S.tripMode === "plan" ? "\u{1F392}" : "\u270F\uFE0F") + "</button>";
     } else if (S.currentPage === "me") {
       title.textContent = "\u6211\u7684";
       eyebrow.textContent = "\u8BBE\u7F6E\u4E0E\u6570\u636E\u7BA1\u7406";
@@ -1297,10 +1495,9 @@
     const modules = getMyModules();
     const library = getItemLibrary();
     const active = trips.find((trip) => getTripStatus(trip).key !== "done") || null;
-    const done = trips.filter((trip) => getTripStatus(trip).key === "done");
     const rest = trips.filter((trip) => trip.id !== active?.id);
     const recent = rest.filter((t) => getTripStatus(t).key !== "done").slice(0, 3);
-    const history = done;
+    const history = getDoneTrips();
     const isNewUser = !trips.length && !modules.length;
     const heroEl = document.getElementById("homeHero");
     if (heroEl) heroEl.style.display = isNewUser ? "block" : "none";
@@ -1329,127 +1526,8 @@
     }
     content.innerHTML = html;
   }
-  function renderListsPage() {
-    const trips = getTrips();
-    const box = document.getElementById("listsContent");
-    if (!box) return;
-    if (!trips.length) {
-      box.innerHTML = '<div class="empty-panel" style="margin-top:40px"><div class="empty-icon">📋</div><div class="empty-title">还没有清单</div><div class="empty-hint">去首页新建一个行程吧</div></div>';
-      return;
-    }
-    const active = trips.filter((t) => getTripStatus(t).key !== "done");
-    const done = trips.filter((t) => getTripStatus(t).key === "done");
-    let html = '<div class="lists-page-header"><button class="btn-primary" onclick="openCreateTripModal()" style="width:100%">+ 新建行程</button></div>';
-    if (active.length) {
-      html += '<section class="section"><div class="section-head"><h3 class="section-title">进行中</h3></div><div class="trip-list-compact">' + active.map(renderTripCardCompact).join("") + "</div></section>";
-    }
-    if (done.length) {
-      html += '<section class="section"><div class="section-head"><h3 class="section-title">已完成</h3></div><div class="trip-list-compact">' + done.map(renderTripCardCompact).join("") + "</div></section>";
-    }
-    box.innerHTML = html;
-  }
-  function renderItemLibraryPage() {
-    const summaryBox = document.getElementById("ilibrarySummary");
-    const gridBox = document.getElementById("ilibraryGrid");
-    const filterRow = document.getElementById("ilibraryFilterRow");
-    if (!gridBox) return;
-    // 渲染分类筛选
-    if (filterRow) {
-      const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
-      filterRow.innerHTML = options.map(
-        (option) => '<button class="filter-chip ' + (S.ilibraryFilter === option.id ? "active" : "") + `" onclick="setILibraryFilter('` + option.id + `')">` + esc(option.name) + "</button>"
-      ).join("");
-    }
-    const allItems = getItemLibrary();
-    const keyword = (S.ilibrarySearch || "").toLowerCase();
-    const items = allItems.filter((item) => {
-      const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-      const filterMatch = !S.ilibraryFilter || S.ilibraryFilter === "all" || item.category === S.ilibraryFilter;
-      return searchMatch && filterMatch;
-    });
-    const customCount = allItems.filter((item) => item.source === "user").length;
-    if (summaryBox) {
-      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "");
-    }
-    gridBox.innerHTML = items.length ? items.map(renderILibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-icon">📦</div><div class="empty-title">\u6CA1\u6709\u7269\u54C1</div><div class="empty-hint">\u70B9\u51E0\u4E2A\u5B9D\u8D1D\u5C0F\u5305\uFF0C\u7269\u54C1\u4F1A\u81EA\u52A8\u52A0\u8F7D</div></div>';
-  }
-  function setILibraryFilter(filterId) {
-    S.ilibraryFilter = filterId;
-    renderItemLibraryPage();
-  }
-  function renderItemPickerItems() {
-    const gridBox = document.getElementById("itemPickerItems");
-    const countEl = document.getElementById("itemPickerCount");
-    const searchInput = document.getElementById("itemPickerSearch");
-    if (!gridBox) return;
-    const keyword = (S.itemPickerSearch || "").toLowerCase();
-    const items = getItemLibrary().filter((item) => !keyword || item.name.toLowerCase().includes(keyword));
-    if (searchInput) searchInput.value = S.itemPickerSearch || "";
-    gridBox.innerHTML = items.length ? items.map((item) => {
-      const selected = S.itemPickerSelection.has(item.id);
-      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '" onclick="toggleItemPickerItem(\'' + item.id + '\')"><div class="picker-item-name">' + esc(item.name) + "</div></div>";
-    }).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div></div>';
-    if (countEl) countEl.textContent = "\u5DF2\u9009 " + S.itemPickerSelection.size + " \u4EF6";
-  }
-  function toggleItemPickerItem(itemId) {
-    if (S.itemPickerSelection.has(itemId)) {
-      S.itemPickerSelection.delete(itemId);
-    } else {
-      S.itemPickerSelection.add(itemId);
-    }
-    renderItemPickerItems();
-  }
-  function updateItemPickerSearch(value) {
-    S.itemPickerSearch = value.trim();
-    renderItemPickerItems();
-  }
-  function confirmItemPicker() {
-    if (!S.currentTrip || !S.itemPickerSelection.size) {
-      closeModal("itemPickerModal");
-      return;
-    }
-    const library = getItemLibrary();
-    const items = [];
-    S.itemPickerSelection.forEach((id) => {
-      const libItem = library.find((item) => item.id === id);
-      if (libItem) {
-        items.push(normalizeTripItem({
-          name: libItem.name,
-          category: libItem.category,
-          bag: libItem.bag,
-          qty: libItem.defaultQty,
-          smartRule: libItem.smartRule,
-          smartConfig: libItem.smartConfig,
-          smartLocked: libItem.smartLocked,
-          tags: libItem.tags
-        }));
-      }
-    });
-    mergeItemsIntoCurrentTrip(items, "manual");
-    closeModal("itemPickerModal");
-    toast("\u5DF2\u6DFB\u52A0 " + items.length + " \u4EF6\u7269\u54C1");
-  }
-  function renderILibraryCard(item) {
-    const cat = catInfo(item.category);
-    const isUser = item.source === "user";
-    const delBtn = isUser
-      ? `<button class="ilibrary-del-btn" onclick="event.stopPropagation();deleteILibraryItem('` + item.id + `')">\u5220</button>`
-      : "";
-    const editBtn = `<button class="ilibrary-edit-btn" onclick="event.stopPropagation();openLibraryItemModal('` + item.id + `')">\u7F16</button>`;
-    return '<div class="library-card ' + (isUser ? "user-built" : "") + '" onclick="openLibraryItemModal(\'' + item.id + '\')"><div class="library-card-body"><div class="library-name">' + esc(item.name) + '</div><div class="library-meta">' + esc(cat.name) + " \xB7 \xD7" + item.defaultQty + "</div></div><div class=\"library-actions\">" + delBtn + editBtn + "</div></div>";
-  }
-  function deleteILibraryItem(itemId) {
-    if (!confirm("\u5220\u9664\u8BE5\u7269\u54C1\uFF1F\u8BE5\u64CD\u4F5C\u4E0D\u53EF\u64A4\u6D88\u3002")) return;
-    const items = getItemLibrary().filter((item) => item.id !== itemId);
-    saveItemLibrary(items);
-    renderItemLibraryPage();
-  }
-  function updateILibrarySearch(value) {
-    S.ilibrarySearch = value.trim();
-    renderItemLibraryPage();
-  }
   function renderNewUserGuide() {
-    return `<div class="home-features"><div class="feature-card" onclick="openMainPage('kits')"><div class="feature-icon">\u{1F9F0}</div><div class="feature-body"><div class="feature-title">\u6574\u7406\u5C0F\u5305</div><div class="feature-desc">\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E 9 \u4E2A\u5B98\u65B9\u5C0F\u5305\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openCreateTripModal()"><div class="feature-icon">\u{1F4DD}</div><div class="feature-body"><div class="feature-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="feature-desc">\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openMainPage('me')"><div class="feature-icon">\u{1F392}</div><div class="feature-body"><div class="feature-title">\u7269\u54C1\u5E93</div><div class="feature-desc">\u7BA1\u7406\u4F60\u7684\u7269\u54C1\u5E93\uFF0C\u6DFB\u52A0\u4E2A\u4EBA\u5E38\u7528\u7269\u54C1\uFF0C\u6253\u5305\u65F6\u968F\u624B\u6311\u9009\u3002</div></div><div class="home-cta-arrow">\u203A</div></div></div>`;
+    return `<div class="home-features"><div class="feature-card" onclick="openMainPage('kits')"><div class="feature-icon">\u{1F9F0}</div><div class="feature-body"><div class="feature-title">\u6574\u7406\u5C0F\u5305</div><div class="feature-desc">\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E 9 \u4E2A\u5B98\u65B9\u5C0F\u5305\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openCreateTripModal()"><div class="feature-icon">\u{1F4DD}</div><div class="feature-body"><div class="feature-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="feature-desc">\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openMainPage('items')"><div class="feature-icon">\u{1F392}</div><div class="feature-body"><div class="feature-title">\u7269\u54C1\u5E93</div><div class="feature-desc">\u7BA1\u7406\u4F60\u7684\u7269\u54C1\u5E93\uFF0C\u6DFB\u52A0\u4E2A\u4EBA\u5E38\u7528\u7269\u54C1\uFF0C\u6253\u5305\u65F6\u968F\u624B\u6311\u9009\u3002</div></div><div class="home-cta-arrow">\u203A</div></div></div>`;
   }
   function renderActiveTrip(trip) {
     const progress = getTripProgress(trip);
@@ -1459,13 +1537,26 @@
   function renderTripCardCompact(trip) {
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
-    return `<div class="trip-card-compact" onclick="openTrip('` + trip.id + `','plan')"><div class="trip-compact-icon">` + status.icon + '</div><div class="trip-compact-body"><div class="trip-compact-name">' + esc(trip.name) + '</div><div class="trip-compact-meta">' + esc(formatTripMeta(trip)) + '</div></div><div class="trip-compact-progress"><div class="progress-ring" style="--pct:' + progress.pct + '"><span class="progress-ring-text">' + progress.pct + "%</span></div></div></div>";
+    const openMode = status.key === "done" ? "plan" : "pack";
+    return `<div class="trip-card-compact"><div class="trip-card-compact-main" onclick="openTrip('` + trip.id + "','" + openMode + `')"><div class="trip-compact-icon">` + status.icon + '</div><div class="trip-compact-body"><div class="trip-compact-name">' + esc(trip.name) + '</div><div class="trip-compact-meta">' + esc(formatTripMeta(trip)) + '</div></div><div class="trip-compact-progress"><div class="progress-ring" style="--pct:' + progress.pct + '"><span class="progress-ring-text">' + progress.pct + `%</span></div></div></div><div class="trip-compact-actions"><button type="button" class="icon-action compact" onclick="duplicateTrip('` + trip.id + `')" title="\u590D\u5236\u884C\u7A0B" aria-label="\u590D\u5236\u884C\u7A0B">\u{1F4CB}</button><button type="button" class="icon-action compact" onclick="deleteTrip('` + trip.id + `')" title="\u5220\u9664\u884C\u7A0B" aria-label="\u5220\u9664\u884C\u7A0B">\u{1F5D1}\uFE0F</button></div></div>`;
+  }
+  function renderTripSourceModulesBar(trip) {
+    const modules = trip.sourceModules || [];
+    if (!modules.length) {
+      return '<div class="info-card subtle">\u8FD8\u6CA1\u6709\u5173\u8054\u5C0F\u5305\u3002\u70B9\u300C\u4ECE\u5C0F\u5305\u6DFB\u52A0\u300D\u628A\u6807\u51C6\u5316\u5C0F\u5305\u52A0\u8FDB\u6765\u3002</div>';
+    }
+    return '<div class="trip-modules-panel"><div class="trip-modules-head"><span class="trip-modules-label">\u5DF2\u9009\u5C0F\u5305</span><span class="trip-modules-hint">\u70B9 \xD7 \u79FB\u9664\uFF1B\u6539\u5C0F\u5305\u5B9A\u4E49\u540E\u8BF7\u91CD\u65B0\u540C\u6B65</span></div><div class="trip-module-chips">' + modules.map(
+      (module) => '<span class="trip-module-chip">' + esc(module.name) + `<button type="button" class="chip-remove" onclick="removeModuleFromCurrentTrip('` + module.source + "', '" + module.id + `')" aria-label="\u79FB\u9664 ` + esc(module.name) + '">\xD7</button></span>'
+    ).join("") + "</div></div>";
   }
   function renderProgress(progress) {
     return '<div class="saved-list-progress"><div class="saved-list-progress-bar"><div class="saved-list-progress-fill" style="width:' + progress.pct + '%"></div></div><span class="saved-list-progress-text">\u5DF2\u6253\u5305 ' + progress.packed + "/" + progress.total + " \u4EF6</span></div>";
   }
+  function getDoneTrips() {
+    return getTrips().filter((trip) => getTripStatus(trip).key === "done");
+  }
   function toggleHomeHistory() {
-    if (!getTrips().slice(3).length) return;
+    if (getDoneTrips().length <= 2) return;
     S.homeHistoryExpanded = !S.homeHistoryExpanded;
     renderHome();
   }
@@ -1476,7 +1567,7 @@
     const subBar = document.getElementById("listSubBar");
     const content = document.getElementById("listContent");
     if (!S.currentTrip) {
-      summaryBox.innerHTML = '<div class="empty-panel"><div class="empty-icon">\u{1F4ED}</div><div class="empty-title">\u8FD8\u6CA1\u6709\u6253\u5F00\u7684\u884C\u7A0B</div><div class="empty-hint">\u5148\u53BB\u52FE\u9009\u51E0\u4E2A\u5C0F\u5305\uFF0C\u518D\u56DE\u6765\u8FD9\u91CC\u7EE7\u7EED\u6574\u7406\u3002</div></div>';
+      summaryBox.innerHTML = `<div class="empty-panel"><div class="empty-icon">\u{1F4ED}</div><div class="empty-title">\u8FD8\u6CA1\u6709\u6253\u5F00\u7684\u884C\u7A0B</div><div class="empty-hint">\u4ECE\u9996\u9875\u8FDB\u5165\u8FDB\u884C\u4E2D\u7684\u884C\u7A0B\uFF0C\u6216\u65B0\u5EFA\u4E00\u5F20\u884C\u7A0B\u5355\u5F00\u59CB\u6574\u7406\u3002</div><div class="empty-actions"><button class="btn-secondary" type="button" onclick="openMainPage('home')">\u56DE\u9996\u9875</button><button class="btn-primary" type="button" onclick="openCreateTripModal()">\u65B0\u5EFA\u884C\u7A0B</button></div></div>`;
       switchBox.innerHTML = "";
       actionBar.innerHTML = "";
       subBar.innerHTML = "";
@@ -1488,8 +1579,9 @@
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
     const collapsed = S.tripInfoCollapsed ? " collapsed" : "";
-    const isPack = S.tripMode === "pack";
-    summaryBox.innerHTML = '<div class="list-summary-card' + (isPack ? " pack-mode" : "") + '"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" oninput="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" oninput="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><button class="btn-recompute" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div><div class="trip-smart-note">\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE ` + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002</div></div>";
+    const allTrips = getTrips();
+    const tripSwitcher = allTrips.length > 1 ? '<div class="trip-switch-row"><span class="trip-switch-label">\u5207\u6362\u884C\u7A0B</span><select class="trip-switch-select" aria-label="\u5207\u6362\u884C\u7A0B" onchange="openTrip(this.value, S.tripMode)">' + allTrips.map((entry) => '<option value="' + entry.id + '"' + (entry.id === trip.id ? " selected" : "") + ">" + esc(entry.name) + "</option>").join("") + "</select></div>" : "";
+    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + "</span></div>" + tripSwitcher + '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" aria-label="\u884C\u7A0B\u5929\u6570" onchange="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" aria-label="\u51FA\u884C\u4EBA\u6570" onchange="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><div class="trip-info-actions">` + ((trip.sourceModules || []).length ? '<button type="button" class="btn-recompute" onclick="resyncCurrentTripFromModules()">\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65</button>' : "") + '<button type="button" class="btn-recompute' + ((trip.sourceModules || []).length ? " outline" : "") + '" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">' + ((trip.sourceModules || []).length ? "\u6539\u8FC7\u5C0F\u5305\u5B9A\u4E49\u540E\uFF0C\u53EF\u70B9\u300C\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65\u300D\u66F4\u65B0\u672C\u884C\u7A0B\uFF1B\u624B\u8C03\u6570\u91CF\u4E0E\u6253\u5305\u52FE\u9009\u4F1A\u5C3D\u91CF\u4FDD\u7559\u3002" : "\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE " + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002") + "</div></div>";
     switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === "plan" ? "active" : "") + `" onclick="setTripMode('plan')">\u89C4\u5212\u6A21\u5F0F</button><button class="mode-tab ` + (S.tripMode === "pack" ? "active" : "") + `" onclick="setTripMode('pack')">\u6253\u5305\u6A21\u5F0F</button>`;
     if (S.tripMode === "plan") {
       actionBar.innerHTML = [
@@ -1497,10 +1589,13 @@
         '<button class="btn-secondary" onclick="goSelectItemsForTrip()">\u4ECE\u7269\u54C1\u5E93\u6DFB\u52A0</button>',
         '<button class="btn-primary" onclick="openManualItemModal()">\u624B\u52A8\u6DFB\u52A0\u7269\u54C1</button>'
       ].join("");
-      subBar.innerHTML = '<div class="info-card subtle">\u884C\u7A0B\u91CC\u53EA\u9700\u8981\u52FE\u9009\u8FD9\u6B21\u8981\u5E26\u7684\u5C0F\u5305\uFF1B\u5982\u679C\u52FE\u9009\u4E86\u5B9D\u5B9D\u63D2\u4EF6\u5305\uFF0C\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u8865\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305\uFF0C\u5E76\u7ED9\u5C3F\u4E0D\u6E7F\u3001\u5907\u7528\u8863\u88E4\u3001\u6E7F\u5DFE\u8FD9\u7C7B\u7269\u54C1\u6309\u5929\u6570\u548C\u573A\u666F\u91CD\u65B0\u5EFA\u8BAE\u6570\u91CF\u3002</div>';
-      content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
+      subBar.innerHTML = renderTripSourceModulesBar(trip);
+      content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join("") : renderTripEmpty();
     } else {
-      actionBar.innerHTML = "";
+      actionBar.innerHTML = [
+        '<button class="btn-secondary" onclick="markAllPacked()">\u6807\u8BB0\u5168\u90E8\u5B8C\u6210</button>',
+        '<button class="btn-secondary" onclick="markAllUnpacked()">\u6062\u590D\u4E3A\u672A\u6253\u5305</button>'
+      ].join("");
       subBar.innerHTML = '<div class="pack-view-switch"><button class="pack-view-tab ' + (S.packView === "bags" ? "active" : "") + `" onclick="setPackView('bags')">\u6309\u5C0F\u5305\u770B</button><button class="pack-view-tab ` + (S.packView === "remaining" ? "active" : "") + `" onclick="setPackView('remaining')">\u672A\u6253\u5305</button><button class="pack-view-tab ` + (S.packView === "all" ? "active" : "") + `" onclick="setPackView('all')">\u5168\u90E8</button></div>`;
       content.innerHTML = renderPackContent(trip);
     }
@@ -1508,19 +1603,12 @@
   function renderTripEmpty() {
     return '<div class="empty-panel"><div class="empty-icon">\u{1F9F3}</div><div class="empty-title">\u8FD9\u5F20\u884C\u7A0B\u5355\u8FD8\u662F\u7A7A\u7684</div><div class="empty-hint">\u53BB\u52FE\u9009\u4E00\u4E2A\u6216\u591A\u4E2A\u5C0F\u5305\uFF0C\u6216\u8005\u76F4\u63A5\u624B\u52A8\u52A0\u5355\u4E2A\u7269\u54C1\u3002</div></div>';
   }
-  function renderPlanBagGroups(trip) {
-    const bags = trip.bags || DEFAULT_BAGS;
-    const groups = bags
-      .map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) }))
-      .filter((group) => group.items.length);
-    const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
-    if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
-    return groups.map((group) => {
-      return '<div class="bag-group" id="plan-bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6</span></div><div class="bag-group-items">' + group.items.map(renderTripPlanItemCard).join("") + "</div></div>";
-    }).join("");
-  }
   function renderTripPlanItemCard(item) {
-    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="openTripItemModal(\'' + item.id + '\')"><div class="plan-card-name">' + (item.packed ? '<span class="packed-dot">✓</span>' : '') + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
+    const cat = catInfo(item.category);
+    const sourceText = formatItemSource(item);
+    const tagsHtml = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
+    const smartBadge = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? "\u6570\u91CF\u5DF2\u624B\u8C03" : smartRuleShort(item.smartRule)) + "</span>" : "";
+    return '<div class="list-item-card' + (item.packed ? " packed" : "") + '"><button class="check-button ' + (item.packed ? "checked" : "") + `" onclick="togglePackItem('` + item.id + `')">\u2713</button><div class="list-item-main" onclick="openTripItemModal('` + item.id + `')"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + smartBadge + (sourceText ? '<span class="item-pill">' + esc(sourceText) + "</span>" : "") + "</div>" + (item.notes ? '<div class="item-notes">\u5907\u6CE8\uFF1A' + esc(item.notes) + "</div>" : "") + (tagsHtml ? '<div class="item-subline">' + tagsHtml + "</div>" : "") + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
   }
   function renderPackContent(trip) {
     if (!trip.items.length) return renderTripEmpty();
@@ -1529,29 +1617,10 @@
       if (!remaining.length) {
         return '<div class="empty-panel"><div class="empty-icon">\u{1F389}</div><div class="empty-title">\u5168\u90E8\u6253\u5305\u5B8C\u6210</div><div class="empty-hint">\u8FD9\u6B21\u51FA\u95E8\u9700\u8981\u5E26\u7684\u4E1C\u897F\u90FD\u51C6\u5907\u597D\u4E86\u3002</div></div>';
       }
-      // 按小包分组
-      const bags = trip.bags || DEFAULT_BAGS;
-      const groups = bags
-        .map((bag) => ({ bag, items: remaining.filter((item) => item.bag === bag.id) }))
-        .filter((group) => group.items.length);
-      const unassigned = remaining.filter((item) => !bags.some((bag) => bag.id === item.bag));
-      if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
-      return groups.map((group) => {
-        return '<div class="bag-group" id="bag-remain-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6\u672A\u6253</span></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
-      }).join("");
+      return remaining.map(renderPackItemCard).join("");
     }
     if (S.packView === "all") {
-      const bags = trip.bags || DEFAULT_BAGS;
-      const groups = bags
-        .map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) }))
-        .filter((group) => group.items.length);
-      const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
-      if (unassigned.length) groups.push({ bag: { id: "unassigned", icon: "\u2753", name: "\u672A\u5206\u914D" }, items: unassigned });
-      return groups.map((group) => {
-        const packed = group.items.filter((item) => item.packed).length;
-        const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
-        return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">' + packed + "/" + group.items.length + '</span><span class="bag-toggle" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">\u25BC</span></div></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
-      }).join("");
+      return trip.items.map(renderPackItemCard).join("");
     }
     return renderBagsPackView(trip);
   }
@@ -1567,7 +1636,7 @@
     return groups.map((group) => {
       const packed = group.items.filter((item) => item.packed).length;
       const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
-      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">` + packed + "/" + group.items.length + `</span><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
     }).join("");
   }
   function toggleBagCollapse(bagId) {
@@ -1589,15 +1658,14 @@
     if (body) body.classList.toggle("collapsed", S.tripInfoCollapsed);
   }
   function renderPackItemCard(item) {
-    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" onclick="togglePackItem(\'' + item.id + '\')"><div class="plan-card-name">' + (item.packed ? '<span class="packed-dot">✓</span>' : '') + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + '</span>' : '') + "</div></div>";
+    const cat = catInfo(item.category);
+    const tags = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
+    const sourceModules = item.sourceModules || [];
+    const sourcePill = sourceModules.length > 0 ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(", ") + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + "\u7B49" : sourceModules[0]) + "</span>" : "";
+    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>") + (tags ? tags : "") + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
   }
   function setTripMode(mode) {
     S.tripMode = mode;
-    // 进入打包模式时，默认折叠所有小包
-    if (mode === "pack") {
-      const bags = S.currentTrip?.bags || DEFAULT_BAGS;
-      S.collapsedBags = new Set(bags.map((b) => b.id));
-    }
     renderHeader();
     renderTripPage();
   }
@@ -1634,16 +1702,102 @@
     if (field === "people") S.currentTrip.people = value;
     applyTripSmartFill(S.currentTrip, false);
     persistCurrentTrip();
-    renderTripPage();
+    refreshTripSettingViews();
     renderHome();
   }
   function reapplyTripSmartFill() {
     if (!S.currentTrip) return;
     applyTripSmartFill(S.currentTrip, true);
     persistCurrentTrip();
-    renderTripPage();
+    refreshTripSettingViews();
     renderHome();
     toast("\u5DF2\u91CD\u65B0\u6309\u5929\u6570\u548C\u4EBA\u6570\u667A\u80FD\u586B\u5145");
+  }
+  function resyncCurrentTripFromModules() {
+    if (!S.currentTrip) return;
+    if (!(S.currentTrip.sourceModules || []).length) {
+      toast("\u5F53\u524D\u884C\u7A0B\u6CA1\u6709\u5173\u8054\u5C0F\u5305\uFF0C\u65E0\u6CD5\u540C\u6B65");
+      return;
+    }
+    if (!confirm("\u5C06\u6309\u5C0F\u5305\u6700\u65B0\u5B9A\u4E49\u91CD\u65B0\u751F\u6210\u672C\u884C\u7A0B\u4E2D\u7684\u5C0F\u5305\u7269\u54C1\u3002\n\n\xB7 \u624B\u52A8\u6DFB\u52A0\u7684\u7269\u54C1\u4F1A\u4FDD\u7559\n\xB7 \u5DF2\u6253\u5305\u52FE\u9009\u3001\u5907\u6CE8\u548C\u6807\u7B7E\u4F1A\u4FDD\u7559\n\xB7 \u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4FDD\u7559\n\n\u7EE7\u7EED\uFF1F")) {
+      return;
+    }
+    const result = resyncTripFromSourceModules(S.currentTrip);
+    persistCurrentTrip();
+    refreshTripSettingViews();
+    renderHome();
+    if (!result.changed) {
+      toast("\u5DF2\u4E0E\u5C0F\u5305\u5B9A\u4E49\u4E00\u81F4\uFF0C\u65E0\u9700\u53D8\u66F4");
+      return;
+    }
+    const parts = [];
+    if (result.added) parts.push(`\u65B0\u589E ${result.added} \u4EF6`);
+    if (result.removed) parts.push(`\u79FB\u9664 ${result.removed} \u4EF6`);
+    if (result.updated) parts.push(`\u66F4\u65B0 ${result.updated} \u4EF6`);
+    if (result.mergedDuplicates) parts.push(`\u5408\u5E76\u540C\u540D ${result.mergedDuplicates} \u4EF6`);
+    toast(parts.length ? `\u5DF2\u4ECE\u5C0F\u5305\u540C\u6B65\uFF08${result.moduleCount} \u4E2A\u5C0F\u5305\uFF09\uFF1A${parts.join("\uFF0C")}` : "\u5DF2\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65");
+  }
+  function removeModuleFromCurrentTrip(source, id) {
+    if (!S.currentTrip) return;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    if (!confirm(`\u786E\u5B9A\u4ECE\u5F53\u524D\u884C\u7A0B\u79FB\u9664\u300C${entity.name}\u300D\uFF1F
+
+\u4EC5\u6765\u81EA\u8FD9\u4E2A\u5C0F\u5305\u7684\u7269\u54C1\u4F1A\u88AB\u79FB\u9664\uFF1B\u82E5\u7269\u54C1\u540C\u65F6\u6765\u81EA\u591A\u4E2A\u5C0F\u5305\uFF0C\u4F1A\u4FDD\u7559\u5E76\u53BB\u6389\u8BE5\u6765\u6E90\u3002`)) {
+      return;
+    }
+    const result = removeModuleFromTrip(S.currentTrip, source, id);
+    if (!result.changed) return;
+    applyTripSmartFill(S.currentTrip, false);
+    persistCurrentTrip();
+    renderTripPage();
+    renderHome();
+    toast(result.removedItems ? `\u5DF2\u79FB\u9664\u300C${result.moduleName}\u300D\uFF0C\u5E76\u5220\u6389 ${result.removedItems} \u4EF6\u4EC5\u5C5E\u4E8E\u5B83\u7684\u7269\u54C1` : `\u5DF2\u79FB\u9664\u300C${result.moduleName}\u300D`);
+  }
+  function refreshTripListContent() {
+    const content = document.getElementById("listContent");
+    if (!content || !S.currentTrip) return;
+    const trip = S.currentTrip;
+    if (S.tripMode === "plan") {
+      content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join("") : renderTripEmpty();
+    } else {
+      content.innerHTML = renderPackContent(trip);
+    }
+  }
+  function patchTripSummaryMetrics() {
+    if (!S.currentTrip) return;
+    const summaryBox = document.getElementById("listSummary");
+    if (!summaryBox) return;
+    const trip = S.currentTrip;
+    const progress = getTripProgress(trip);
+    const status = getTripStatus(trip);
+    const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
+    const progressEl = summaryBox.querySelector(".saved-list-progress");
+    if (progressEl) progressEl.outerHTML = renderProgress(progress);
+    const statusChip = summaryBox.querySelector(".status-chip");
+    if (statusChip) {
+      statusChip.className = "status-chip " + status.key;
+      statusChip.textContent = status.label;
+    }
+    const metaEl = summaryBox.querySelector(".list-summary-meta");
+    if (metaEl) metaEl.textContent = formatTripSourceSummary(trip) + " \xB7 " + formatTripMeta(trip);
+    const smartNote = summaryBox.querySelector(".trip-smart-note");
+    if (smartNote) {
+      smartNote.textContent = "\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE " + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002";
+    }
+    const rows = summaryBox.querySelectorAll(".trip-info-row");
+    const daysInput = rows[0]?.querySelector("input");
+    const peopleInput = rows[1]?.querySelector("input");
+    if (daysInput && document.activeElement !== daysInput) daysInput.value = trip.days;
+    if (peopleInput && document.activeElement !== peopleInput) peopleInput.value = trip.people;
+  }
+  function refreshTripSettingViews() {
+    if (S.currentPage !== "list" || !S.currentTrip) {
+      renderTripPage();
+      return;
+    }
+    patchTripSummaryMetrics();
+    refreshTripListContent();
   }
   function updateModuleSearch(value) {
     S.moduleSearch = value.trim();
@@ -1689,22 +1843,18 @@
   function renderOfficialModuleCard(module, view = "normal") {
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
-    const alreadyAdded = isModuleOnCurrentTrip("official", module.id);
-    const addedClass = alreadyAdded ? " added" : "";
     if (view === "compact") {
-      return `<div class="kit-card compact recommended${addedClass}" onclick="openModuleDetail('official','${module.id}')"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : module.icon}</div><div class="kit-card-name">${esc(module.name)}${alreadyAdded ? ' ✓' : ''}</div></div></div>`;
+      return `<div class="kit-card compact recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
     }
-    return `<div class="kit-card recommended${addedClass}" onclick="openModuleDetail('official','${module.id}')"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : module.icon}</div><div class="inline-actions"><span class="kit-badge">${alreadyAdded ? '\u5DF2\u5B58\u5728' : '\u5B98\u65B9\u5C0F\u5305'}</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('official','${module.id}')" title="\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + (alreadyAdded ? ' ✓' : '') + '</div><div class="kit-card-desc">' + esc(module.desc) + '</div><div class="tag-row">' + (module.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u968F\u5929\u6570/\u4EBA\u6570\u53D8\u5316</div></div>";
+    return `<div class="kit-card recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + `</div><div class="inline-actions"><span class="kit-badge">\u5B98\u65B9\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('official','` + module.id + `')" title="\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc) + '</div><div class="tag-row">' + (module.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u968F\u5929\u6570/\u4EBA\u6570\u53D8\u5316</div></div>";
   }
   function renderMyModuleCard(module, view = "normal") {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
     const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
-    const alreadyAdded = isModuleOnCurrentTrip("custom", module.id);
-    const addedClass = alreadyAdded ? " added" : "";
     if (view === "compact") {
-      return `<div class="kit-card compact${addedClass}" onclick="openModuleDetail('custom','${module.id}')"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : esc(module.icon || "\u{1F9F0}")}</div><div class="kit-card-name">${esc(module.name)}${alreadyAdded ? ' ✓' : ''}</div></div></div>`;
+      return `<div class="kit-card compact" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
     }
-    return `<div class="kit-card${addedClass}" onclick="openModuleDetail('custom','${module.id}')"><div class="kit-card-top"><div class="kit-card-icon">${alreadyAdded ? '✓' : esc(module.icon || "\u{1F9F0}")}</div><div class="inline-actions"><span class="kit-badge soft">${alreadyAdded ? '\u5DF2\u5B58\u5728' : '\u6211\u7684\u5C0F\u5305'}</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('custom','${module.id}')" title="\u7F16\u8F91\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + (alreadyAdded ? ' ✓' : '') + '</div><div class="kit-card-desc">' + esc(module.desc || "\u4F60\u81EA\u5DF1\u7EF4\u62A4\u7684\u53EF\u590D\u7528\u5C0F\u5305\u6A21\u5757") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u53EF\u667A\u80FD\u586B\u5145</div></div>";
+    return `<div class="kit-card" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + `</div><div class="inline-actions"><span class="kit-badge soft">\u6211\u7684\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('custom','` + module.id + `')" title="\u7F16\u8F91\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc || "\u4F60\u81EA\u5DF1\u7EF4\u62A4\u7684\u53EF\u590D\u7528\u5C0F\u5305\u6A21\u5757") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u53EF\u667A\u80FD\u586B\u5145</div></div>";
   }
   function setKitView(view) {
     S.kitView = view;
@@ -1712,28 +1862,215 @@
   }
   function openModuleDetail(source, id) {
     S.currentModule = { source, id };
+    renderModuleDetailModal(source, id);
+    showModal("moduleDetailModal");
+  }
+  function renderModuleDetailModal(source, id) {
     const entity = getModuleEntity(source, id);
     if (!entity) return;
     const days = getPreviewDays();
     const people = getPreviewPeople();
-    const preview = source === "official" ? resolveOfficialModuleItems(entity, days, people) : resolveCustomModuleItems(entity, days, people);
-    const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
+    const moduleItems = (entity.items || []).map(normalizeModuleItem);
+    const previewContext = {
+      days,
+      people,
+      sourceModules: [{ source, id: entity.id, name: entity.name }]
+    };
+    const smartCount = moduleItems.filter((item) => item.smartRule !== "fixed").length;
     document.getElementById("moduleDetailTitle").textContent = entity.name;
     document.getElementById("moduleDetailIcon").textContent = entity.icon || "\u{1F9F0}";
-    document.getElementById("moduleDetailSubtitle").textContent = source === "official" ? "\u5B98\u65B9\u5C0F\u5305 \xB7 \u53EF\u7F16\u8F91" : "\u6211\u7684\u5C0F\u5305 \xB7 \u53EF\u7F16\u8F91";
+    document.getElementById("moduleDetailSubtitle").textContent = source === "official" ? "\u5B98\u65B9\u5C0F\u5305 \xB7 \u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u8BBE\u7F6E" : "\u6211\u7684\u5C0F\u5305 \xB7 \u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u8BBE\u7F6E";
     document.getElementById("moduleDetailDesc").textContent = entity.desc || "\u53EF\u590D\u7528\u7684\u5C0F\u5305\u6A21\u5757\u3002";
     document.getElementById("moduleDetailTags").innerHTML = (entity.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") || '<span class="tag">\u6807\u51C6\u5316\u5C0F\u5305</span>';
-    document.getElementById("moduleDetailSummary").textContent = `\u6309\u5F53\u524D ${days} \u5929 / ${people} \u4EBA\u9884\u89C8\uFF0C\u5171 ${preview.length} \u4EF6\u7269\u54C1\uFF0C\u5176\u4E2D ${smartCount} \u9879\u4F1A\u968F\u5929\u6570\u6216\u4EBA\u6570\u53D8\u5316\u3002`;
-    document.getElementById("moduleDetailItems").innerHTML = preview.map((item) => renderReadonlyModuleItemCard(item, S.currentTrip?.bags || DEFAULT_BAGS)).join("");
+    document.getElementById("moduleDetailSummary").textContent = `\u6309\u5F53\u524D ${days} \u5929 / ${people} \u4EBA\u9884\u89C8\uFF0C\u5171 ${moduleItems.length} \u4EF6\u7269\u54C1\uFF0C\u5176\u4E2D ${smartCount} \u9879\u4F1A\u968F\u5929\u6570\u6216\u4EBA\u6570\u53D8\u5316\u3002\u4FEE\u6539\u4F1A\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u751F\u6548\u3002`;
+    document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item) => renderModuleDetailItemCard(item, source, id, previewContext, S.currentTrip?.bags || DEFAULT_BAGS)).join("") : '<div class="empty-panel"><div class="empty-hint">\u8FD9\u4E2A\u5C0F\u5305\u8FD8\u6CA1\u6709\u7269\u54C1\uFF0C\u70B9\u4E0B\u65B9\u300C\u7F16\u8F91\u5C0F\u5305\u300D\u53BB\u6DFB\u52A0\u3002</div></div>';
     document.getElementById("moduleEditBtn").style.display = "inline-flex";
     document.getElementById("moduleEditBtn").textContent = source === "official" ? "\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305" : "\u7F16\u8F91\u5C0F\u5305";
-    document.getElementById("modulePrimaryBtn").textContent = S.currentModuleAction === "add" && S.currentTrip ? "\u52A0\u5165\u5F53\u524D\u884C\u7A0B" : "\u7528\u4E8E\u65B0\u884C\u7A0B";
-    showModal("moduleDetailModal");
+    const alreadyOnTrip = S.currentModuleAction === "add" && S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
+    const primaryBtn = document.getElementById("modulePrimaryBtn");
+    primaryBtn.textContent = alreadyOnTrip ? "\u5DF2\u5728\u5F53\u524D\u884C\u7A0B" : S.currentModuleAction === "add" && S.currentTrip ? "\u52A0\u5165\u5F53\u524D\u884C\u7A0B" : "\u7528\u4E8E\u65B0\u884C\u7A0B";
+    primaryBtn.disabled = alreadyOnTrip;
+    primaryBtn.classList.toggle("disabled", alreadyOnTrip);
   }
-  function renderReadonlyModuleItemCard(item, bags) {
+  function renderModuleDetailItemCard(item, source, moduleId, previewContext, bags) {
     const cat = catInfo(item.category);
+    const previewQty = computeSmartQty(
+      item.defaultQty,
+      item.smartRule,
+      previewContext.days,
+      previewContext.people,
+      item.smartConfig,
+      previewContext
+    );
     const smart = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + "</span>" : "";
-    return '<div class="list-item-card"><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, bags)) + "</span>" + smart + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return `<div class="list-item-card editable" onclick="openModuleItemModal('module', '` + source + "', '" + moduleId + "', '" + item.id + `')"><div class="list-item-main"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, bags)) + "</span>" + smart + '<span class="item-pill subtle-pill">\u9ED8\u8BA4 \xD7' + item.defaultQty + '</span></div></div><div class="item-qty">\u9884\u89C8 \xD7' + previewQty + "</div></div>";
+  }
+  function tripOrModuleItemToModuleItem(item) {
+    return normalizeModuleItem({
+      id: String(item.id || "").startsWith("module-item-") ? item.id : "module-item-" + gid(),
+      name: item.name,
+      category: item.category,
+      bag: item.bag,
+      defaultQty: item.defaultQty || item.smartBaseQty || item.qty || 1,
+      smartRule: item.smartRule,
+      smartConfig: item.smartConfig
+    });
+  }
+  function syncModuleBuilderSelectionFromItems() {
+    const library = getItemLibrary();
+    S.moduleBuilderSelection = new Set(
+      S.moduleBuilderItems.map((item) => library.find((asset) => asset.name === item.name)?.id).filter(Boolean)
+    );
+  }
+  function upsertLibraryFromModuleItem(moduleItem) {
+    const library = getItemLibrary();
+    const idx = library.findIndex((entry) => entry.name === moduleItem.name);
+    const next = normalizeLibraryItem({
+      ...idx >= 0 ? library[idx] : {},
+      id: idx >= 0 ? library[idx].id : "asset-" + gid(),
+      name: moduleItem.name,
+      category: moduleItem.category,
+      defaultQty: moduleItem.defaultQty,
+      bag: moduleItem.bag,
+      smartRule: moduleItem.smartRule,
+      smartConfig: moduleItem.smartConfig,
+      source: idx >= 0 ? library[idx].source : "user"
+    });
+    if (idx >= 0) library[idx] = next;
+    else library.unshift(next);
+    saveItemLibrary(library);
+  }
+  function saveModuleEntityItems(source, moduleId, items) {
+    if (source === "official") {
+      const modules = getOfficialModules();
+      const idx = modules.findIndex((module2) => module2.id === moduleId);
+      if (idx < 0) return null;
+      modules[idx] = normalizeOfficialModule({
+        ...modules[idx],
+        items: items.map(normalizeModuleItem)
+      });
+      saveOfficialModules(modules);
+      return modules[idx];
+    }
+    const module = getMyModules().find((entry) => entry.id === moduleId);
+    if (!module) return null;
+    const next = normalizeModuleRecord({
+      ...module,
+      items: items.map(normalizeModuleItem),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    saveRecord(next);
+    return next;
+  }
+  function findModuleItemContext(itemId) {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return null;
+    if (ctx.mode === "builder") {
+      const item2 = S.moduleBuilderItems.find((entry) => entry.id === itemId);
+      return item2 ? { item: item2, items: S.moduleBuilderItems } : null;
+    }
+    const entity = getModuleEntity(ctx.source, ctx.moduleId);
+    if (!entity) return null;
+    const item = (entity.items || []).find((entry) => entry.id === itemId);
+    return item ? { item, entity } : null;
+  }
+  function openModuleItemModal(mode, source, moduleId, itemId) {
+    const ctx = { mode, source: source || null, moduleId: moduleId || null, itemId };
+    S.moduleItemEditContext = ctx;
+    let item = null;
+    if (mode === "builder") {
+      item = S.moduleBuilderItems.find((entry) => entry.id === itemId);
+    } else {
+      const entity = getModuleEntity(source, moduleId);
+      item = entity?.items?.find((entry) => entry.id === itemId);
+    }
+    if (!item) return;
+    item = normalizeModuleItem(item);
+    document.getElementById("moduleItemModalTitle").textContent = item.name;
+    document.getElementById("moduleItemQty").value = item.defaultQty;
+    fillCatSelect("moduleItemCategory", item.category);
+    fillBagSelect("moduleItemBag", item.bag, DEFAULT_BAGS);
+    document.getElementById("moduleItemDeleteBtn").style.display = "inline-flex";
+    updateModuleItemSmartHint();
+    showModal("moduleItemModal");
+  }
+  function updateModuleItemSmartHint() {
+    const hint = document.getElementById("moduleItemSmartHint");
+    const ctx = S.moduleItemEditContext;
+    if (!hint || !ctx) return;
+    const found = findModuleItemContext(ctx.itemId);
+    if (!found?.item) return;
+    const category = document.getElementById("moduleItemCategory")?.value || found.item.category;
+    const qty = Math.max(1, parseInt(document.getElementById("moduleItemQty")?.value) || 1);
+    const { smartRule, smartConfig } = resolveItemSmartPlan(found.item.name, category, found.item.smartRule, found.item.smartConfig);
+    const previewContext = ctx.mode === "module" && ctx.moduleId ? { sourceModules: [{ source: ctx.source, id: ctx.moduleId, name: getModuleEntity(ctx.source, ctx.moduleId)?.name || "" }] } : null;
+    const previewQty = smartRule === "fixed" ? qty : computeSmartQty(qty, smartRule, getPreviewDays(), getPreviewPeople(), smartConfig, previewContext);
+    hint.textContent = smartRule === "fixed" ? `\u9ED8\u8BA4\u56FA\u5B9A\u6570\u91CF \xD7${qty}\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u7528\u8FD9\u4E2A\u5305\u521B\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u91CF\u751F\u6210\u3002` : `\u9ED8\u8BA4\u57FA\u7840\u91CF \xD7${qty}\uFF0C\u6309\u300C${smartRuleLabel(smartRule, smartConfig)}\u300D\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u9884\u89C8\u7EA6 \xD7${previewQty}\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u3002`;
+  }
+  function saveModuleItemEdit() {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return;
+    const found = findModuleItemContext(ctx.itemId);
+    if (!found?.item) return;
+    const nextItem = normalizeModuleItem({
+      ...found.item,
+      defaultQty: Math.max(1, parseInt(document.getElementById("moduleItemQty").value) || 1),
+      category: document.getElementById("moduleItemCategory").value,
+      bag: document.getElementById("moduleItemBag").value
+    });
+    const { smartRule, smartConfig } = resolveItemSmartPlan(nextItem.name, nextItem.category, found.item.smartRule, found.item.smartConfig);
+    nextItem.smartRule = smartRule;
+    nextItem.smartConfig = smartConfig;
+    if (ctx.mode === "builder") {
+      const idx = S.moduleBuilderItems.findIndex((entry) => entry.id === ctx.itemId);
+      if (idx >= 0) S.moduleBuilderItems[idx] = nextItem;
+      upsertLibraryFromModuleItem(nextItem);
+      syncModuleBuilderSelectionFromItems();
+      closeModal("moduleItemModal");
+      renderModuleBuilderSelectedItems();
+      renderModuleBuilderItems();
+      renderItemLibrary();
+      toast("\u5C0F\u5305\u7269\u54C1\u5DF2\u66F4\u65B0");
+      return;
+    }
+    const entity = found.entity;
+    const items = (entity.items || []).map((item) => item.id === ctx.itemId ? nextItem : normalizeModuleItem(item));
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    upsertLibraryFromModuleItem(nextItem);
+    closeModal("moduleItemModal");
+    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+      renderModuleDetailModal(ctx.source, ctx.moduleId);
+    }
+    renderModuleLibrary();
+    toast("\u5DF2\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u8BBE\u7F6E\u751F\u6210");
+  }
+  function deleteModuleItemEdit() {
+    const ctx = S.moduleItemEditContext;
+    if (!ctx) return;
+    if (ctx.mode === "builder") {
+      const target = S.moduleBuilderItems.find((entry) => entry.id === ctx.itemId);
+      S.moduleBuilderItems = S.moduleBuilderItems.filter((entry) => entry.id !== ctx.itemId);
+      if (target) {
+        const library = getItemLibrary();
+        const assetId = library.find((asset) => asset.name === target.name)?.id;
+        if (assetId) S.moduleBuilderSelection.delete(assetId);
+      }
+      closeModal("moduleItemModal");
+      renderModuleBuilderSelectedItems();
+      renderModuleBuilderItems();
+      toast("\u5DF2\u4ECE\u5C0F\u5305\u4E2D\u79FB\u9664");
+      return;
+    }
+    const entity = getModuleEntity(ctx.source, ctx.moduleId);
+    if (!entity) return;
+    const items = (entity.items || []).filter((item) => item.id !== ctx.itemId);
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    closeModal("moduleItemModal");
+    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+      renderModuleDetailModal(ctx.source, ctx.moduleId);
+    }
+    renderModuleLibrary();
+    toast("\u5DF2\u4ECE\u5C0F\u5305\u4E2D\u79FB\u9664");
   }
   function useCurrentModule() {
     if (!S.currentModule) return;
@@ -1741,7 +2078,7 @@
     closeModal("moduleDetailModal");
     if (S.currentModuleAction === "add" && S.currentTrip) {
       addModuleToCurrentTrip(source, id);
-      // 不立即返回，让用户继续选择其他小包
+      nav("list");
       return;
     }
     openCreateTripModal([getModuleKey(source, id)]);
@@ -1796,8 +2133,10 @@
     ).join("");
   }
   function renderLibraryCard(item) {
+    const cat = catInfo(item.category);
     const addButton = S.currentTrip ? `<button class="library-action primary" onclick="event.stopPropagation();addLibraryItemToCurrentTrip('` + item.id + `')">+ \u52A0\u5165</button>` : "";
-    return '<div class="library-card ' + (item.source === "user" ? "user-built" : "") + `" onclick="openLibraryItemModal('` + item.id + `')"><div class="library-card-body"><div class="library-name">` + esc(item.name) + "</div></div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
+    const tagsHtml = (item.tags || []).map((tag) => '<span class="library-item-tag">' + esc(tag) + "</span>").join("");
+    return '<div class="library-card ' + (item.source === "user" ? "user-built" : "") + `" onclick="openLibraryItemModal('` + item.id + `')"><div class="library-card-body"><div class="library-name">` + esc(item.name) + '</div><div class="library-meta">' + esc(cat.name) + " \xB7 " + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \xD7" + item.defaultQty + "</div>" + (tagsHtml ? '<div class="library-item-tags">' + tagsHtml + "</div>" : "") + "</div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
   }
   function parseBulkNames(text) {
     return uniqueStrings(
@@ -1927,13 +2266,15 @@
   }
   function goSelectItemsForTrip() {
     if (!S.currentTrip) return;
-    S.itemPickerSelection = /* @__PURE__ */ new Set();
-    S.itemPickerSearch = "";
-    openModal("itemPickerModal");
-    renderItemPickerItems();
+    S.returnPage = "list";
+    nav("items");
   }
   function addModuleToCurrentTrip(source, id) {
     if (!S.currentTrip) return;
+    if (isModuleOnTrip(S.currentTrip, source, id)) {
+      toast("\u8FD9\u4E2A\u5C0F\u5305\u5DF2\u5728\u5F53\u524D\u884C\u7A0B\u4E2D");
+      return;
+    }
     const entity = getModuleEntity(source, id);
     if (!entity) return;
     if (isBabyModuleEntity(entity) && !isBabyBaseModuleEntity(entity)) {
@@ -1950,6 +2291,7 @@
     if (strategy === "module") applyTripSmartFill(S.currentTrip, false);
     persistCurrentTrip();
     renderTripPage();
+    renderItemLibrary();
     renderHome();
   }
   function openLibraryItemModal(itemId = null) {
@@ -1966,8 +2308,6 @@
     S.currentEditingTags = Array.isArray(item?.tags) ? [...item.tags] : [];
     renderLibraryItemTags();
     document.getElementById("libraryItemTagInput").value = "";
-    // 每次打开时折叠标签输入区
-    collapseLibraryItemTagSection();
     updateLibrarySmartHint();
     showModal("libraryItemModal");
     setTimeout(() => document.getElementById("libraryItemName").focus(), 50);
@@ -1976,7 +2316,7 @@
     const el = document.getElementById("libraryItemTagsDisplay");
     if (!el) return;
     el.innerHTML = S.currentEditingTags.map(
-      (tag) => '<span class="item-tag-pill">' + esc(tag) + `<span class="item-tag-remove" onclick="removeLibraryItemTag('` + esc(tag) + `')">\u2715</span></span>`
+      (tag, index) => '<span class="item-tag-pill">' + esc(tag) + '<button type="button" class="item-tag-remove" data-tag-index="' + index + '" aria-label="\u79FB\u9664\u6807\u7B7E ' + esc(tag) + '">\u2715</button></span>'
     ).join("");
   }
   function addLibraryItemTag() {
@@ -1991,22 +2331,10 @@
     renderLibraryItemTags();
     if (input) input.value = "";
   }
-  function removeLibraryItemTag(tag) {
-    S.currentEditingTags = S.currentEditingTags.filter((t) => t !== tag);
+  function removeLibraryItemTagByIndex(index) {
+    if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
+    S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
     renderLibraryItemTags();
-  }
-  function toggleLibraryItemTagSection() {
-    const body = document.getElementById("libraryItemTagSection");
-    const toggle = document.getElementById("libraryItemTagToggle");
-    if (!body || !toggle) return;
-    const expanded = body.classList.toggle("expanded");
-    toggle.textContent = expanded ? "\u2212\u6536\u8D77" : "+ \u6DFB\u52A0\u6807\u7B7E";
-  }
-  function collapseLibraryItemTagSection() {
-    const body = document.getElementById("libraryItemTagSection");
-    const toggle = document.getElementById("libraryItemTagToggle");
-    if (body) body.classList.remove("expanded");
-    if (toggle) toggle.textContent = "+ \u6DFB\u52A0\u6807\u7B7E";
   }
   function updateLibrarySmartHint() {
     const hint = document.getElementById("libraryItemSmartHint");
@@ -2149,8 +2477,6 @@
     S.currentEditingTags = Array.isArray(item.tags) ? [...item.tags] : [];
     renderTripItemTags();
     document.getElementById("tripItemTagInput").value = "";
-    // 每次打开时折叠标签输入区
-    collapseTripItemTagSection();
     updateTripItemSmartMeta();
     showModal("tripItemModal");
   }
@@ -2158,7 +2484,7 @@
     const el = document.getElementById("tripItemTagsDisplay");
     if (!el) return;
     el.innerHTML = S.currentEditingTags.map(
-      (tag) => '<span class="item-tag-pill">' + esc(tag) + `<span class="item-tag-remove" onclick="removeTripItemTag('` + esc(tag) + `')">\u2715</span></span>`
+      (tag, index) => '<span class="item-tag-pill">' + esc(tag) + '<button type="button" class="item-tag-remove" data-tag-index="' + index + '" aria-label="\u79FB\u9664\u6807\u7B7E ' + esc(tag) + '">\u2715</button></span>'
     ).join("");
   }
   function addTripItemTag() {
@@ -2173,22 +2499,10 @@
     renderTripItemTags();
     if (input) input.value = "";
   }
-  function removeTripItemTag(tag) {
-    S.currentEditingTags = S.currentEditingTags.filter((t) => t !== tag);
+  function removeTripItemTagByIndex(index) {
+    if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
+    S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
     renderTripItemTags();
-  }
-  function toggleTripItemTagSection() {
-    const body = document.getElementById("tripItemTagSection");
-    const toggle = document.getElementById("tripItemTagToggle");
-    if (!body || !toggle) return;
-    const expanded = body.classList.toggle("expanded");
-    toggle.textContent = expanded ? "\u2212\u6536\u8D77" : "+ \u6DFB\u52A0\u6807\u7B7E";
-  }
-  function collapseTripItemTagSection() {
-    const body = document.getElementById("tripItemTagSection");
-    const toggle = document.getElementById("tripItemTagToggle");
-    if (body) body.classList.remove("expanded");
-    if (toggle) toggle.textContent = "+ \u6DFB\u52A0\u6807\u7B7E";
   }
   function updateTripItemSmartMeta() {
     const meta = document.getElementById("tripItemSmartMeta");
@@ -2200,9 +2514,16 @@
       return;
     }
     const qty = Math.max(1, parseInt(document.getElementById("tripItemQty").value) || 1);
-    const suggested = computeSmartQty(item.smartBaseQty || 1, item.smartRule, S.currentTrip.days, S.currentTrip.people);
+    const suggested = computeSmartQty(
+      item.smartBaseQty || 1,
+      item.smartRule,
+      S.currentTrip.days,
+      S.currentTrip.people,
+      item.smartConfig,
+      S.currentTrip
+    );
     meta.style.display = "block";
-    meta.textContent = qty === suggested ? `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule)}\u3002\u5F53\u524D\u5EFA\u8BAE\u6570\u91CF \xD7${suggested}\u3002` : `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule)}\u3002\u5F53\u524D\u5EFA\u8BAE \xD7${suggested}\uFF1B\u4F60\u73B0\u5728\u586B\u5199\u7684\u662F \xD7${qty}\uFF0C\u4FDD\u5B58\u540E\u4F1A\u4F18\u5148\u6309\u4F60\u7684\u624B\u52A8\u6570\u91CF\u4FDD\u7559\u3002`;
+    meta.textContent = qty === suggested ? `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule, item.smartConfig)}\u3002\u5F53\u524D\u5EFA\u8BAE\u6570\u91CF \xD7${suggested}\u3002` : `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule, item.smartConfig)}\u3002\u5F53\u524D\u5EFA\u8BAE \xD7${suggested}\uFF1B\u4F60\u73B0\u5728\u586B\u5199\u7684\u662F \xD7${qty}\uFF0C\u4FDD\u5B58\u540E\u4F1A\u4F18\u5148\u6309\u4F60\u7684\u624B\u52A8\u6570\u91CF\u4FDD\u7559\u3002`;
   }
   function saveCurrentTripItem() {
     if (!S.currentTrip || !S.tripItemEditId) return;
@@ -2214,7 +2535,14 @@
     item.notes = document.getElementById("tripItemNotes").value.trim();
     item.tags = [...S.currentEditingTags];
     if (item.smartRule !== "fixed") {
-      const suggested = computeSmartQty(item.smartBaseQty || 1, item.smartRule, S.currentTrip.days, S.currentTrip.people);
+      const suggested = computeSmartQty(
+        item.smartBaseQty || 1,
+        item.smartRule,
+        S.currentTrip.days,
+        S.currentTrip.people,
+        item.smartConfig,
+        S.currentTrip
+      );
       item.smartLocked = item.qty !== suggested;
     }
     persistCurrentTrip();
@@ -2266,16 +2594,15 @@
     const editModule = options.editId ? getModuleEntity(editSource, options.editId) : null;
     const baseItems = editModule ? editModule.items : initialItems || [];
     syncItemsIntoLibrary(baseItems);
-    const library = getItemLibrary();
-    const selected = baseItems.map((item) => library.find((asset) => asset.name === item.name)?.id).filter(Boolean);
     S.moduleBuilderDraftId = editModule?.id || null;
     S.moduleBuilderDraftSource = editModule ? editSource : "custom";
-    S.moduleBuilderSelection = new Set(selected);
+    S.moduleBuilderItems = (baseItems || []).map((item) => tripOrModuleItemToModuleItem(item));
+    syncModuleBuilderSelectionFromItems();
     S.moduleBuilderSearch = "";
     document.getElementById("moduleBuilderModalTitle").textContent = editModule ? editSource === "official" ? "\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305" : "\u7F16\u8F91\u6211\u7684\u5C0F\u5305" : "\u65B0\u5EFA\u6211\u7684\u5C0F\u5305";
     document.getElementById("moduleBuilderSaveBtn").textContent = editModule ? "\u4FDD\u5B58\u5C0F\u5305\u4FEE\u6539" : "\u4FDD\u5B58\u5230\u6211\u7684\u5C0F\u5305";
     document.getElementById("moduleBuilderDeleteBtn").style.visibility = editModule ? "visible" : "hidden";
-    document.getElementById("moduleBuilderHint").textContent = editModule ? "\u5DF2\u5E26\u51FA\u539F\u6709\u7269\u54C1\uFF1B\u6309\u4F4F\u5E76\u6ED1\u8FC7\u5361\u7247\u53EF\u8FDE\u7EED\u8865\u9009\u6216\u53D6\u6D88\uFF0C\u4E5F\u80FD\u624B\u52A8\u8F93\u4E00\u4E2A\u65B0\u7269\u54C1\u9A6C\u4E0A\u52A0\u8FDB\u5F53\u524D\u5C0F\u5305\u3002" : "\u4ECE\u7269\u54C1\u5E93\u91CC\u6309\u4F4F\u5E76\u6ED1\u8FC7\u5361\u7247\u5373\u53EF\u8FDE\u7EED\u591A\u9009\uFF1B\u4E5F\u53EF\u4EE5\u5148\u624B\u52A8\u8F93\u5165\u4E00\u4E2A\u65B0\u7269\u54C1\u518D\u9009\u5165\u5C0F\u5305\u3002";
+    document.getElementById("moduleBuilderHint").textContent = editModule ? "\u4E0A\u65B9\u300C\u5C0F\u5305\u5185\u7269\u54C1\u300D\u53EF\u70B9\u51FB\u9010\u9879\u8C03\u6574\uFF1B\u4E0B\u65B9\u7269\u54C1\u5E93\u53EF\u7EE7\u7EED\u6ED1\u9009\u8865\u8D27\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u751F\u6210\u3002" : "\u4ECE\u7269\u54C1\u5E93\u6ED1\u9009\u52A0\u5165\u5C0F\u5305\uFF1B\u52A0\u5165\u540E\u53EF\u5728\u4E0A\u65B9\u300C\u5C0F\u5305\u5185\u7269\u54C1\u300D\u70B9\u51FB\u8C03\u6574\u9ED8\u8BA4\u6570\u91CF\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u4E9B\u8BBE\u7F6E\u3002";
     document.getElementById("moduleBuilderName").value = editModule?.name || "";
     document.getElementById("moduleBuilderIcon").value = editModule?.icon || "\u{1F9F0}";
     document.getElementById("moduleBuilderDesc").value = editModule?.desc || "";
@@ -2283,6 +2610,7 @@
     document.getElementById("moduleQuickItemName").value = "";
     document.getElementById("moduleQuickItemQty").value = 1;
     document.getElementById("moduleQuickItemCategory").value = "misc";
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     showModal("createModuleModal");
     setTimeout(() => document.getElementById("moduleBuilderName").focus(), 50);
@@ -2293,6 +2621,8 @@
   }
   function clearModuleBuilderSelection() {
     S.moduleBuilderSelection = /* @__PURE__ */ new Set();
+    S.moduleBuilderItems = [];
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
   }
   function updateModuleQuickItemCategory() {
@@ -2342,12 +2672,30 @@
       saveItemLibrary(library);
     }
     S.moduleBuilderSelection.add(target.id);
+    if (!S.moduleBuilderItems.some((item) => item.name === target.name)) {
+      S.moduleBuilderItems.push(createModuleItemFromAsset(target));
+    }
     document.getElementById("moduleQuickItemName").value = "";
     document.getElementById("moduleQuickItemQty").value = 1;
     document.getElementById("moduleQuickItemCategory").value = "misc";
+    renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     renderItemLibrary();
     toast("\u65B0\u7269\u54C1\u5DF2\u52A0\u5165\u7269\u54C1\u5E93\uFF0C\u5E76\u9009\u5165\u5F53\u524D\u5C0F\u5305");
+  }
+  function renderModuleBuilderSelectedItems() {
+    const box = document.getElementById("moduleBuilderSelectedItems");
+    const section = document.getElementById("moduleBuilderSelectedSection");
+    const meta = document.getElementById("moduleBuilderSelectedMeta");
+    if (!box || !section) return;
+    const items = S.moduleBuilderItems || [];
+    section.style.display = items.length ? "block" : "none";
+    if (meta) meta.textContent = items.length ? `\u5171 ${items.length} \u4EF6 \xB7 \u70B9\u51FB\u53EF\u6539\u9ED8\u8BA4\u6570\u91CF\u3001\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305` : "\u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u6570\u91CF\u3001\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305";
+    box.innerHTML = items.length ? items.map((item) => {
+      const cat = catInfo(item.category);
+      const smart = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + "</span>" : "";
+      return `<div class="list-item-card editable compact" onclick="openModuleItemModal('builder', null, null, '` + item.id + `')"><div class="list-item-main"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, DEFAULT_BAGS)) + "</span>" + smart + '</div></div><div class="item-qty">\xD7' + item.defaultQty + "</div></div>";
+    }).join("") : "";
   }
   function renderModuleBuilderItems() {
     const box = document.getElementById("moduleBuilderItems");
@@ -2363,15 +2711,16 @@
     box.innerHTML = items.length ? items.map((item) => {
       const selected = S.moduleBuilderSelection.has(item.id);
       const cat = catInfo(item.category);
-      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '"><div class="picker-item-name">' + esc(item.name) + "</div></div>";
+      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '"><div class="picker-item-top"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="mini-badge picker-tile-state">' + (selected ? "\u5DF2\u9009" : "\u6ED1\u9009") + '</span></div><div class="picker-item-name">' + esc(item.name) + '</div><div class="picker-item-meta">\u9ED8\u8BA4 \xD7' + item.defaultQty + " \xB7 " + esc(smartRuleShort(item.smartRule)) + "</div></div>";
     }).join("") : '<div class="empty-panel full-span"><div class="empty-title">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div><div class="empty-hint">\u6362\u4E2A\u5173\u952E\u8BCD\u8BD5\u8BD5\u3002</div></div>';
     syncModuleBuilderMeta();
   }
   function syncModuleBuilderMeta() {
     const meta = document.getElementById("moduleBuilderCount");
     const clearBtn = document.getElementById("moduleBuilderClearBtn");
-    if (meta) meta.textContent = `\u5DF2\u9009 ${S.moduleBuilderSelection.size} \u4EF6`;
-    if (clearBtn) clearBtn.textContent = S.moduleBuilderSelection.size ? `\u6E05\u7A7A\uFF08${S.moduleBuilderSelection.size}\uFF09` : "\u6E05\u7A7A\u9009\u62E9";
+    const count = S.moduleBuilderItems?.length || 0;
+    if (meta) meta.textContent = `\u5DF2\u9009 ${count} \u4EF6`;
+    if (clearBtn) clearBtn.textContent = count ? `\u6E05\u7A7A\uFF08${count}\uFF09` : "\u6E05\u7A7A\u9009\u62E9";
   }
   function setupModuleBuilderGesture() {
     const box = document.getElementById("moduleBuilderItems");
@@ -2389,14 +2738,10 @@
     const itemId = tile.dataset.itemId;
     const shouldSelect = !S.moduleBuilderSelection.has(itemId);
     S.moduleBuilderGesture = {
-      active: false,
+      active: true,
       pointerId: event.pointerId,
       mode: shouldSelect ? "add" : "remove",
-      visited: /* @__PURE__ */ new Set(),
-      itemId: itemId,
-      startX: event.clientX,
-      startY: event.clientY,
-      moved: false
+      visited: /* @__PURE__ */ new Set()
     };
     try {
       box.setPointerCapture(event.pointerId);
@@ -2406,20 +2751,9 @@
     event.preventDefault();
   }
   function handleModuleBuilderPointerMove(event) {
-    if (S.moduleBuilderGesture.pointerId !== event.pointerId) return;
+    if (!S.moduleBuilderGesture.active || S.moduleBuilderGesture.pointerId !== event.pointerId) return;
     const box = document.getElementById("moduleBuilderItems");
     if (!box) return;
-    // 移动超过 30px 才进入滑动多选模式
-    if (!S.moduleBuilderGesture.moved) {
-      const dx = event.clientX - S.moduleBuilderGesture.startX;
-      const dy = event.clientY - S.moduleBuilderGesture.startY;
-      if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
-        S.moduleBuilderGesture.active = true;
-        S.moduleBuilderGesture.visited = /* @__PURE__ */ new Set();
-        S.moduleBuilderGesture.moved = true;
-      }
-    }
-    if (!S.moduleBuilderGesture.active) return;
     const node = document.elementFromPoint(event.clientX, event.clientY);
     const tile = node && node.closest ? node.closest(".picker-item") : null;
     if (!tile || !box.contains(tile)) return;
@@ -2432,31 +2766,29 @@
     setModuleBuilderItemSelected(itemId, S.moduleBuilderGesture.mode === "add");
   }
   function setModuleBuilderItemSelected(itemId, selected) {
-    if (selected) S.moduleBuilderSelection.add(itemId);
-    else S.moduleBuilderSelection.delete(itemId);
+    const library = getItemLibrary();
+    const asset = library.find((entry) => entry.id === itemId);
+    if (!asset) return;
+    if (selected) {
+      S.moduleBuilderSelection.add(itemId);
+      if (!S.moduleBuilderItems.some((item) => item.name === asset.name)) {
+        S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
+      }
+    } else {
+      S.moduleBuilderSelection.delete(itemId);
+      S.moduleBuilderItems = S.moduleBuilderItems.filter((item) => item.name !== asset.name);
+    }
     const tile = document.querySelector('.picker-item[data-item-id="' + itemId + '"]');
     if (tile) {
       tile.classList.toggle("selected", selected);
       const state = tile.querySelector(".picker-tile-state");
       if (state) state.textContent = selected ? "\u5DF2\u9009" : "\u6ED1\u9009";
     }
+    renderModuleBuilderSelectedItems();
     syncModuleBuilderMeta();
   }
   function endModuleBuilderGesture(event) {
-    if (S.moduleBuilderGesture.timer) {
-      clearTimeout(S.moduleBuilderGesture.timer);
-      S.moduleBuilderGesture.timer = null;
-    }
-    if (!S.moduleBuilderGesture.active) {
-      // 从未进入多选模式（短按/滑过），重置状态
-      S.moduleBuilderGesture = {
-        active: false,
-        pointerId: null,
-        mode: "add",
-        visited: /* @__PURE__ */ new Set()
-      };
-      return;
-    }
+    if (!S.moduleBuilderGesture.active) return;
     if (event?.pointerId != null && event.pointerId !== S.moduleBuilderGesture.pointerId) return;
     const box = document.getElementById("moduleBuilderItems");
     try {
@@ -2476,16 +2808,11 @@
       toast("\u8BF7\u586B\u5199\u5C0F\u5305\u540D\u79F0");
       return;
     }
-    const selectedIds = Array.from(S.moduleBuilderSelection);
-    if (!selectedIds.length) {
+    const items = (S.moduleBuilderItems || []).map(normalizeModuleItem);
+    if (!items.length) {
       toast("\u8BF7\u81F3\u5C11\u9009\u62E9\u4E00\u4E2A\u7269\u54C1");
       return;
     }
-    const library = getItemLibrary();
-    const items = selectedIds.map((id) => {
-      const asset = library.find((entry) => entry.id === id);
-      return asset ? createModuleItemFromAsset(asset) : null;
-    }).filter(Boolean);
     if (S.moduleBuilderDraftSource === "official") {
       const officialModules = getOfficialModules();
       const existing2 = S.moduleBuilderDraftId ? officialModules.find((item) => item.id === S.moduleBuilderDraftId) : null;
@@ -2505,11 +2832,12 @@
       const idx = officialModules.findIndex((item) => item.id === nextModule.id);
       if (idx >= 0) officialModules[idx] = nextModule;
       else officialModules.unshift(nextModule);
+      items.forEach(upsertLibraryFromModuleItem);
       saveOfficialModules(officialModules);
       closeModal("createModuleModal");
       renderModuleLibrary();
       renderHome();
-      toast("\u5B98\u65B9\u5C0F\u5305\u5DF2\u66F4\u65B0");
+      toast("\u5B98\u65B9\u5C0F\u5305\u5DF2\u66F4\u65B0\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u65B0\u8BBE\u7F6E\u751F\u6210");
       return;
     }
     const existing = S.moduleBuilderDraftId ? getMyModules().find((item) => item.id === S.moduleBuilderDraftId) : null;
@@ -2525,11 +2853,12 @@
       createdAt: existing?.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
+    items.forEach(upsertLibraryFromModuleItem);
     saveRecord(module);
     closeModal("createModuleModal");
     renderModuleLibrary();
     renderHome();
-    toast(existing ? "\u5C0F\u5305\u5DF2\u66F4\u65B0" : "\u5DF2\u4FDD\u5B58\u5230\u6211\u7684\u5C0F\u5305");
+    toast(existing ? "\u5C0F\u5305\u5DF2\u66F4\u65B0\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u65B0\u8BBE\u7F6E\u751F\u6210" : "\u5DF2\u4FDD\u5B58\u5230\u6211\u7684\u5C0F\u5305");
   }
   function deleteCurrentModuleDraft() {
     if (!S.moduleBuilderDraftId) return;
@@ -2552,6 +2881,12 @@
     openCreateModuleModal(S.currentTrip.items);
     document.getElementById("moduleBuilderName").value = S.currentTrip.name + " \u5C0F\u5305";
     document.getElementById("moduleBuilderDesc").value = `\u7531\u884C\u7A0B\u300C${S.currentTrip.name}\u300D\u6C89\u6DC0\u800C\u6765\uFF0C\u53EF\u5728\u540E\u7EED Trips \u4E2D\u590D\u7528\u3002`;
+  }
+  function deleteTrip(id) {
+    const target = getTrips().find((trip) => trip.id === id);
+    if (!target) return;
+    if (!confirm(`\u786E\u5B9A\u5220\u9664\u884C\u7A0B\u300C${target.name}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002`)) return;
+    deleteRecord(id);
   }
   function duplicateTrip(id) {
     const target = getTrips().find((trip) => trip.id === id);
@@ -2749,35 +3084,6 @@
         </div>
     `).join("");
   }
-  function updateMeItemSearch(value) {
-    S.meItemSearch = value.trim();
-    renderMeItemLibrary();
-  }
-  function renderMeItemLibrary() {
-    const summaryBox = document.getElementById("meItemLibrarySummary");
-    const gridBox = document.getElementById("meItemLibraryGrid");
-    const filterRow = document.getElementById("meItemFilterRow");
-    const searchInput = document.getElementById("meItemSearchInput");
-    if (!gridBox) return;
-    const allItems = getItemLibrary();
-    const keyword = (S.meItemSearch || "").toLowerCase();
-    const items = allItems.filter((item) => {
-      const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-      return searchMatch;
-    });
-    const customCount = allItems.filter((item) => item.source === "user").length;
-    if (summaryBox) {
-      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "");
-    }
-    if (filterRow) {
-      const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
-      filterRow.innerHTML = '<div class="filter-row">' + options.map(
-        (option) => '<button class="filter-chip active">' + esc(option.name) + "</button>"
-      ).join("") + "</div>";
-    }
-    if (searchInput) searchInput.value = S.meItemSearch || "";
-    gridBox.innerHTML = items.length ? items.map(renderLibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div></div>';
-  }
   function resetOfficialModules() {
     if (!confirm("\u786E\u5B9A\u6062\u590D\u6240\u6709\u5B98\u65B9\u5C0F\u5305\u5230\u521D\u59CB\u72B6\u6001\uFF1F\u4F60\u81EA\u5EFA\u7684\u5C0F\u5305\u4E0D\u4F1A\u53D7\u5F71\u54CD\u3002")) return;
     localStorage.removeItem(STORAGE_KEYS.officialModules);
@@ -2801,6 +3107,7 @@
   Object.assign(window, {
     // nav & pages
     openMainPage,
+    openTripPage,
     goBack,
     nav,
     // trip builder
@@ -2820,6 +3127,8 @@
     markAllPacked,
     markAllUnpacked,
     reapplyTripSmartFill,
+    resyncCurrentTripFromModules,
+    removeModuleFromCurrentTrip,
     saveCurrentTripAsModule,
     goSelectModuleForTrip,
     goSelectItemsForTrip,
@@ -2832,6 +3141,9 @@
     useCurrentModule,
     openEditCurrentModule,
     openModuleDetail,
+    openModuleItemModal,
+    saveModuleItemEdit,
+    deleteModuleItemEdit,
     setModuleFilter,
     updateModuleSearch,
     updateModuleBuilderSearch,
@@ -2840,7 +3152,6 @@
     deleteLibraryItem,
     openLibraryItemModal,
     addLibraryItemTag,
-    removeLibraryItemTag,
     setItemFilter,
     updateItemSearch,
     // manual item
@@ -2851,7 +3162,6 @@
     saveCurrentTripItem,
     deleteCurrentTripItem,
     addTripItemTag,
-    removeTripItemTag,
     // modals
     showModal,
     closeModal,
@@ -2865,6 +3175,7 @@
     // home extras
     toggleHomeHistory,
     duplicateTrip,
+    deleteTrip,
     // kit view
     setKitView
   });

@@ -8,6 +8,7 @@ const {
     DEFAULT_CATEGORIES,
     DEFAULT_BAGS,
     CATEGORY_BAG_MAP,
+    BABY_MODULE_IDS,
     guessCat,
     matchCat,
     gid,
@@ -15,6 +16,18 @@ const {
     esc,
     bagName,
     parseBulkNames,
+    computeSmartQty,
+    inferSmartConfig,
+    normalizeTripRecord,
+    normalizeTripItem,
+    resyncTripFromSourceModules,
+    removeModuleFromTrip,
+    isModuleOnTrip,
+    mergeTripItems,
+    applyTripSmartFill,
+    getTripProgress,
+    getTripStatus,
+    saveOfficialModules,
 } = require('../src/data/index.js');
 
 // ===== guessCat 智能分类函数 =====
@@ -171,25 +184,410 @@ describe('CATEGORY_BAG_MAP 映射逻辑', () => {
     test('不存在的分类返回 undefined', () => { expect(CATEGORY_BAG_MAP['nonexistent']).toBeUndefined(); });
 });
 
-// ===== 物品数量计算（perDay / perPerson）=====
+// ===== 物品动态数量计算 =====
 
-describe('物品动态数量计算', () => {
+describe('computeSmartQty 智能数量计算', () => {
     test('perDay 规则：3天×基础量', () => {
-        // perDay 规则：baseQty × days
-        const base = 1, days = 3;
-        expect(base * days).toBe(3);
+        expect(computeSmartQty(1, 'perDay', 3, 1)).toBe(3);
     });
     test('perPerson 规则：2人×基础量', () => {
-        const base = 1, people = 2;
-        expect(base * people).toBe(2);
+        expect(computeSmartQty(1, 'perPerson', 1, 2)).toBe(2);
     });
     test('perPersonPerDay 规则：2人×3天×基础量', () => {
-        const base = 2, days = 3, people = 2;
-        expect(base * days * people).toBe(12);
+        expect(computeSmartQty(2, 'perPersonPerDay', 3, 2)).toBe(12);
     });
     test('fixed 规则：返回基础量', () => {
-        const base = 5;
-        expect(base).toBe(5);
+        expect(computeSmartQty(5, 'fixed', 3, 2)).toBe(5);
+    });
+    test('formula 规则：叠加宝宝插件场景系数', () => {
+        const smartConfig = inferSmartConfig('尿不湿');
+        const tripContext = {
+            sourceModules: [
+                { id: BABY_MODULE_IDS.base, name: '宝宝基础包' },
+                { id: BABY_MODULE_IDS.overnight, name: '过夜插件包' },
+            ],
+        };
+        const qty = computeSmartQty(1, 'formula', 3, 1, smartConfig, tripContext);
+        expect(qty).toBeGreaterThan(3);
+    });
+});
+
+// ===== mergeTripItems / applyTripSmartFill =====
+
+describe('mergeTripItems 合并逻辑', () => {
+    test('module 策略：同名同分类合并并取更强智能规则', () => {
+        const items = [
+            normalizeTripItem({
+                id: 'a',
+                name: 'T恤',
+                category: 'clothing',
+                qty: 2,
+                smartRule: 'perDay',
+                smartBaseQty: 1,
+                sourceModules: ['衣服包'],
+            }),
+        ];
+        const incoming = [
+            normalizeTripItem({
+                id: 'b',
+                name: 'T恤',
+                category: 'clothing',
+                qty: 3,
+                smartRule: 'perPersonPerDay',
+                smartBaseQty: 1,
+                sourceModules: ['备用包'],
+            }),
+        ];
+        mergeTripItems(items, incoming, { days: 3, people: 2, sourceModules: [] }, 'module');
+        expect(items).toHaveLength(1);
+        expect(items[0].smartRule).toBe('perPersonPerDay');
+        expect(items[0].sourceModules).toEqual(expect.arrayContaining(['衣服包', '备用包']));
+        expect(items[0].qty).toBeGreaterThanOrEqual(3);
+    });
+
+    test('manual 策略：累加数量并锁定智能填充', () => {
+        const items = [
+            normalizeTripItem({
+                id: 'a',
+                name: '口罩',
+                category: 'misc',
+                qty: 2,
+                smartRule: 'perDay',
+                smartBaseQty: 1,
+            }),
+        ];
+        mergeTripItems(items, [
+            normalizeTripItem({
+                id: 'b',
+                name: '口罩',
+                category: 'misc',
+                qty: 3,
+                smartRule: 'perDay',
+                smartBaseQty: 1,
+            }),
+        ], { days: 2, people: 1 }, 'manual');
+        expect(items[0].qty).toBe(5);
+        expect(items[0].smartLocked).toBe(true);
+    });
+
+    test('module 策略：smartLocked 时不降低已有数量', () => {
+        const items = [
+            normalizeTripItem({
+                id: 'a',
+                name: '毛巾',
+                category: 'hygiene',
+                qty: 9,
+                smartRule: 'perPerson',
+                smartBaseQty: 1,
+                smartLocked: true,
+                sourceModules: ['洗漱包'],
+            }),
+        ];
+        mergeTripItems(items, [
+            normalizeTripItem({
+                id: 'b',
+                name: '毛巾',
+                category: 'hygiene',
+                qty: 2,
+                smartRule: 'perPerson',
+                smartBaseQty: 1,
+                sourceModules: ['洗漱包'],
+            }),
+        ], { days: 2, people: 2 }, 'module');
+        expect(items[0].qty).toBe(9);
+        expect(items[0].smartLocked).toBe(true);
+    });
+});
+
+describe('applyTripSmartFill 智能填充', () => {
+    test('未锁定物品按天数重算', () => {
+        const trip = normalizeTripRecord({
+            id: 'trip-fill',
+            name: '填充测试',
+            days: 3,
+            people: 1,
+            items: [
+                normalizeTripItem({
+                    id: 'shirt',
+                    name: 'T恤',
+                    category: 'clothing',
+                    qty: 1,
+                    smartRule: 'perDay',
+                    smartBaseQty: 1,
+                }),
+            ],
+        });
+        applyTripSmartFill(trip, false);
+        expect(trip.items[0].qty).toBe(3);
+    });
+
+    test('smartLocked 物品不会被覆盖', () => {
+        const trip = normalizeTripRecord({
+            id: 'trip-locked',
+            name: '锁定测试',
+            days: 5,
+            people: 1,
+            items: [
+                normalizeTripItem({
+                    id: 'shirt',
+                    name: 'T恤',
+                    category: 'clothing',
+                    qty: 2,
+                    smartRule: 'perDay',
+                    smartBaseQty: 1,
+                    smartLocked: true,
+                }),
+            ],
+        });
+        applyTripSmartFill(trip, false);
+        expect(trip.items[0].qty).toBe(2);
+    });
+
+    test('unlockAll 会解锁并重新计算', () => {
+        const trip = normalizeTripRecord({
+            id: 'trip-unlock',
+            name: '解锁测试',
+            days: 4,
+            people: 1,
+            items: [
+                normalizeTripItem({
+                    id: 'shirt',
+                    name: 'T恤',
+                    category: 'clothing',
+                    qty: 2,
+                    smartRule: 'perDay',
+                    smartBaseQty: 1,
+                    smartLocked: true,
+                }),
+            ],
+        });
+        applyTripSmartFill(trip, true);
+        expect(trip.items[0].smartLocked).toBe(false);
+        expect(trip.items[0].qty).toBe(4);
+    });
+});
+
+describe('getTripProgress / getTripStatus', () => {
+    test('空行程为规划中', () => {
+        const trip = normalizeTripRecord({ id: 't1', name: '空', items: [] });
+        expect(getTripStatus(trip).key).toBe('planning');
+        expect(getTripProgress(trip).pct).toBe(0);
+    });
+
+    test('全部打包为已完成', () => {
+        const trip = normalizeTripRecord({
+            id: 't2',
+            name: '完成',
+            items: [
+                normalizeTripItem({ id: '1', name: '牙刷', category: 'hygiene', qty: 1, packed: true }),
+            ],
+        });
+        expect(getTripStatus(trip).key).toBe('done');
+        expect(getTripProgress(trip).pct).toBe(100);
+    });
+
+    test('部分打包为打包中', () => {
+        const trip = normalizeTripRecord({
+            id: 't3',
+            name: '进行中',
+            items: [
+                normalizeTripItem({ id: '1', name: '牙刷', category: 'hygiene', qty: 1, packed: true }),
+                normalizeTripItem({ id: '2', name: '牙膏', category: 'hygiene', qty: 1, packed: false }),
+            ],
+        });
+        expect(getTripStatus(trip).key).toBe('packing');
+        expect(getTripProgress(trip).packed).toBe(1);
+        expect(getTripProgress(trip).total).toBe(2);
+    });
+});
+
+describe('removeModuleFromTrip / isModuleOnTrip', () => {
+    test('移除小包时删掉仅属于它的物品', () => {
+        const trip = normalizeTripRecord({
+            id: 'trip-remove-mod',
+            name: '移除测试',
+            sourceModules: [
+                { source: 'official', id: 'mod-a', name: '洗漱包' },
+                { source: 'official', id: 'mod-b', name: '证件包' },
+            ],
+            items: [
+                normalizeTripItem({ id: '1', name: '牙刷', category: 'hygiene', qty: 1, sourceModules: ['洗漱包'] }),
+                normalizeTripItem({ id: '2', name: '身份证', category: 'docs', qty: 1, sourceModules: ['证件包'] }),
+                normalizeTripItem({ id: '3', name: '充电宝', category: 'electronics', qty: 1, sourceModules: [] }),
+            ],
+        });
+
+        saveOfficialModules([
+            { id: 'mod-a', name: '洗漱包', icon: '🧴', purpose: 'starter', items: [] },
+            { id: 'mod-b', name: '证件包', icon: '📁', purpose: 'daily', items: [] },
+        ]);
+
+        expect(isModuleOnTrip(trip, 'official', 'mod-a')).toBe(true);
+        const result = removeModuleFromTrip(trip, 'official', 'mod-a');
+        expect(result.changed).toBe(true);
+        expect(result.removedItems).toBe(1);
+        expect(trip.items.some(item => item.name === '牙刷')).toBe(false);
+        expect(trip.items.some(item => item.name === '身份证')).toBe(true);
+        expect(trip.items.some(item => item.name === '充电宝')).toBe(true);
+        expect(isModuleOnTrip(trip, 'official', 'mod-a')).toBe(false);
+    });
+
+    test('多来源物品只去掉对应来源标签', () => {
+        saveOfficialModules([
+            { id: 'mod-x', name: '包A', icon: '🧴', purpose: 'starter', items: [] },
+            { id: 'mod-y', name: '包B', icon: '📁', purpose: 'daily', items: [] },
+        ]);
+        const trip = normalizeTripRecord({
+            id: 'trip-multi-src',
+            name: '多来源',
+            sourceModules: [
+                { source: 'official', id: 'mod-x', name: '包A' },
+                { source: 'official', id: 'mod-y', name: '包B' },
+            ],
+            items: [
+                normalizeTripItem({ id: '1', name: '毛巾', category: 'hygiene', qty: 1, sourceModules: ['包A', '包B'] }),
+            ],
+        });
+
+        removeModuleFromTrip(trip, 'official', 'mod-x');
+        expect(trip.items).toHaveLength(1);
+        expect(trip.items[0].sourceModules).toEqual(['包B']);
+    });
+});
+
+// ===== 按小包重新同步 =====
+
+describe('resyncTripFromSourceModules 按小包重新同步', () => {
+    test('按更新后的小包定义刷新行程物品', () => {
+        saveOfficialModules([
+            {
+                id: 'module-test-sync',
+                name: '测试小包',
+                icon: '🧪',
+                purpose: 'starter',
+                items: [{ name: '牙刷', category: 'hygiene', defaultQty: 1 }],
+            },
+        ]);
+
+        const trip = normalizeTripRecord({
+            id: 'trip-sync-test',
+            name: '同步测试',
+            days: 2,
+            people: 1,
+            sourceModules: [{ source: 'official', id: 'module-test-sync', name: '测试小包' }],
+            items: [
+                normalizeTripItem({
+                    id: 'item-old',
+                    name: '牙刷',
+                    category: 'hygiene',
+                    qty: 1,
+                    smartBaseQty: 1,
+                    smartRule: 'fixed',
+                    sourceModules: ['测试小包'],
+                }),
+                normalizeTripItem({
+                    id: 'item-manual',
+                    name: '自定义物品',
+                    category: 'misc',
+                    qty: 1,
+                    sourceModules: [],
+                }),
+            ],
+        });
+
+        saveOfficialModules([
+            {
+                id: 'module-test-sync',
+                name: '测试小包',
+                icon: '🧪',
+                purpose: 'starter',
+                items: [
+                    { name: '牙刷', category: 'hygiene', defaultQty: 1 },
+                    { name: '牙膏', category: 'hygiene', defaultQty: 1 },
+                ],
+            },
+        ]);
+
+        const result = resyncTripFromSourceModules(trip);
+        expect(result.added).toBe(1);
+        expect(trip.items.some(item => item.name === '牙膏')).toBe(true);
+        expect(trip.items.some(item => item.name === '自定义物品')).toBe(true);
+    });
+
+    test('保留手动添加物品与打包状态', () => {
+        saveOfficialModules([
+            {
+                id: 'module-test-packed',
+                name: '证件包',
+                icon: '📁',
+                purpose: 'daily',
+                items: [{ name: '身份证', category: 'docs', defaultQty: 1 }],
+            },
+        ]);
+
+        const trip = normalizeTripRecord({
+            id: 'trip-packed-test',
+            name: '打包测试',
+            days: 1,
+            people: 1,
+            sourceModules: [{ source: 'official', id: 'module-test-packed', name: '证件包' }],
+            items: [
+                normalizeTripItem({
+                    id: 'item-docs',
+                    name: '身份证',
+                    category: 'docs',
+                    qty: 1,
+                    packed: true,
+                    sourceModules: ['证件包'],
+                }),
+            ],
+        });
+
+        const result = resyncTripFromSourceModules(trip);
+        const docs = trip.items.find(item => item.name === '身份证');
+        expect(docs?.packed).toBe(true);
+        expect(result.changed).toBe(false);
+    });
+
+    test('合并与手动添加同名的重复物品', () => {
+        saveOfficialModules([
+            {
+                id: 'module-dup',
+                name: '洗漱包',
+                icon: '🧴',
+                purpose: 'starter',
+                items: [{ name: '牙刷', category: 'hygiene', defaultQty: 1 }],
+            },
+        ]);
+
+        const trip = normalizeTripRecord({
+            id: 'trip-dup',
+            name: '重复测试',
+            days: 1,
+            people: 1,
+            sourceModules: [{ source: 'official', id: 'module-dup', name: '洗漱包' }],
+            items: [
+                normalizeTripItem({
+                    id: 'from-module',
+                    name: '牙刷',
+                    category: 'hygiene',
+                    qty: 1,
+                    sourceModules: ['洗漱包'],
+                }),
+                normalizeTripItem({
+                    id: 'manual-dup',
+                    name: '牙刷',
+                    category: 'hygiene',
+                    qty: 2,
+                    sourceModules: [],
+                }),
+            ],
+        });
+
+        const result = resyncTripFromSourceModules(trip);
+        expect(result.mergedDuplicates).toBe(1);
+        expect(trip.items.filter(item => item.name === '牙刷')).toHaveLength(1);
+        expect(trip.items.find(item => item.name === '牙刷').qty).toBe(2);
     });
 });
 
