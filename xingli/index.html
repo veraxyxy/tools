@@ -10,7 +10,7 @@
     <title>行理 · 小包行程助手</title>
     <link rel="icon" type="image/png" href="./assets/xingli-app-icon.png">
     <link rel="apple-touch-icon" href="./assets/xingli-app-icon.png">
-    <link rel="stylesheet" href="./style.css?v=20260925-12">
+    <link rel="stylesheet" href="./style.css?v=20260925-13">
 </head>
 <body>
     <div class="app-shell">
@@ -202,12 +202,21 @@
             </div>
             <div class="modal-body">
                 <div class="module-detail-meta" id="moduleDetailSummary"></div>
+                <div class="module-items-heading">包内物品</div>
                 <div class="stack-list compact" id="moduleDetailItems"></div>
+                <div class="module-quick-add">
+                    <label for="moduleQuickAddInput">直接添加物品</label>
+                    <div class="module-quick-add-row">
+                        <input id="moduleQuickAddInput" type="text" placeholder="输入名称，例如：充电线">
+                        <button type="button" class="btn-primary" data-action-click="quickAddItemToCurrentModule()">添加</button>
+                    </div>
+                    <div class="module-quick-add-hint">输入后直接加入这个小包，也会同步进物品库。</div>
+                </div>
             </div>
             <div class="modal-footer between footer-tight">
                 <div class="modal-footer-actions">
                     <button class="btn-ghost danger" id="moduleDeleteBtn" data-action-click="deleteCurrentModuleFromDetail()">删除小包</button>
-                    <button class="btn-ghost" id="moduleEditBtn" data-action-click="openEditCurrentModule()">编辑物品</button>
+                    <button class="btn-ghost" id="moduleEditBtn" data-action-click="openEditCurrentModule()">调整数量</button>
                 </div>
                 <div class="modal-footer-actions">
                     <button class="btn-primary" id="modulePrimaryBtn" data-action-click="useCurrentModule()">用于新行程</button>
@@ -431,6 +440,6 @@
         </div>
     </div>
 
-    <script src="./bundle.js?v=20260925-12"></script>
+    <script src="./bundle.js?v=20260925-13"></script>
 </body>
 </html>

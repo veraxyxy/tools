@@ -231,6 +231,18 @@ function bindFormEvents() {
 
     document.getElementById('moduleItemQty')?.addEventListener('input', updateModuleItemSmartHint);
 
+    document.getElementById('moduleQuickAddInput')?.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        quickAddItemToCurrentModule();
+    });
+
+    document.getElementById('moduleDetailItems')?.addEventListener('click', event => {
+        const button = event.target.closest('[data-remove-detail-item]');
+        if (!button) return;
+        removeItemFromCurrentModule(Number(button.dataset.removeDetailItem));
+    });
+
     document.getElementById('moduleBuilderItems')?.addEventListener('click', e => {
         const tile = e.target.closest('.picker-item');
         if (!tile?.dataset.itemId) return;
@@ -591,7 +603,7 @@ function renderTripPage() {
             '<button class="btn-secondary" data-action-click="goSelectItemsForTrip()">从物品库</button>' +
             '<button class="btn-primary" data-action-click="openManualItemModal()">手动添加</button>' +
             '</div>';
-        subBar.innerHTML = renderTripSourceModulesBar(trip);
+        subBar.innerHTML = '';
         content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
         actionBar.innerHTML = trip.items.some(item => item.packed)
@@ -1017,7 +1029,7 @@ function renderOfficialModuleCard(module) {
     return '<div class="kit-card compact recommended' + (added ? ' added' : '') + '" data-action-click="openModuleDetail(\'official\',\'' + module.id + '\')">' +
         '<div class="kit-card-body">' +
         '<div class="kit-card-kicker">官方 · ' + esc(tag) + '</div>' +
-        '<div class="kit-card-name">' + esc(module.name) + '</div>' +
+        '<div class="kit-card-name"><span class="kit-card-emoji" aria-hidden="true">' + esc(module.icon || '🧰') + '</span>' + esc(module.name) + '</div>' +
         '<div class="kit-card-meta">' + preview.length + ' 件物品</div>' +
         '</div>' +
         (added ? '<span class="kit-added-badge">已添加</span>' : '<span class="kit-card-chevron">›</span>') +
@@ -1030,7 +1042,7 @@ function renderMyModuleCard(module) {
     return '<div class="kit-card compact' + (added ? ' added' : '') + '" data-action-click="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
         '<div class="kit-card-body">' +
         '<div class="kit-card-kicker">我的小包</div>' +
-        '<div class="kit-card-name">' + esc(module.name) + '</div>' +
+        '<div class="kit-card-name"><span class="kit-card-emoji" aria-hidden="true">' + esc(module.icon || '🧰') + '</span>' + esc(module.name) + '</div>' +
         '<div class="kit-card-meta">' + preview.length + ' 件物品</div>' +
         '</div>' +
         (added ? '<span class="kit-added-badge">已添加</span>' : '<span class="kit-card-chevron">›</span>') +
@@ -1059,10 +1071,12 @@ function renderModuleDetailModal(source, id) {
         '</div>' +
         '<p class="module-detail-desc">' + esc(entity.desc || '可复用的打包模块，创建行程时可一键加入。') + '</p>';
     document.getElementById('moduleDetailItems').innerHTML = moduleItems.length
-        ? moduleItems.map(item => renderModuleDetailItemRow(item)).join('')
-        : '<div class="empty-panel"><div class="empty-hint">点「编辑物品」添加或删除。</div></div>';
+        ? moduleItems.map((item, index) => renderModuleDetailItemRow(item, index)).join('')
+        : '<div class="empty-panel"><div class="empty-hint">这个包还是空的，在下方直接输入物品名称。</div></div>';
     document.getElementById('moduleEditBtn').style.display = 'inline-flex';
-    document.getElementById('moduleEditBtn').textContent = '编辑物品';
+    document.getElementById('moduleEditBtn').textContent = '调整数量';
+    const quickAddInput = document.getElementById('moduleQuickAddInput');
+    if (quickAddInput) quickAddInput.value = '';
     const deleteBtn = document.getElementById('moduleDeleteBtn');
     deleteBtn.style.display = 'inline-flex';
     deleteBtn.textContent = source === 'official' ? '删除官方小包' : '删除小包';
@@ -1101,7 +1115,7 @@ function deleteCurrentModuleFromDetail() {
     toast(source === 'official' ? '已删除，可在「我的」中恢复' : '已删除小包');
 }
 
-function renderModuleDetailItemRow(item) {
+function renderModuleDetailItemRow(item, index) {
     const cat = catInfo(item.category);
     return '<div class="module-detail-row">' +
         '<div class="module-detail-main">' +
@@ -1109,7 +1123,57 @@ function renderModuleDetailItemRow(item) {
         '<span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== 'fixed' ? ' · 智能数量' : '') + '</span>' +
         '</div>' +
         '<span class="module-detail-qty">×' + item.defaultQty + '</span>' +
+        '<button type="button" class="module-item-remove" data-remove-detail-item="' + index + '" aria-label="从小包移除 ' + esc(item.name) + '">×</button>' +
         '</div>';
+}
+
+function quickAddItemToCurrentModule() {
+    if (!S.currentModule) return;
+    const input = document.getElementById('moduleQuickAddInput');
+    const name = input?.value.trim();
+    if (!name) {
+        toast('请输入物品名称');
+        input?.focus();
+        return;
+    }
+
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    if ((entity.items || []).some(item => item.name.trim().toLowerCase() === name.toLowerCase())) {
+        toast('这个物品已在包内');
+        input?.select();
+        return;
+    }
+
+    const moduleItem = normalizeModuleItem({ name });
+    const saved = saveModuleEntityItems(source, id, [...(entity.items || []), moduleItem]);
+    if (!saved) {
+        toast('添加失败，请重试');
+        return;
+    }
+    upsertLibraryFromModuleItem(moduleItem);
+    renderModuleDetailModal(source, id);
+    renderModuleLibrary();
+    toast('已加入「' + entity.name + '」');
+    setTimeout(() => document.getElementById('moduleQuickAddInput')?.focus(), 0);
+}
+
+function removeItemFromCurrentModule(index) {
+    if (!S.currentModule) return;
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity || index < 0 || index >= (entity.items || []).length) return;
+    const items = [...entity.items];
+    const [removed] = items.splice(index, 1);
+    const saved = saveModuleEntityItems(source, id, items);
+    if (!saved) {
+        toast('移除失败，请重试');
+        return;
+    }
+    renderModuleDetailModal(source, id);
+    renderModuleLibrary();
+    toast('已移除「' + removed.name + '」');
 }
 
 function tripOrModuleItemToModuleItem(item) {
@@ -2527,6 +2591,7 @@ Object.assign(window, {
     goSelectModuleForTrip, goSelectItemsForTrip,
     // module
     openCreateModuleModal, saveCustomModule, deleteCurrentModuleDraft, deleteCurrentModuleFromDetail,
+    quickAddItemToCurrentModule, removeItemFromCurrentModule,
     toggleModuleAddPanel, updateModuleBuilderSearch,
     useCurrentModule, openEditCurrentModule, openEditModuleModal, openModuleDetail,
     openModuleItemModal, saveModuleItemEdit, deleteModuleItemEdit,

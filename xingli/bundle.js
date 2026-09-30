@@ -199,10 +199,10 @@
       desc: "\u628A\u65E5\u5E38\u62A4\u80A4\u3001\u5378\u5986\u548C\u9690\u5F62\u773C\u955C\u7528\u54C1\u96C6\u4E2D\u6536\u7EB3\uFF0C\u907F\u514D\u548C\u5316\u5986\u54C1\u6DF7\u5728\u4E00\u8D77\u53CD\u590D\u7FFB\u627E\u3002",
       tags: ["\u62A4\u80A4", "\u5378\u5986", "\u5E38\u7528\u5C0F\u5305"],
       items: [
-        { name: "\u773C\u971C", c: "skincare" },
-        { name: "\u723D\u80A4\u6C34", c: "skincare" },
+        { name: "\u773C\u971C", c: "skincare", bag: "bag-skincare" },
+        { name: "\u723D\u80A4\u6C34", c: "skincare", bag: "bag-skincare" },
         { name: "\u4E73\u6DB2", c: "skincare" },
-        { name: "\u4FDD\u6E7F\u971C", c: "skincare" },
+        { name: "\u4FDD\u6E7F\u971C", c: "skincare", bag: "bag-skincare" },
         { name: "\u9632\u6652\u971C", c: "skincare" },
         { name: "\u6DA6\u5507\u818F", c: "skincare" },
         { name: "\u5378\u5986\u6CB9/\u5378\u5986\u6C34", c: "skincare" },
@@ -429,13 +429,13 @@
       desc: "\u65C5\u884C\u5E38\u89C1\u7684\u5C0F\u4F24\u3001\u53D1\u70ED\u548C\u80A0\u80C3\u4E0D\u9002\u7528\u54C1\uFF1B\u6309\u4E2A\u4EBA\u60C5\u51B5\u589E\u51CF\uFF0C\u5E76\u9075\u5FAA\u533B\u751F\u6216\u836F\u5E08\u5EFA\u8BAE\u3002",
       tags: ["\u836F\u54C1", "\u5E94\u6025", "\u5E38\u7528\u5C0F\u5305"],
       items: [
-        { name: "\u4E2A\u4EBA\u5904\u65B9\u836F", c: "medicine" },
+        { name: "\u4E2A\u4EBA\u5904\u65B9\u836F", c: "medicine", bag: "bag-medicine" },
         { name: "\u521B\u53EF\u8D34", c: "medicine", q: 4 },
         { name: "\u611F\u5192\u836F", c: "medicine" },
         { name: "\u9000\u70E7\u6B62\u75DB\u836F", c: "medicine" },
         { name: "\u80A0\u80C3\u836F", c: "medicine" },
         { name: "\u6655\u8F66\u836F", c: "medicine" },
-        { name: "\u773C\u836F\u6C34", c: "medicine" },
+        { name: "\u773C\u836F\u6C34", c: "medicine", bag: "bag-medicine" },
         { name: "\u9152\u7CBE\u68C9\u7247", c: "medicine", q: 4 },
         { name: "\u9A71\u868A\u6B62\u75D2\u7528\u54C1", c: "medicine" },
         { name: "\u53E3\u7F69", c: "small-bag", q: 2 }
@@ -523,9 +523,7 @@
         { name: "\u7EB8\u5DFE", c: "misc" },
         { name: "\u5783\u573E\u888B", c: "misc", q: 3 },
         { name: "\u58A8\u955C", c: "small-bag" },
-        { name: "\u8F66\u8F7D\u6025\u6551\u5305", c: "medicine" },
-        { name: "\u53CD\u5149\u80CC\u5FC3", c: "misc" },
-        { name: "\u7834\u7A97\u9524", c: "misc" }
+        { name: "\u8F66\u8F7D\u6025\u6551\u5305", c: "medicine" }
       ]
     },
     {
@@ -1238,12 +1236,13 @@
     "module-baby-comfort",
     "module-baby-snacks"
   ]);
-  var OFFICIAL_SEED_VERSION = 5;
+  var OFFICIAL_SEED_VERSION = 6;
   var REVISED_OFFICIAL_MODULE_IDS = /* @__PURE__ */ new Set([
     "module-hygiene",
     "module-makeup",
     "module-docs",
     "module-skincare",
+    "module-adult-medicine",
     "module-clothing",
     "module-baby-base",
     "module-baby-feeding",
@@ -1255,13 +1254,15 @@
     "module-baby-outdoor",
     "module-electronics",
     "module-international",
-    "module-long-haul-flight"
+    "module-long-haul-flight",
+    "module-road-trip"
   ]);
   var LEGACY_OFFICIAL_MODULE_NAMES = {
     "module-hygiene": ["\u6D17\u6F31\u5305"],
     "module-makeup": ["\u5316\u5986\u5305"],
     "module-docs": ["\u8BC1\u4EF6\u5305"],
     "module-skincare": ["\u62A4\u80A4\u5305"],
+    "module-adult-medicine": ["\u5E38\u5907\u836F\u5305"],
     "module-clothing": ["\u8863\u670D\u5305"],
     "module-baby-base": ["\u5B9D\u5B9D\u57FA\u7840\u5305", "\u5B9D\u5B9D\u6362\u6D17\u62A4\u7406\u5305", "\u5B9D\u5B9D\u65E5\u5E38\u51FA\u95E8\u5305"],
     "module-baby-feeding": ["\u5582\u517B\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u5582\u517B\u5305"],
@@ -1273,7 +1274,8 @@
     "module-baby-outdoor": ["\u6237\u5916\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u6237\u5916\u573A\u666F"],
     "module-electronics": ["\u7535\u5B50\u5305"],
     "module-international": ["\u6D77\u5916\u51FA\u884C\u5305"],
-    "module-long-haul-flight": ["\u957F\u9014\u98DE\u673A\u573A\u666F"]
+    "module-long-haul-flight": ["\u957F\u9014\u98DE\u673A\u573A\u666F"],
+    "module-road-trip": ["\u81EA\u9A7E\u51FA\u884C\u5305"]
   };
   var DataStore = class {
     constructor(adapter = new LocalStorageAdapter()) {
@@ -1950,7 +1952,7 @@
     return value;
   }
   function bindFormEvents() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
     (_a = document.getElementById("tripDays")) == null ? void 0 : _a.addEventListener("input", syncTripBuilderSummary);
     (_b = document.getElementById("tripPeople")) == null ? void 0 : _b.addEventListener("input", syncTripBuilderSummary);
     (_c = document.getElementById("libraryItemCategory")) == null ? void 0 : _c.addEventListener("change", () => {
@@ -1975,46 +1977,56 @@
       updateTripItemSmartMeta();
     });
     (_m = document.getElementById("moduleItemQty")) == null ? void 0 : _m.addEventListener("input", updateModuleItemSmartHint);
-    (_n = document.getElementById("moduleBuilderItems")) == null ? void 0 : _n.addEventListener("click", (e) => {
+    (_n = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _n.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      quickAddItemToCurrentModule();
+    });
+    (_o = document.getElementById("moduleDetailItems")) == null ? void 0 : _o.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-detail-item]");
+      if (!button) return;
+      removeItemFromCurrentModule(Number(button.dataset.removeDetailItem));
+    });
+    (_p = document.getElementById("moduleBuilderItems")) == null ? void 0 : _p.addEventListener("click", (e) => {
       const tile = e.target.closest(".picker-item");
       if (!(tile == null ? void 0 : tile.dataset.itemId)) return;
       addModuleBuilderItemByAssetId(tile.dataset.itemId);
     });
-    (_o = document.getElementById("moduleBuilderSelectedItems")) == null ? void 0 : _o.addEventListener("click", (e) => {
+    (_q = document.getElementById("moduleBuilderSelectedItems")) == null ? void 0 : _q.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-remove-module-item]");
       if (!btn) return;
       removeModuleBuilderItem(btn.dataset.removeModuleItem);
     });
-    (_p = document.getElementById("libraryItemTagsDisplay")) == null ? void 0 : _p.addEventListener("click", (e) => {
+    (_r = document.getElementById("libraryItemTagsDisplay")) == null ? void 0 : _r.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeLibraryItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
-    (_q = document.getElementById("tripItemTagsDisplay")) == null ? void 0 : _q.addEventListener("click", (e) => {
+    (_s = document.getElementById("tripItemTagsDisplay")) == null ? void 0 : _s.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
-    (_r = document.getElementById("listContent")) == null ? void 0 : _r.addEventListener("click", (e) => {
+    (_t = document.getElementById("listContent")) == null ? void 0 : _t.addEventListener("click", (e) => {
       const card = e.target.closest("[data-trip-item-id]");
       if (!card || S.tripMode !== "plan") return;
       openTripItemModal(card.dataset.tripItemId);
     });
-    (_s = document.getElementById("libraryItemTagInput")) == null ? void 0 : _s.addEventListener("keydown", (e) => {
+    (_u = document.getElementById("libraryItemTagInput")) == null ? void 0 : _u.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         addLibraryItemTag();
       }
     });
-    (_t = document.getElementById("tripItemTagInput")) == null ? void 0 : _t.addEventListener("keydown", (e) => {
+    (_v = document.getElementById("tripItemTagInput")) == null ? void 0 : _v.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         addTripItemTag();
       }
     });
-    (_u = document.getElementById("moduleItemCategory")) == null ? void 0 : _u.addEventListener("change", () => {
+    (_w = document.getElementById("moduleItemCategory")) == null ? void 0 : _w.addEventListener("change", () => {
       syncBagWithCategory("moduleItemCategory", "moduleItemBag", DEFAULT_BAGS);
       updateModuleItemSmartHint();
     });
@@ -2165,15 +2177,6 @@
     closeTripActionsSheet();
     if (id) deleteTrip(id);
   }
-  function renderTripSourceModulesBar(trip) {
-    const modules = trip.sourceModules || [];
-    if (!modules.length) {
-      return '<div class="info-card subtle">\u8FD8\u6CA1\u6709\u5173\u8054\u5C0F\u5305\u3002\u70B9\u300C\u4ECE\u5C0F\u5305\u6DFB\u52A0\u300D\u628A\u6807\u51C6\u5316\u5C0F\u5305\u52A0\u8FDB\u6765\u3002</div>';
-    }
-    return '<div class="trip-modules-panel"><div class="trip-modules-head"><span class="trip-modules-label">\u5DF2\u9009\u5C0F\u5305</span><span class="trip-modules-hint">\u70B9 \xD7 \u79FB\u9664\uFF1B\u6539\u5C0F\u5305\u5B9A\u4E49\u540E\u8BF7\u91CD\u65B0\u540C\u6B65</span></div><div class="trip-module-chips">' + modules.map(
-      (module) => '<span class="trip-module-chip">' + esc(module.name) + '<button type="button" class="chip-remove" data-action-click="removeModuleFromCurrentTrip(\'' + module.source + "', '" + module.id + '\')" aria-label="\u79FB\u9664 ' + esc(module.name) + '">\xD7</button></span>'
-    ).join("") + "</div></div>";
-  }
   function renderProgress(progress) {
     return '<div class="saved-list-progress"><div class="saved-list-progress-bar"><div class="saved-list-progress-fill" style="width:' + progress.pct + '%"></div></div><span class="saved-list-progress-text">\u5DF2\u6253\u5305 ' + progress.packed + "/" + progress.total + " \u4EF6</span></div>";
   }
@@ -2202,7 +2205,7 @@
     switchBox.innerHTML = "";
     if (S.tripMode === "plan") {
       actionBar.innerHTML = (trip.items.length ? '<button type="button" class="start-pack-cta" data-action-click="setTripMode(\'pack\')"><span class="start-pack-copy"><strong>\u5F00\u59CB\u6253\u5305</strong><small>\u5171 ' + trip.items.length + ' \u4EF6\uFF0C\u8FB9\u6536\u62FE\u8FB9\u52FE\u9009</small></span><span class="start-pack-arrow" aria-hidden="true">\u2192</span></button>' : "") + '<div class="trip-edit-actions"><button class="btn-secondary" data-action-click="goSelectModuleForTrip()">\u4ECE\u5C0F\u5305\u6DFB\u52A0</button><button class="btn-secondary" data-action-click="goSelectItemsForTrip()">\u4ECE\u7269\u54C1\u5E93</button><button class="btn-primary" data-action-click="openManualItemModal()">\u624B\u52A8\u6DFB\u52A0</button></div>';
-      subBar.innerHTML = renderTripSourceModulesBar(trip);
+      subBar.innerHTML = "";
       content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
       actionBar.innerHTML = trip.items.some((item) => item.packed) ? '<button class="btn-secondary" data-action-click="markAllUnpacked()">\u91CD\u7F6E\u6253\u5305\u8FDB\u5EA6</button>' : "";
@@ -2495,12 +2498,12 @@
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
     const added = S.currentModuleAction === "add" && isModuleOnCurrentTrip("official", module.id);
     const tag = module.tags && module.tags[0] || "\u5B98\u65B9";
-    return '<div class="kit-card compact recommended' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('official','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u5B98\u65B9 \xB7 ' + esc(tag) + '</div><div class="kit-card-name">' + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
+    return '<div class="kit-card compact recommended' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('official','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u5B98\u65B9 \xB7 ' + esc(tag) + '</div><div class="kit-card-name"><span class="kit-card-emoji" aria-hidden="true">' + esc(module.icon || "\u{1F9F0}") + "</span>" + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
   }
   function renderMyModuleCard(module) {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
     const added = S.currentModuleAction === "add" && isModuleOnCurrentTrip("custom", module.id);
-    return '<div class="kit-card compact' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('custom','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u6211\u7684\u5C0F\u5305</div><div class="kit-card-name">' + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
+    return '<div class="kit-card compact' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('custom','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u6211\u7684\u5C0F\u5305</div><div class="kit-card-name"><span class="kit-card-emoji" aria-hidden="true">' + esc(module.icon || "\u{1F9F0}") + "</span>" + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
   }
   function openModuleDetail(source, id) {
     S.currentModule = { source, id };
@@ -2514,9 +2517,11 @@
     const smartCount = moduleItems.filter((item) => item.smartRule !== "fixed").length;
     document.getElementById("moduleDetailTitle").textContent = entity.name;
     document.getElementById("moduleDetailSummary").innerHTML = '<div class="module-detail-badges"><span class="mini-badge">' + (source === "official" ? "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305") + '</span><span class="mini-badge soft">' + moduleItems.length + " \u4EF6</span>" + (smartCount ? '<span class="mini-badge soft">' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF</span>" : "") + '</div><p class="module-detail-desc">' + esc(entity.desc || "\u53EF\u590D\u7528\u7684\u6253\u5305\u6A21\u5757\uFF0C\u521B\u5EFA\u884C\u7A0B\u65F6\u53EF\u4E00\u952E\u52A0\u5165\u3002") + "</p>";
-    document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item) => renderModuleDetailItemRow(item)).join("") : '<div class="empty-panel"><div class="empty-hint">\u70B9\u300C\u7F16\u8F91\u7269\u54C1\u300D\u6DFB\u52A0\u6216\u5220\u9664\u3002</div></div>';
+    document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item, index) => renderModuleDetailItemRow(item, index)).join("") : '<div class="empty-panel"><div class="empty-hint">\u8FD9\u4E2A\u5305\u8FD8\u662F\u7A7A\u7684\uFF0C\u5728\u4E0B\u65B9\u76F4\u63A5\u8F93\u5165\u7269\u54C1\u540D\u79F0\u3002</div></div>';
     document.getElementById("moduleEditBtn").style.display = "inline-flex";
-    document.getElementById("moduleEditBtn").textContent = "\u7F16\u8F91\u7269\u54C1";
+    document.getElementById("moduleEditBtn").textContent = "\u8C03\u6574\u6570\u91CF";
+    const quickAddInput = document.getElementById("moduleQuickAddInput");
+    if (quickAddInput) quickAddInput.value = "";
     const deleteBtn = document.getElementById("moduleDeleteBtn");
     deleteBtn.style.display = "inline-flex";
     deleteBtn.textContent = source === "official" ? "\u5220\u9664\u5B98\u65B9\u5C0F\u5305" : "\u5220\u9664\u5C0F\u5305";
@@ -2547,9 +2552,57 @@
     refreshTripHub();
     toast(source === "official" ? "\u5DF2\u5220\u9664\uFF0C\u53EF\u5728\u300C\u6211\u7684\u300D\u4E2D\u6062\u590D" : "\u5DF2\u5220\u9664\u5C0F\u5305");
   }
-  function renderModuleDetailItemRow(item) {
+  function renderModuleDetailItemRow(item, index) {
     const cat = catInfo(item.category);
-    return '<div class="module-detail-row"><div class="module-detail-main"><span class="module-detail-name">' + esc(item.name) + '</span><span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== "fixed" ? " \xB7 \u667A\u80FD\u6570\u91CF" : "") + '</span></div><span class="module-detail-qty">\xD7' + item.defaultQty + "</span></div>";
+    return '<div class="module-detail-row"><div class="module-detail-main"><span class="module-detail-name">' + esc(item.name) + '</span><span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== "fixed" ? " \xB7 \u667A\u80FD\u6570\u91CF" : "") + '</span></div><span class="module-detail-qty">\xD7' + item.defaultQty + '</span><button type="button" class="module-item-remove" data-remove-detail-item="' + index + '" aria-label="\u4ECE\u5C0F\u5305\u79FB\u9664 ' + esc(item.name) + '">\xD7</button></div>';
+  }
+  function quickAddItemToCurrentModule() {
+    if (!S.currentModule) return;
+    const input = document.getElementById("moduleQuickAddInput");
+    const name = input == null ? void 0 : input.value.trim();
+    if (!name) {
+      toast("\u8BF7\u8F93\u5165\u7269\u54C1\u540D\u79F0");
+      input == null ? void 0 : input.focus();
+      return;
+    }
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    if ((entity.items || []).some((item) => item.name.trim().toLowerCase() === name.toLowerCase())) {
+      toast("\u8FD9\u4E2A\u7269\u54C1\u5DF2\u5728\u5305\u5185");
+      input == null ? void 0 : input.select();
+      return;
+    }
+    const moduleItem = normalizeModuleItem({ name });
+    const saved = saveModuleEntityItems(source, id, [...entity.items || [], moduleItem]);
+    if (!saved) {
+      toast("\u6DFB\u52A0\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
+    upsertLibraryFromModuleItem(moduleItem);
+    renderModuleDetailModal(source, id);
+    renderModuleLibrary();
+    toast("\u5DF2\u52A0\u5165\u300C" + entity.name + "\u300D");
+    setTimeout(() => {
+      var _a;
+      return (_a = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _a.focus();
+    }, 0);
+  }
+  function removeItemFromCurrentModule(index) {
+    if (!S.currentModule) return;
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity || index < 0 || index >= (entity.items || []).length) return;
+    const items = [...entity.items];
+    const [removed] = items.splice(index, 1);
+    const saved = saveModuleEntityItems(source, id, items);
+    if (!saved) {
+      toast("\u79FB\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
+    renderModuleDetailModal(source, id);
+    renderModuleLibrary();
+    toast("\u5DF2\u79FB\u9664\u300C" + removed.name + "\u300D");
   }
   function tripOrModuleItemToModuleItem(item) {
     return normalizeModuleItem({
@@ -3772,6 +3825,8 @@
     saveCustomModule,
     deleteCurrentModuleDraft,
     deleteCurrentModuleFromDetail,
+    quickAddItemToCurrentModule,
+    removeItemFromCurrentModule,
     toggleModuleAddPanel,
     updateModuleBuilderSearch,
     useCurrentModule,

@@ -7,12 +7,13 @@ const RETIRED_OFFICIAL_MODULE_IDS = new Set([
     'module-baby-comfort',
     'module-baby-snacks',
 ]);
-const OFFICIAL_SEED_VERSION = 5;
+const OFFICIAL_SEED_VERSION = 6;
 const REVISED_OFFICIAL_MODULE_IDS = new Set([
     'module-hygiene',
     'module-makeup',
     'module-docs',
     'module-skincare',
+    'module-adult-medicine',
     'module-clothing',
     'module-baby-base',
     'module-baby-feeding',
@@ -25,12 +26,14 @@ const REVISED_OFFICIAL_MODULE_IDS = new Set([
     'module-electronics',
     'module-international',
     'module-long-haul-flight',
+    'module-road-trip',
 ]);
 const LEGACY_OFFICIAL_MODULE_NAMES = {
     'module-hygiene': ['洗漱包'],
     'module-makeup': ['化妆包'],
     'module-docs': ['证件包'],
     'module-skincare': ['护肤包'],
+    'module-adult-medicine': ['常备药包'],
     'module-clothing': ['衣服包'],
     'module-baby-base': ['宝宝基础包', '宝宝换洗护理包', '宝宝日常出门包'],
     'module-baby-feeding': ['喂养插件包', '宝宝喂养包'],
@@ -43,6 +46,7 @@ const LEGACY_OFFICIAL_MODULE_NAMES = {
     'module-electronics': ['电子包'],
     'module-international': ['海外出行包'],
     'module-long-haul-flight': ['长途飞机场景'],
+    'module-road-trip': ['自驾出行包'],
 };
 
 /**
