@@ -14,7 +14,7 @@ import {
     normalizeTripItem, normalizeModuleItem, normalizeLibraryItem,
     // store
     readJson, writeJson, getRecords, saveRecords, saveRecord,
-    getOfficialModules, saveOfficialModules, getTrips, getMyModules,
+    getOfficialModules, saveOfficialModules, markOfficialModuleDeleted, getTrips, getMyModules,
     // libraryService
     sortLibraryItems, getItemLibrary, saveItemLibrary, buildSeedItemLibrary,
     ensureItemLibrarySeeded, syncItemsIntoLibrary, createModuleItemFromAsset,
@@ -28,7 +28,7 @@ import {
 } from './src/data/index.js';
 
 let S = {
-    currentPage: 'home',
+    currentPage: 'list',
     currentTripId: null,
     currentTrip: null,
     currentModule: null,
@@ -56,28 +56,151 @@ let S = {
     tripBuilderSelection: new Set(),
     moduleBuilderItems: [],
     moduleItemEditContext: null,
+    tripActionsTargetId: null,
     kitView: 'compact',
     collapsedBags: new Set(),
-    tripInfoCollapsed: false,
+    tripInfoCollapsed: true,
+    moduleAddPanelOpen: false,
     currentEditingTags: [],
 };
+let modalReturnFocus = null;
 
 function init() {
     ensureItemLibrarySeeded();
+    applyRuntimeCapabilityClasses();
+    bindDeclarativeActions();
     setupModalOverlays();
-    setupModuleBuilderGesture();
     fillCatSelect('libraryItemCategory');
     fillBagSelect('libraryItemBag', null, DEFAULT_BAGS);
     fillCatSelect('manualItemCategory');
     fillCatSelect('tripItemCategory');
-    fillCatSelect('moduleQuickItemCategory');
     fillCatSelect('moduleItemCategory');
     fillBagSelect('moduleItemBag', null, DEFAULT_BAGS);
     bindFormEvents();
-    nav('home');
-    if (!localStorage.getItem(STORAGE_KEYS.onboarded)) {
+    openTripPage();
+    if (!safeStorageGet(STORAGE_KEYS.onboarded)) {
         setTimeout(startOnboarding, 400);
     }
+}
+
+function safeStorageGet(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch (error) {
+        return null;
+    }
+}
+
+function safeStorageSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function safeStorageRemove(key) {
+    try {
+        localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function applyRuntimeCapabilityClasses() {
+    const flex = document.createElement('div');
+    flex.style.position = 'absolute';
+    flex.style.visibility = 'hidden';
+    flex.style.display = 'flex';
+    flex.style.flexDirection = 'column';
+    flex.style.rowGap = '1px';
+    flex.appendChild(document.createElement('div'));
+    flex.appendChild(document.createElement('div'));
+    document.body.appendChild(flex);
+    const supportsFlexGap = flex.scrollHeight === 1;
+    flex.parentNode.removeChild(flex);
+    document.documentElement.classList.add(supportsFlexGap ? 'supports-flex-gap' : 'no-flex-gap');
+}
+
+const ACTION_EVENT_ATTRIBUTES = {
+    click: 'actionClick',
+    input: 'actionInput',
+    change: 'actionChange',
+};
+
+function bindDeclarativeActions() {
+    Object.keys(ACTION_EVENT_ATTRIBUTES).forEach(eventName => {
+        document.addEventListener(eventName, event => {
+            const actionElement = event.target.closest('[data-action-' + eventName + ']');
+            if (!actionElement) return;
+            const expression = actionElement.dataset[ACTION_EVENT_ATTRIBUTES[eventName]];
+            runDeclarativeAction(expression, actionElement, event);
+        });
+    });
+}
+
+function runDeclarativeAction(expression, element, event) {
+    let source = String(expression || '').trim();
+    if (!source) return;
+
+    const selfTargetPrefix = 'if(event.target===this)';
+    if (source.indexOf(selfTargetPrefix) === 0) {
+        if (event.target !== element) return;
+        source = source.slice(selfTargetPrefix.length);
+    }
+
+    source.split(';').map(statement => statement.trim()).filter(Boolean).forEach(statement => {
+        if (statement === 'event.stopPropagation()') {
+            event.stopPropagation();
+            return;
+        }
+        const call = statement.match(/^([A-Za-z_$][\w$]*)\((.*)\)$/);
+        if (!call) return;
+        const action = window[call[1]];
+        if (typeof action !== 'function') return;
+        action.apply(element, parseDeclarativeArguments(call[2], element, event));
+    });
+}
+
+function parseDeclarativeArguments(source, element, event) {
+    if (!source.trim()) return [];
+    const tokens = [];
+    let token = '';
+    let quote = '';
+    for (let index = 0; index < source.length; index += 1) {
+        const char = source[index];
+        if (quote) {
+            token += char;
+            if (char === quote && source[index - 1] !== '\\') quote = '';
+        } else if (char === '\'' || char === '"') {
+            quote = char;
+            token += char;
+        } else if (char === ',') {
+            tokens.push(token.trim());
+            token = '';
+        } else {
+            token += char;
+        }
+    }
+    tokens.push(token.trim());
+    return tokens.map(value => parseDeclarativeValue(value, element, event));
+}
+
+function parseDeclarativeValue(value, element, event) {
+    if (value === 'this.value') return element.value;
+    if (value === 'S.tripMode') return S.tripMode;
+    if (value === 'event') return event;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (value === 'null') return null;
+    if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+    if ((value[0] === '\'' && value[value.length - 1] === '\'') ||
+        (value[0] === '"' && value[value.length - 1] === '"')) {
+        return value.slice(1, -1).replace(/\\(['"\\])/g, '$1');
+    }
+    return value;
 }
 
 function bindFormEvents() {
@@ -106,17 +229,19 @@ function bindFormEvents() {
         updateTripItemSmartMeta();
     });
 
-    document.getElementById('moduleQuickItemName')?.addEventListener('input', updateModuleQuickItemCategory);
-    document.getElementById('moduleQuickItemCategory')?.addEventListener('change', updateModuleQuickItemCategory);
-
-    document.getElementById('libraryItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLibraryItemTag(); } });
-    document.getElementById('tripItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTripItemTag(); } });
-
-    document.getElementById('moduleItemCategory')?.addEventListener('change', () => {
-        syncBagWithCategory('moduleItemCategory', 'moduleItemBag', DEFAULT_BAGS);
-        updateModuleItemSmartHint();
-    });
     document.getElementById('moduleItemQty')?.addEventListener('input', updateModuleItemSmartHint);
+
+    document.getElementById('moduleBuilderItems')?.addEventListener('click', e => {
+        const tile = e.target.closest('.picker-item');
+        if (!tile?.dataset.itemId) return;
+        addModuleBuilderItemByAssetId(tile.dataset.itemId);
+    });
+
+    document.getElementById('moduleBuilderSelectedItems')?.addEventListener('click', e => {
+        const btn = e.target.closest('[data-remove-module-item]');
+        if (!btn) return;
+        removeModuleBuilderItem(btn.dataset.removeModuleItem);
+    });
 
     document.getElementById('libraryItemTagsDisplay')?.addEventListener('click', e => {
         const btn = e.target.closest('.item-tag-remove');
@@ -130,15 +255,29 @@ function bindFormEvents() {
         e.preventDefault();
         removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
+
+    document.getElementById('listContent')?.addEventListener('click', e => {
+        const card = e.target.closest('[data-trip-item-id]');
+        if (!card || S.tripMode !== 'plan') return;
+        openTripItemModal(card.dataset.tripItemId);
+    });
+
+    document.getElementById('libraryItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addLibraryItemTag(); } });
+    document.getElementById('tripItemTagInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTripItemTag(); } });
+
+    document.getElementById('moduleItemCategory')?.addEventListener('change', () => {
+        syncBagWithCategory('moduleItemCategory', 'moduleItemBag', DEFAULT_BAGS);
+        updateModuleItemSmartHint();
+    });
 }
 
 function nav(page) {
+    if (page === 'itemlibrary') page = 'items';
     S.currentPage = page;
     document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.dataset.page === page));
     renderHeader();
     renderBottomNav();
 
-    if (page === 'home') renderHome();
     if (page === 'kits') renderModuleLibrary();
     if (page === 'items') renderItemLibrary();
     if (page === 'list') renderTripPage();
@@ -151,30 +290,24 @@ function openMainPage(page) {
     nav(page);
 }
 
+function openSubPage(page, returnTo) {
+    S.returnPage = returnTo;
+    S.currentModuleAction = 'browse';
+    nav(page);
+}
+
 function openTripPage() {
     S.returnPage = null;
     S.currentModuleAction = 'browse';
-
-    if (S.currentTrip) {
-        nav('list');
-        return;
-    }
-
-    const trips = getTrips();
-    if (!trips.length) {
-        S.currentTripId = null;
-        S.currentTrip = null;
-        nav('list');
-        return;
-    }
-
-    const active = trips.find(trip => getTripStatus(trip).key !== 'done') || trips[0];
-    openTrip(active.id, 'plan');
+    nav('list');
 }
 
 function goBack() {
-    if (S.currentPage === 'list') {
-        nav('home');
+    if (S.currentPage === 'list' && S.currentTrip) {
+        S.currentTrip = null;
+        S.currentTripId = null;
+        renderHeader();
+        renderTripPage();
         return;
     }
     if (S.returnPage) {
@@ -184,7 +317,11 @@ function goBack() {
         nav(target);
         return;
     }
-    nav('home');
+    nav('list');
+}
+
+function refreshTripHub() {
+    if (S.currentPage === 'list' && !S.currentTrip) renderTripPage();
 }
 
 function renderHeader() {
@@ -193,28 +330,33 @@ function renderHeader() {
     const eyebrow = document.getElementById('headerEyebrow');
     const right = document.getElementById('headerRight');
 
-    backWrap.style.visibility = (S.currentPage === 'list' || S.returnPage) ? 'visible' : 'hidden';
+    backWrap.style.visibility = ((S.currentPage === 'list' && S.currentTrip) || S.returnPage) ? 'visible' : 'hidden';
     right.innerHTML = '';
+    right.className = 'header-right';
 
-    if (S.currentPage === 'home') {
-        title.textContent = '行理';
-        eyebrow.textContent = '物品库 → 小包 → 行程';
-        right.innerHTML = '<button class="btn-icon" onclick="openCreateTripModal()" aria-label="新建行程">＋</button>';
-    } else if (S.currentPage === 'kits') {
+    if (S.currentPage === 'kits') {
         title.textContent = '小包';
-        eyebrow.textContent = S.currentModuleAction === 'add' ? '把小包加进当前行程单' : '先沉淀，再复用';
-        right.innerHTML = '<button class="btn-icon" onclick="openCreateModuleModal()" aria-label="新建小包">＋</button>';
+        eyebrow.textContent = S.currentModuleAction === 'add' ? '加入当前行程' : '可复用的打包模块';
+        right.innerHTML = '<button class="btn-icon" data-action-click="openCreateModuleModal()" aria-label="新建小包">＋</button>';
     } else if (S.currentPage === 'items') {
         title.textContent = '物品库';
-        eyebrow.textContent = S.currentTrip ? '从物品库给当前行程补货' : '沉淀你的标准物品资产';
-        right.innerHTML = '<button class="btn-icon" onclick="openLibraryItemModal()" aria-label="新增物品">＋</button>';
+        eyebrow.textContent = S.currentTrip ? '给当前行程补货' : '常用物品一处管理';
+        right.innerHTML = '<button class="btn-icon" data-action-click="openLibraryItemModal()" aria-label="新增物品">＋</button>';
+    } else if (S.currentPage === 'list' && !S.currentTrip) {
+        title.textContent = '行程';
+        eyebrow.textContent = '规划 · 打包 · 出发';
+        right.innerHTML = '<button class="btn-icon" data-action-click="openCreateTripModal()" aria-label="新建行程">＋</button>';
     } else if (S.currentPage === 'list') {
-        title.textContent = '行程详情';
-        eyebrow.textContent = S.tripMode === 'plan' ? '规划模式：组合小包、补充物品、智能建议' : '打包模式：对照实物勾选';
-        right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="切换模式">' + (S.tripMode === 'plan' ? '🎒' : '✏️') + '</button>';
+        title.textContent = S.currentTrip?.name || '行程';
+        eyebrow.textContent = formatTripMeta(S.currentTrip);
+        right.className = 'header-right wide';
+        right.innerHTML = '<div class="header-mode-switch">' +
+            '<button type="button" class="header-mode-tab' + (S.tripMode === 'plan' ? ' active' : '') + '" data-action-click="setTripMode(\'plan\')">规划</button>' +
+            '<button type="button" class="header-mode-tab' + (S.tripMode === 'pack' ? ' active' : '') + '" data-action-click="setTripMode(\'pack\')">打包</button>' +
+            '</div>';
     } else if (S.currentPage === 'me') {
         title.textContent = '我的';
-        eyebrow.textContent = '设置与数据管理';
+        eyebrow.textContent = '设置与数据';
         right.innerHTML = '';
     }
 }
@@ -225,154 +367,119 @@ function renderBottomNav() {
     });
 }
 
-function renderHome() {
+function renderTripHub() {
     const trips = getTrips();
-    const modules = getMyModules();
-    const library = getItemLibrary();
-    const active = trips.find(trip => getTripStatus(trip).key !== 'done') || null;
-    const rest = trips.filter(trip => trip.id !== active?.id);
-    const recent = rest.filter(t => getTripStatus(t).key !== 'done').slice(0, 3);
-    const history = getDoneTrips();
+    const summaryBox = document.getElementById('listSummary');
+    const switchBox = document.getElementById('listModeSwitch');
+    const actionBar = document.getElementById('listActionBar');
+    const subBar = document.getElementById('listSubBar');
+    const content = document.getElementById('listContent');
+    if (!summaryBox || !content) return;
 
-    const isNewUser = !trips.length && !modules.length;
-    const heroEl = document.getElementById('homeHero');
-    if (heroEl) heroEl.style.display = isNewUser ? 'block' : 'none';
+    switchBox.innerHTML = '';
+    actionBar.innerHTML = '';
+    subBar.innerHTML = '';
 
-    const statsEl = document.getElementById('homeStats');
-    if (statsEl) {
-        statsEl.innerHTML = isNewUser ? '' : '<span>' + trips.length + ' 个行程</span><span class="qs-dot">·</span><span>' + (modules.length + getOfficialModules().length) + ' 个小包</span><span class="qs-dot">·</span><span>' + library.length + ' 件物品</span>';
-    }
-
-    const content = document.getElementById('homeContent');
-    if (!content) return;
-
-    // 新用户：展示 feature highlights
-    if (isNewUser) {
-        content.innerHTML = renderNewUserGuide();
+    if (!trips.length) {
+        summaryBox.innerHTML = '';
+        content.innerHTML = '<div class="trip-hub">' +
+            '<div class="empty-hero">' +
+            '<img class="empty-mascot" src="assets/xingli-dog-mascot.png" alt="" aria-hidden="true">' +
+            '<div class="empty-kicker">开始第一次出行</div>' +
+            '<div class="empty-title">还没有行程</div>' +
+            '<div class="empty-hint">用小包拼出清单，再按天按人智能建议数量。</div>' +
+            '</div>' +
+            '<div class="empty-steps">' +
+            '<div class="empty-step"><span class="empty-step-num">1</span><div><div class="empty-step-title">整理小包</div><div class="empty-step-desc">洗漱、化妆、证件等常带组合</div></div></div>' +
+            '<div class="empty-step"><span class="empty-step-num">2</span><div><div class="empty-step-title">新建行程</div><div class="empty-step-desc">勾选这次要带的小包</div></div></div>' +
+            '<div class="empty-step"><span class="empty-step-num">3</span><div><div class="empty-step-title">打包勾选</div><div class="empty-step-desc">对照实物逐项打勾</div></div></div>' +
+            '</div>' +
+            '<div class="empty-actions stacked">' +
+            '<button class="btn-primary wide" type="button" data-action-click="openCreateTripModal()">新建行程</button>' +
+            '<button class="btn-secondary wide" type="button" data-action-click="openMainPage(\'kits\')">先看小包</button>' +
+            '</div></div>';
         return;
     }
 
+    const active = trips.filter(trip => getTripStatus(trip).key !== 'done');
+    const done = trips.filter(trip => getTripStatus(trip).key === 'done');
+    summaryBox.innerHTML = '<div class="hub-toolbar">' +
+        '<img class="hub-mascot" src="assets/xingli-dog-mascot.png" alt="" aria-hidden="true">' +
+        '<div class="hub-toolbar-copy">' +
+        '<div class="hub-toolbar-title">我的行程</div>' +
+        '<div class="hub-toolbar-meta">' + active.length + ' 个进行中 · 共 ' + trips.length + ' 个</div>' +
+        '</div>' +
+        '<button class="btn-primary" type="button" data-action-click="openCreateTripModal()">新建</button>' +
+        '</div>';
+
     let html = '';
-
-    // 进行中行程（有才显示，没有不占位）
-    if (active) {
-        html += '<section class="section">' +
-            '<div class="section-head">' +
-            '<h3 class="section-title">进行中</h3>' +
-            '<span class="section-meta">' + getTripStatus(active).label + '</span>' +
-            '</div>' +
-            renderActiveTrip(active) +
-            '</section>';
+    if (active.length) {
+        html += '<section class="section trip-home-section"><div class="section-head"><h3 class="section-title">进行中</h3><span class="section-meta">' + active.length + '</span></div>' +
+            '<div class="trip-list-compact">' + active.map(renderTripCardCompact).join('') + '</div></section>';
     } else {
-        // 没有进行中行程：用一个轻量的 CTA banner
-        html += '<div class="home-cta-banner" onclick="openCreateTripModal()">' +
-            '<div class="home-cta-icon">📝</div>' +
-            '<div class="home-cta-body">' +
-            '<div class="home-cta-title">新建行程</div>' +
-            '<div class="home-cta-desc">选几个小包，智能生成打包清单</div>' +
-            '</div>' +
-            '<div class="home-cta-arrow">›</div>' +
-            '</div>';
+        html += '<div class="soft-banner">暂无进行中的行程，点右上角新建一张。</div>';
     }
-
-    // 最近行程
-    if (recent.length) {
-        html += '<section class="section">' +
-            '<div class="section-head">' +
-            '<h3 class="section-title">最近</h3>' +
-            '</div>' +
-            '<div class="trip-list-compact">' + recent.map(renderTripCardCompact).join('') + '</div>' +
-            '</section>';
-    }
-
-    // 历史行程（已完成的）
-    if (history.length) {
-        const showing = S.homeHistoryExpanded ? history : history.slice(0, 2);
-        html += '<section class="section">' +
-            '<div class="section-head">' +
+    if (done.length) {
+        const showing = S.homeHistoryExpanded ? done : done.slice(0, 3);
+        html += '<section class="section trip-home-section section-gap-top"><div class="section-head">' +
             '<h3 class="section-title">已完成</h3>' +
-            '<span class="section-meta section-link" onclick="toggleHomeHistory()">' +
-            (S.homeHistoryExpanded ? '收起' : (history.length > 2 ? '查看全部 ' + history.length + ' 条' : '')) +
-            '</span>' +
-            '</div>' +
-            '<div class="trip-list-compact">' + showing.map(renderTripCardCompact).join('') + '</div>' +
-            '</section>';
+            (done.length > 3 ? '<span class="section-meta section-link" data-action-click="toggleHomeHistory()">' +
+                (S.homeHistoryExpanded ? '收起' : '全部 ' + done.length) + '</span>' : '<span class="section-meta">' + done.length + '</span>') +
+            '</div><div class="trip-list-compact">' + showing.map(renderTripCardCompact).join('') + '</div></section>';
     }
-
     content.innerHTML = html;
 }
 
-function renderNewUserGuide() {
-    return '<div class="home-features">' +
-        '<div class="feature-card" onclick="openMainPage(\'kits\')">' +
-        '<div class="feature-icon">🧰</div>' +
-        '<div class="feature-body">' +
-        '<div class="feature-title">整理小包</div>' +
-        '<div class="feature-desc">把常带物品按用途分组，比如洗漱包、化妆包。系统已预置 9 个官方小包。</div>' +
-        '</div>' +
-        '<div class="home-cta-arrow">\u203A</div>' +
-        '</div>' +
-        '<div class="feature-card" onclick="openCreateTripModal()">' +
-        '<div class="feature-icon">📝</div>' +
-        '<div class="feature-body">' +
-        '<div class="feature-title">新建行程</div>' +
-        '<div class="feature-desc">勾选需要的小包，系统自动合并物品并按天数、人数建议数量。</div>' +
-        '</div>' +
-        '<div class="home-cta-arrow">\u203A</div>' +
-        '</div>' +
-        '<div class="feature-card" onclick="openMainPage(\'items\')">' +
-        '<div class="feature-icon">🎒</div>' +
-        '<div class="feature-body">' +
-        '<div class="feature-title">物品库</div>' +
-        '<div class="feature-desc">管理你的物品库，添加个人常用物品，打包时随手挑选。</div>' +
-        '</div>' +
-        '<div class="home-cta-arrow">\u203A</div>' +
-        '</div>' +
-        '</div>';
-}
-
-function renderHomeEmpty() {
-    return '';
-}
-
-function renderActiveTrip(trip) {
-    const progress = getTripProgress(trip);
-    const status = getTripStatus(trip);
-    return '<div class="active-trip-card">' +
-        '<div class="active-trip-top">' +
-        '<span class="status-chip ' + status.key + '">' + status.label + '</span>' +
-        '<span class="section-meta">' + esc(formatTripMeta(trip)) + '</span>' +
-        '</div>' +
-        '<div class="list-summary-title">' + esc(trip.name) + '</div>' +
-        '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + '</div>' +
-        renderProgress(progress) +
-        '<div class="hero-actions" style="margin-top:14px;">' +
-        '<button class="btn-secondary" onclick="openTrip(\'' + trip.id + '\',\'plan\')">继续规划</button>' +
-        '<button class="btn-primary" onclick="openTrip(\'' + trip.id + '\',\'pack\')">开始打包</button>' +
-        '</div></div>';
+function toggleHomeHistory() {
+    if (getDoneTrips().length <= 3) return;
+    S.homeHistoryExpanded = !S.homeHistoryExpanded;
+    refreshTripHub();
 }
 
 function renderTripCardCompact(trip) {
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
-    const openMode = status.key === 'done' ? 'plan' : 'pack';
-    return '<div class="trip-card-compact">' +
-        '<div class="trip-card-compact-main" onclick="openTrip(\'' + trip.id + '\',\'' + openMode + '\')">' +
-        '<div class="trip-compact-icon">' + status.icon + '</div>' +
-        '<div class="trip-compact-body">' +
-        '<div class="trip-compact-name">' + esc(trip.name) + '</div>' +
-        '<div class="trip-compact-meta">' + esc(formatTripMeta(trip)) + '</div>' +
+    const openMode = progress.packed > 0 && status.key !== 'done' ? 'pack' : 'plan';
+    return '<div class="trip-row">' +
+        '<button type="button" class="trip-row-hit" data-action-click="openTrip(\'' + trip.id + '\',\'' + openMode + '\')">' +
+        '<div class="trip-row-content">' +
+        '<div class="trip-row-top">' +
+        '<div class="trip-row-title">' + esc(trip.name) + '</div>' +
+        '<span class="status-chip ' + status.key + '">' + status.label + '</span>' +
         '</div>' +
-        '<div class="trip-compact-progress">' +
-        '<div class="progress-ring" style="--pct:' + progress.pct + '">' +
-        '<span class="progress-ring-text">' + progress.pct + '%</span>' +
-        '</div>' +
+        '<div class="trip-row-subtitle">' + esc(formatTripMeta(trip)) +
+        (trip.sourceModules?.length ? ' · ' + esc(formatTripSourceSummary(trip)) : '') +
         '</div>' +
         '</div>' +
-        '<div class="trip-compact-actions">' +
-        '<button type="button" class="icon-action compact" onclick="duplicateTrip(\'' + trip.id + '\')" title="复制行程" aria-label="复制行程">📋</button>' +
-        '<button type="button" class="icon-action compact" onclick="deleteTrip(\'' + trip.id + '\')" title="删除行程" aria-label="删除行程">🗑️</button>' +
-        '</div></div>';
+        '<div class="trip-row-trail">' +
+        '<div class="progress-ring progress-ring-sm" style="--pct:' + progress.pct + '">' +
+        '<span class="progress-ring-text">' + progress.pct + '%</span></div>' +
+        '<span class="trip-row-chevron" aria-hidden="true">›</span>' +
+        '</div></button>' +
+        '<button type="button" class="trip-row-menu" data-action-click="openTripActionsSheet(\'' + trip.id + '\')" aria-label="更多操作">⋯</button>' +
+        '</div>';
+}
+
+function openTripActionsSheet(tripId) {
+    S.tripActionsTargetId = tripId;
+    document.getElementById('tripActionsSheet')?.classList.add('active');
+}
+
+function closeTripActionsSheet() {
+    S.tripActionsTargetId = null;
+    document.getElementById('tripActionsSheet')?.classList.remove('active');
+}
+
+function duplicateTripFromSheet() {
+    const id = S.tripActionsTargetId;
+    closeTripActionsSheet();
+    if (id) duplicateTrip(id);
+}
+
+function deleteTripFromSheet() {
+    const id = S.tripActionsTargetId;
+    closeTripActionsSheet();
+    if (id) deleteTrip(id);
 }
 
 function renderTripSourceModulesBar(trip) {
@@ -388,7 +495,7 @@ function renderTripSourceModulesBar(trip) {
         '<div class="trip-module-chips">' +
         modules.map(module =>
             '<span class="trip-module-chip">' + esc(module.name) +
-            '<button type="button" class="chip-remove" onclick="removeModuleFromCurrentTrip(\'' + module.source + '\', \'' + module.id + '\')" aria-label="移除 ' + esc(module.name) + '">×</button></span>'
+            '<button type="button" class="chip-remove" data-action-click="removeModuleFromCurrentTrip(\'' + module.source + '\', \'' + module.id + '\')" aria-label="移除 ' + esc(module.name) + '">×</button></span>'
         ).join('') +
         '</div></div>';
 }
@@ -404,12 +511,6 @@ function getDoneTrips() {
     return getTrips().filter(trip => getTripStatus(trip).key === 'done');
 }
 
-function toggleHomeHistory() {
-    if (getDoneTrips().length <= 2) return;
-    S.homeHistoryExpanded = !S.homeHistoryExpanded;
-    renderHome();
-}
-
 function renderTripPage() {
     const summaryBox = document.getElementById('listSummary');
     const switchBox = document.getElementById('listModeSwitch');
@@ -418,18 +519,7 @@ function renderTripPage() {
     const content = document.getElementById('listContent');
 
     if (!S.currentTrip) {
-        summaryBox.innerHTML = '<div class="empty-panel">' +
-            '<div class="empty-icon">📭</div>' +
-            '<div class="empty-title">还没有打开的行程</div>' +
-            '<div class="empty-hint">从首页进入进行中的行程，或新建一张行程单开始整理。</div>' +
-            '<div class="empty-actions">' +
-            '<button class="btn-secondary" type="button" onclick="openMainPage(\'home\')">回首页</button>' +
-            '<button class="btn-primary" type="button" onclick="openCreateTripModal()">新建行程</button>' +
-            '</div></div>';
-        switchBox.innerHTML = '';
-        actionBar.innerHTML = '';
-        subBar.innerHTML = '';
-        content.innerHTML = '';
+        renderTripHub();
         return;
     }
 
@@ -439,77 +529,78 @@ function renderTripPage() {
     const smartCount = trip.items.filter(item => item.smartRule !== 'fixed').length;
 
     const collapsed = S.tripInfoCollapsed ? ' collapsed' : '';
+    const cardClass = 'list-summary-card' + (S.tripInfoCollapsed ? ' is-collapsed' : '') + (S.tripMode === 'pack' ? ' pack-mode' : '');
     const allTrips = getTrips();
     const tripSwitcher = allTrips.length > 1
         ? '<div class="trip-switch-row">' +
-        '<span class="trip-switch-label">切换行程</span>' +
-        '<select class="trip-switch-select" aria-label="切换行程" onchange="openTrip(this.value, S.tripMode)">' +
+        '<select class="trip-switch-select" aria-label="切换行程" data-action-change="openTrip(this.value, S.tripMode)">' +
         allTrips.map(entry => '<option value="' + entry.id + '"' + (entry.id === trip.id ? ' selected' : '') + '>' + esc(entry.name) + '</option>').join('') +
         '</select></div>'
         : '';
-    summaryBox.innerHTML = '<div class="list-summary-card">' +
-        '<div class="list-summary-top">' +
-        '<div>' +
-        '<div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div>' +
-        tripSwitcher +
-        '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + ' · ' + esc(formatTripMeta(trip)) + '</div>' +
+    summaryBox.innerHTML = '<div class="' + cardClass + '">' +
+        '<div class="trip-summary-bar" data-action-click="toggleTripInfoCard()">' +
+        '<div class="trip-summary-bar-main">' +
+        '<div class="list-summary-title">' + esc(trip.name) + '</div>' +
+        '<span class="status-chip ' + status.key + '">' + status.label + '</span>' +
+        '<span class="trip-summary-pct">' + progress.pct + '%</span>' +
         '</div>' +
-        '<button class="pill-button" onclick="saveCurrentTripAsModule()">存为小包</button>' +
-        '</div>' +
-        renderProgress(progress) +
-        '<div class="trip-info-toggle" onclick="toggleTripInfoCard()">' +
-        '<span class="trip-info-toggle-text">行程设置</span>' +
         '<span class="trip-info-toggle-arrow' + collapsed + '">▼</span>' +
         '</div>' +
+        tripSwitcher +
+        '<div class="trip-summary-expanded">' +
+        '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + ' · ' + esc(formatTripMeta(trip)) + '</div>' +
+        renderProgress(progress) +
         '<div class="trip-info-body' + collapsed + '">' +
         '<div class="trip-info-row">' +
         '<div class="trip-info-row-label">天数</div>' +
         '<div class="stepper">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', -1)">−</button>' +
-        '<input type="number" min="1" max="90" value="' + trip.days + '" aria-label="行程天数" onchange="updateCurrentTripSetting(\'days\', this.value)">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'days\', 1)">+</button>' +
-        '</div>' +
-        '</div>' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'days\', -1)">−</button>' +
+        '<input type="number" min="1" max="90" value="' + trip.days + '" aria-label="行程天数" data-action-change="updateCurrentTripSetting(\'days\', this.value)">' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'days\', 1)">+</button>' +
+        '</div></div>' +
         '<div class="trip-info-row">' +
         '<div class="trip-info-row-label">人数</div>' +
         '<div class="stepper">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', -1)">−</button>' +
-        '<input type="number" min="1" max="20" value="' + trip.people + '" aria-label="出行人数" onchange="updateCurrentTripSetting(\'people\', this.value)">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'people\', 1)">+</button>' +
-        '</div>' +
-        '</div>' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'people\', -1)">−</button>' +
+        '<input type="number" min="1" max="20" value="' + trip.people + '" aria-label="出行人数" data-action-change="updateCurrentTripSetting(\'people\', this.value)">' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'people\', 1)">+</button>' +
+        '</div></div>' +
         '<div class="trip-info-actions">' +
+        '<button type="button" class="btn-ghost" data-action-click="saveCurrentTripAsModule()">存为小包</button>' +
         ((trip.sourceModules || []).length
-            ? '<button type="button" class="btn-recompute" onclick="resyncCurrentTripFromModules()">按小包重新同步</button>'
+            ? '<button type="button" class="btn-recompute" data-action-click="resyncCurrentTripFromModules()">按小包重新同步</button>'
             : '') +
-        '<button type="button" class="btn-recompute' + ((trip.sourceModules || []).length ? ' outline' : '') + '" onclick="reapplyTripSmartFill()">重新智能填充</button>' +
-        '</div>' +
-        '</div>' +
+        '<button type="button" class="btn-recompute outline" data-action-click="reapplyTripSmartFill()">重新智能填充</button>' +
+        '</div></div>' +
         '<div class="trip-smart-note">' + ((trip.sourceModules || []).length
-            ? '改过小包定义后，可点「按小包重新同步」更新本行程；手调数量与打包勾选会尽量保留。'
-            : '已按当前设置建议 ' + smartCount + ' 项可变数量物品；你手动改过的数量会优先保留。') + '</div>' +
-        '</div>';
+            ? '改过小包后可重新同步；手调数量与勾选会尽量保留。'
+            : '已建议 ' + smartCount + ' 项可变数量；手改过的数量优先保留。') + '</div>' +
+        '</div></div>';
 
-    switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === 'plan' ? 'active' : '') + '" onclick="setTripMode(\'plan\')">规划模式</button>' +
-        '<button class="mode-tab ' + (S.tripMode === 'pack' ? 'active' : '') + '" onclick="setTripMode(\'pack\')">打包模式</button>';
+    switchBox.innerHTML = '';
 
     if (S.tripMode === 'plan') {
-        actionBar.innerHTML = [
-            '<button class="btn-secondary" onclick="goSelectModuleForTrip()">从小包添加</button>',
-            '<button class="btn-secondary" onclick="goSelectItemsForTrip()">从物品库添加</button>',
-            '<button class="btn-primary" onclick="openManualItemModal()">手动添加物品</button>',
-        ].join('');
+        actionBar.innerHTML = (trip.items.length
+            ? '<button type="button" class="start-pack-cta" data-action-click="setTripMode(\'pack\')">' +
+                '<span class="start-pack-copy"><strong>开始打包</strong><small>共 ' + trip.items.length + ' 件，边收拾边勾选</small></span>' +
+                '<span class="start-pack-arrow" aria-hidden="true">→</span>' +
+                '</button>'
+            : '') +
+            '<div class="trip-edit-actions">' +
+            '<button class="btn-secondary" data-action-click="goSelectModuleForTrip()">从小包添加</button>' +
+            '<button class="btn-secondary" data-action-click="goSelectItemsForTrip()">从物品库</button>' +
+            '<button class="btn-primary" data-action-click="openManualItemModal()">手动添加</button>' +
+            '</div>';
         subBar.innerHTML = renderTripSourceModulesBar(trip);
-        content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join('') : renderTripEmpty();
+        content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
-        actionBar.innerHTML = [
-            '<button class="btn-secondary" onclick="markAllPacked()">标记全部完成</button>',
-            '<button class="btn-secondary" onclick="markAllUnpacked()">恢复为未打包</button>',
-        ].join('');
+        actionBar.innerHTML = trip.items.some(item => item.packed)
+            ? '<button class="btn-secondary" data-action-click="markAllUnpacked()">重置打包进度</button>'
+            : '';
         subBar.innerHTML = '<div class="pack-view-switch">' +
-            '<button class="pack-view-tab ' + (S.packView === 'bags' ? 'active' : '') + '" onclick="setPackView(\'bags\')">按小包看</button>' +
-            '<button class="pack-view-tab ' + (S.packView === 'remaining' ? 'active' : '') + '" onclick="setPackView(\'remaining\')">未打包</button>' +
-            '<button class="pack-view-tab ' + (S.packView === 'all' ? 'active' : '') + '" onclick="setPackView(\'all\')">全部</button>' +
+            '<button class="pack-view-tab ' + (S.packView === 'bags' ? 'active' : '') + '" data-action-click="setPackView(\'bags\')">按小包</button>' +
+            '<button class="pack-view-tab ' + (S.packView === 'remaining' ? 'active' : '') + '" data-action-click="setPackView(\'remaining\')">未打包</button>' +
+            '<button class="pack-view-tab ' + (S.packView === 'all' ? 'active' : '') + '" data-action-click="setPackView(\'all\')">全部</button>' +
             '</div>';
         content.innerHTML = renderPackContent(trip);
     }
@@ -519,43 +610,50 @@ function renderTripSettingBlock(field, label, value, min, max) {
     return '<div class="trip-setting-block">' +
         '<div class="trip-setting-label">' + label + '</div>' +
         '<div class="stepper">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'' + field + '\', -1)">−</button>' +
-        '<input type="number" min="' + min + '" max="' + max + '" value="' + value + '" oninput="updateCurrentTripSetting(\'' + field + '\', this.value)">' +
-        '<button class="stepper-btn" onclick="changeCurrentTripSetting(\'' + field + '\', 1)">+</button>' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'' + field + '\', -1)">−</button>' +
+        '<input type="number" min="' + min + '" max="' + max + '" value="' + value + '" data-action-input="updateCurrentTripSetting(\'' + field + '\', this.value)">' +
+        '<button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'' + field + '\', 1)">+</button>' +
         '</div>' +
         '</div>';
 }
 
 function renderTripEmpty() {
     return '<div class="empty-panel">' +
-        '<div class="empty-icon">🧳</div>' +
         '<div class="empty-title">这张行程单还是空的</div>' +
-        '<div class="empty-hint">去勾选一个或多个小包，或者直接手动加单个物品。</div>' +
+        '<div class="empty-hint">勾选小包，或手动添加物品。</div>' +
         '</div>';
 }
 
+function renderPlanBagGroups(trip) {
+    const bags = trip.bags || DEFAULT_BAGS;
+    const groups = bags
+        .map(bag => ({ bag, items: trip.items.filter(item => item.bag === bag.id) }))
+        .filter(group => group.items.length);
+    const unassigned = trip.items.filter(item => !bags.some(bag => bag.id === item.bag));
+    if (unassigned.length) {
+        groups.push({ bag: { id: 'unassigned', icon: '', name: '未分配' }, items: unassigned });
+    }
+    return groups.map(group =>
+        '<div class="bag-group" id="plan-bag-' + group.bag.id + '">' +
+        '<div class="bag-group-header">' +
+        '<div class="bag-group-label">' +
+        '<span class="bag-icon">' + (group.bag.icon || '') + '</span>' +
+        '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
+        '</div>' +
+        '<span class="bag-progress-count">' + group.items.length + '件</span>' +
+        '</div>' +
+        '<div class="bag-group-items">' + group.items.map(renderTripPlanItemCard).join('') + '</div>' +
+        '</div>'
+    ).join('');
+}
+
 function renderTripPlanItemCard(item) {
-    const cat = catInfo(item.category);
-    const sourceText = formatItemSource(item);
-    const tagsHtml = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
-    const smartBadge = item.smartRule !== 'fixed'
-        ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? '数量已手调' : smartRuleShort(item.smartRule)) + '</span>'
-        : '';
-    return '<div class="list-item-card' + (item.packed ? ' packed' : '') + '">' +
-        '<button class="check-button ' + (item.packed ? 'checked' : '') + '" onclick="togglePackItem(\'' + item.id + '\')">✓</button>' +
-        '<div class="list-item-main" onclick="openTripItemModal(\'' + item.id + '\')">' +
-        '<div class="list-item-name">' + esc(item.name) + '</div>' +
-        '<div class="item-subline">' +
-        '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-        '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + '</span>' +
-        smartBadge +
-        (sourceText ? '<span class="item-pill">' + esc(sourceText) + '</span>' : '') +
-        '</div>' +
-        (item.notes ? '<div class="item-notes">备注：' + esc(item.notes) + '</div>' : '') +
-        (tagsHtml ? '<div class="item-subline">' + tagsHtml + '</div>' : '') +
-        '</div>' +
-        '<div class="item-qty">×' + item.qty + '</div>' +
-        '</div>';
+    return '<div class="list-item-card plan-card' + (item.packed ? ' packed' : '') + '" data-trip-item-id="' + item.id + '">' +
+        '<div class="plan-card-name">' +
+        (item.packed ? '<span class="packed-dot">✓</span>' : '') +
+        esc(item.name) +
+        (item.qty > 1 ? '<span class="plan-card-qty">×' + item.qty + '</span>' : '') +
+        '</div></div>';
 }
 
 function renderPackContent(trip) {
@@ -563,12 +661,54 @@ function renderPackContent(trip) {
     if (S.packView === 'remaining') {
         const remaining = trip.items.filter(item => !item.packed);
         if (!remaining.length) {
-            return '<div class="empty-panel"><div class="empty-icon">🎉</div><div class="empty-title">全部打包完成</div><div class="empty-hint">这次出门需要带的东西都准备好了。</div></div>';
+            return '<div class="empty-panel"><div class="empty-title">全部打包完成</div><div class="empty-hint">需要带的东西都准备好了。</div></div>';
         }
-        return remaining.map(renderPackItemCard).join('');
+        const bags = trip.bags || DEFAULT_BAGS;
+        const groups = bags
+            .map(bag => ({ bag, items: remaining.filter(item => item.bag === bag.id) }))
+            .filter(group => group.items.length);
+        const unassigned = remaining.filter(item => !bags.some(bag => bag.id === item.bag));
+        if (unassigned.length) {
+            groups.push({ bag: { id: 'unassigned', icon: '', name: '未分配' }, items: unassigned });
+        }
+        return groups.map(group =>
+            '<div class="bag-group" id="bag-remain-' + group.bag.id + '">' +
+            '<div class="bag-group-header">' +
+            '<div class="bag-group-label">' +
+            '<span class="bag-icon">' + (group.bag.icon || '') + '</span>' +
+            '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
+            '</div>' +
+            '<span class="bag-progress-count">' + group.items.length + '件未打</span>' +
+            '</div>' +
+            '<div class="bag-group-items">' + group.items.map(renderPackItemCard).join('') + '</div>' +
+            '</div>'
+        ).join('');
     }
     if (S.packView === 'all') {
-        return trip.items.map(renderPackItemCard).join('');
+        const bags = trip.bags || DEFAULT_BAGS;
+        const groups = bags
+            .map(bag => ({ bag, items: trip.items.filter(item => item.bag === bag.id) }))
+            .filter(group => group.items.length);
+        const unassigned = trip.items.filter(item => !bags.some(bag => bag.id === item.bag));
+        if (unassigned.length) {
+            groups.push({ bag: { id: 'unassigned', icon: '', name: '未分配' }, items: unassigned });
+        }
+        return groups.map(group => {
+            const packed = group.items.filter(item => item.packed).length;
+            const collapsed = S.collapsedBags.has(group.bag.id) ? ' collapsed' : '';
+            return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '">' +
+                '<button type="button" class="bag-group-header" data-action-click="toggleBagCollapse(\'' + group.bag.id + '\')" aria-expanded="' + (!collapsed) + '" aria-controls="bag-all-items-' + group.bag.id + '">' +
+                '<div class="bag-group-label">' +
+                '<span class="bag-icon">' + (group.bag.icon || '') + '</span>' +
+                '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:8px">' +
+                '<span class="bag-progress-count">' + packed + '/' + group.items.length + '</span>' +
+                '<span class="bag-toggle" aria-hidden="true">▼</span>' +
+                '</div></button>' +
+                '<div class="bag-group-items" id="bag-all-items-' + group.bag.id + '">' + group.items.map(renderPackItemCard).join('') + '</div>' +
+                '</div>';
+        }).join('');
     }
     return renderBagsPackView(trip);
 }
@@ -589,15 +729,16 @@ function renderBagsPackView(trip) {
         const packed = group.items.filter(item => item.packed).length;
         const collapsed = S.collapsedBags.has(group.bag.id) ? ' collapsed' : '';
         return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '">' +
-            '<div class="bag-group-header">' +
+            '<button type="button" class="bag-group-header" data-action-click="toggleBagCollapse(\'' + group.bag.id + '\')" aria-expanded="' + (!collapsed) + '" aria-controls="bag-items-' + group.bag.id + '">' +
             '<div class="bag-group-label">' +
-            '<span class="bag-icon">' + group.bag.icon + '</span>' +
+            '<span class="bag-icon">' + (group.bag.icon || '') + '</span>' +
             '<span class="bag-name">' + esc(group.bag.name) + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-            '<span class="bag-toggle" onclick="toggleBagCollapse(\'' + group.bag.id + '\')">▼</span>' +
-            '</div></div>' +
-            '<div class="bag-group-items">' + group.items.map(renderPackItemCard).join('') + '</div>' +
+            '<span class="bag-progress-count">' + packed + '/' + group.items.length + '</span>' +
+            '<span class="bag-toggle" aria-hidden="true">▼</span>' +
+            '</div></button>' +
+            '<div class="bag-group-items" id="bag-items-' + group.bag.id + '">' + group.items.map(renderPackItemCard).join('') + '</div>' +
             '</div>';
     }).join('');
 }
@@ -609,42 +750,43 @@ function toggleBagCollapse(bagId) {
         S.collapsedBags.add(bagId);
     }
     const el = document.getElementById('bag-' + bagId);
-    if (el) el.classList.toggle('collapsed', S.collapsedBags.has(bagId));
+    if (el) {
+        const collapsed = S.collapsedBags.has(bagId);
+        el.classList.toggle('collapsed', collapsed);
+        el.querySelector('.bag-group-header')?.setAttribute('aria-expanded', String(!collapsed));
+    }
 }
 
 function toggleTripInfoCard() {
     S.tripInfoCollapsed = !S.tripInfoCollapsed;
     const summaryBox = document.getElementById('listSummary');
     if (!summaryBox) return;
+    const card = summaryBox.querySelector('.list-summary-card');
     const toggle = summaryBox.querySelector('.trip-info-toggle-arrow');
     const body = summaryBox.querySelector('.trip-info-body');
+    const expanded = summaryBox.querySelector('.trip-summary-expanded');
+    if (card) card.classList.toggle('is-collapsed', S.tripInfoCollapsed);
     if (toggle) toggle.classList.toggle('collapsed', S.tripInfoCollapsed);
     if (body) body.classList.toggle('collapsed', S.tripInfoCollapsed);
+    if (expanded) expanded.classList.toggle('collapsed', S.tripInfoCollapsed);
 }
 
 function renderPackItemCard(item) {
-    const cat = catInfo(item.category);
-    const tags = (item.tags || []).map(tag => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + '</span>').join('');
-    const sourceModules = item.sourceModules || [];
-    const sourcePill = sourceModules.length > 0
-        ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(', ') + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + '等' : sourceModules[0]) + '</span>'
-        : '';
-    return '<div class="list-item-card' + (item.packed ? ' packed' : '') + '" onclick="togglePackItem(\'' + item.id + '\')">' +
-        '<button class="check-button ' + (item.packed ? 'checked' : '') + '">✓</button>' +
-        '<div class="list-item-main">' +
-        '<div class="list-item-name">' + esc(item.name) + '</div>' +
-        '<div class="item-subline">' +
-        '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-        (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + '</span>') +
-        (tags ? tags : '') +
-        '</div>' +
-        '</div>' +
-        '<div class="item-qty">×' + item.qty + '</div>' +
-        '</div>';
+    return '<button type="button" class="list-item-card plan-card' + (item.packed ? ' packed' : '') + '" data-action-click="togglePackItem(\'' + item.id + '\')" aria-pressed="' + item.packed + '">' +
+        '<span class="pack-check" aria-hidden="true">' + (item.packed ? '✓' : '') + '</span>' +
+        '<div class="plan-card-name">' +
+        esc(item.name) +
+        (item.qty > 1 ? '<span class="plan-card-qty">×' + item.qty + '</span>' : '') +
+        '</div></button>';
 }
 
 function setTripMode(mode) {
     S.tripMode = mode;
+    if (mode === 'pack') {
+        // Start ready to pack. Users can collapse individual bags as needed.
+        S.collapsedBags = new Set();
+        S.tripInfoCollapsed = true;
+    }
     renderHeader();
     renderTripPage();
 }
@@ -665,7 +807,7 @@ function openTrip(id, mode = 'plan') {
     S.currentTrip = deepClone(trip);
     S.tripMode = mode;
     S.collapsedBags = new Set();
-    S.tripInfoCollapsed = false;
+    S.tripInfoCollapsed = true;
     nav('list');
 }
 
@@ -687,17 +829,17 @@ function updateCurrentTripSetting(field, rawValue) {
     if (field === 'people') S.currentTrip.people = value;
 
     applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
 }
 
 function reapplyTripSmartFill() {
     if (!S.currentTrip) return;
     applyTripSmartFill(S.currentTrip, true);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
     toast('已重新按天数和人数智能填充');
 }
 
@@ -712,9 +854,9 @@ function resyncCurrentTripFromModules() {
     }
 
     const result = resyncTripFromSourceModules(S.currentTrip);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
 
     if (!result.changed) {
         toast('已与小包定义一致，无需变更');
@@ -741,9 +883,9 @@ function removeModuleFromCurrentTrip(source, id) {
     if (!result.changed) return;
 
     applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast(result.removedItems
         ? `已移除「${result.moduleName}」，并删掉 ${result.removedItems} 件仅属于它的物品`
         : `已移除「${result.moduleName}」`);
@@ -754,7 +896,7 @@ function refreshTripListContent() {
     if (!content || !S.currentTrip) return;
     const trip = S.currentTrip;
     if (S.tripMode === 'plan') {
-        content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join('') : renderTripEmpty();
+        content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
         content.innerHTML = renderPackContent(trip);
     }
@@ -769,6 +911,9 @@ function patchTripSummaryMetrics() {
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter(item => item.smartRule !== 'fixed').length;
+
+    const pctEl = summaryBox.querySelector('.trip-summary-pct');
+    if (pctEl) pctEl.textContent = progress.pct + '%';
 
     const progressEl = summaryBox.querySelector('.saved-list-progress');
     if (progressEl) progressEl.outerHTML = renderProgress(progress);
@@ -818,16 +963,14 @@ function renderModuleLibrary() {
     const officialBox = document.getElementById('officialModuleGrid');
     const myBox = document.getElementById('myModuleGrid');
     const myMeta = document.getElementById('myModuleMeta');
-    const toggle = document.getElementById('kitViewToggle');
-
-    toggle.innerHTML =
-        '<button class="kit-view-btn ' + (S.kitView === 'compact' ? 'active' : '') + '" onclick="setKitView(\'compact\')">精简</button>' +
-        '<button class="kit-view-btn ' + (S.kitView === 'normal' ? 'active' : '') + '" onclick="setKitView(\'normal\')">详情</button>';
 
     banner.classList.toggle('visible', S.currentModuleAction === 'add' && !!S.currentTrip);
-    banner.textContent = S.currentModuleAction === 'add' && S.currentTrip
-        ? `当前行程：${S.currentTrip.name}。打开一个小包后，可把整包物品一键加入当前行程。`
-        : '你先在这里维护标准化小包；创建 Trips 时，再从库里勾选需要的小包组合。';
+    if (S.currentModuleAction === 'add' && S.currentTrip) {
+        const added = (S.currentTrip.sourceModules || []).length;
+        banner.textContent = `为「${S.currentTrip.name}」添加小包（已添加 ${added} 个，带「已添加」标记的无需重复加入）`;
+    } else {
+        banner.textContent = '维护可复用小包；新建行程时勾选组合。';
+    }
 
     renderModuleFilters();
     document.getElementById('moduleSearchInput').value = S.moduleSearch;
@@ -848,73 +991,50 @@ function renderModuleLibrary() {
     });
 
     officialBox.innerHTML = official.length
-        ? official.map(m => renderOfficialModuleCard(m, S.kitView)).join('')
-        : '<div class="empty-panel"><div class="empty-hint">没有匹配的官方小包。</div></div>';
+        ? official.map(m => renderOfficialModuleCard(m)).join('')
+        : '<div class="empty-panel"><div class="empty-hint">没有匹配的小包。</div></div>';
 
-    myMeta.textContent = mine.length ? `${mine.length} 个可复用小包` : '还没有';
+    myMeta.textContent = mine.length ? `${mine.length} 个` : '';
     myBox.innerHTML = mine.length
-        ? mine.map(m => renderMyModuleCard(m, S.kitView)).join('')
-        : '<div class="empty-panel"><div class="empty-title">还没有我的小包</div><div class="empty-hint">可以从官方小包起步，也可以从物品库滑选后新建。</div></div>';
+        ? mine.map(m => renderMyModuleCard(m)).join('')
+        : '<div class="empty-panel"><div class="empty-title">还没有我的小包</div><div class="empty-hint">点右上角 + 新建，或从官方小包复制修改。</div></div>';
 }
 
 function renderModuleFilters() {
     document.getElementById('moduleFilterRow').innerHTML = MODULE_FILTERS.map(filter =>
-        '<button class="filter-chip ' + (S.moduleFilter === filter.id ? 'active' : '') + '" onclick="setModuleFilter(\'' + filter.id + '\')">' + esc(filter.name) + '</button>'
+        '<button class="filter-chip ' + (S.moduleFilter === filter.id ? 'active' : '') + '" data-action-click="setModuleFilter(\'' + filter.id + '\')">' + esc(filter.name) + '</button>'
     ).join('');
 }
 
-function renderOfficialModuleCard(module, view = 'normal') {
+function isModuleOnCurrentTrip(source, id) {
+    return S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
+}
+
+function renderOfficialModuleCard(module) {
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
-    const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
-    if (view === 'compact') {
-        return '<div class="kit-card compact recommended" onclick="openModuleDetail(\'official\',\'' + module.id + '\')">' +
-            '<div class="kit-card-top">' +
-            '<div class="kit-card-icon">' + module.icon + '</div>' +
-            '<div class="kit-card-name">' + esc(module.name) + '</div>' +
-            '</div>' +
-            '</div>';
-    }
-    return '<div class="kit-card recommended" onclick="openModuleDetail(\'official\',\'' + module.id + '\')">' +
-        '<div class="kit-card-top">' +
-        '<div class="kit-card-icon">' + module.icon + '</div>' +
-        '<div class="inline-actions">' +
-        '<span class="kit-badge">官方小包</span>' +
-        '<button class="icon-action" onclick="event.stopPropagation();openEditModuleModal(\'official\',\'' + module.id + '\')" title="编辑官方小包">✏️</button>' +
-        '</div></div>' +
+    const added = S.currentModuleAction === 'add' && isModuleOnCurrentTrip('official', module.id);
+    const tag = (module.tags && module.tags[0]) || '官方';
+    return '<div class="kit-card compact recommended' + (added ? ' added' : '') + '" data-action-click="openModuleDetail(\'official\',\'' + module.id + '\')">' +
+        '<div class="kit-card-body">' +
+        '<div class="kit-card-kicker">官方 · ' + esc(tag) + '</div>' +
         '<div class="kit-card-name">' + esc(module.name) + '</div>' +
-        '<div class="kit-card-desc">' + esc(module.desc) + '</div>' +
-        '<div class="tag-row">' + (module.tags || []).map(tag => '<span class="tag">' + esc(tag) + '</span>').join('') + '</div>' +
-        '<div class="kit-card-meta">' + preview.length + ' 件物品 · ' + smartCount + ' 项随天数/人数变化</div>' +
+        '<div class="kit-card-meta">' + preview.length + ' 件物品</div>' +
+        '</div>' +
+        (added ? '<span class="kit-added-badge">已添加</span>' : '<span class="kit-card-chevron">›</span>') +
         '</div>';
 }
 
-function renderMyModuleCard(module, view = 'normal') {
+function renderMyModuleCard(module) {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
-    const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
-    if (view === 'compact') {
-        return '<div class="kit-card compact" onclick="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
-            '<div class="kit-card-top">' +
-            '<div class="kit-card-icon">' + esc(module.icon || '🧰') + '</div>' +
-            '<div class="kit-card-name">' + esc(module.name) + '</div>' +
-            '</div>' +
-            '</div>';
-    }
-    return '<div class="kit-card" onclick="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
-        '<div class="kit-card-top">' +
-        '<div class="kit-card-icon">' + esc(module.icon || '🧰') + '</div>' +
-        '<div class="inline-actions">' +
-        '<span class="kit-badge soft">我的小包</span>' +
-        '<button class="icon-action" onclick="event.stopPropagation();openEditModuleModal(\'custom\',\'' + module.id + '\')" title="编辑小包">✏️</button>' +
-        '</div></div>' +
+    const added = S.currentModuleAction === 'add' && isModuleOnCurrentTrip('custom', module.id);
+    return '<div class="kit-card compact' + (added ? ' added' : '') + '" data-action-click="openModuleDetail(\'custom\',\'' + module.id + '\')">' +
+        '<div class="kit-card-body">' +
+        '<div class="kit-card-kicker">我的小包</div>' +
         '<div class="kit-card-name">' + esc(module.name) + '</div>' +
-        '<div class="kit-card-desc">' + esc(module.desc || '你自己维护的可复用小包模块') + '</div>' +
-        '<div class="kit-card-meta">' + preview.length + ' 件物品 · ' + smartCount + ' 项可智能填充</div>' +
+        '<div class="kit-card-meta">' + preview.length + ' 件物品</div>' +
+        '</div>' +
+        (added ? '<span class="kit-added-badge">已添加</span>' : '<span class="kit-card-chevron">›</span>') +
         '</div>';
-}
-
-function setKitView(view) {
-    S.kitView = view;
-    renderModuleLibrary();
 }
 
 function openModuleDetail(source, id) {
@@ -927,29 +1047,25 @@ function renderModuleDetailModal(source, id) {
     const entity = getModuleEntity(source, id);
     if (!entity) return;
 
-    const days = getPreviewDays();
-    const people = getPreviewPeople();
     const moduleItems = (entity.items || []).map(normalizeModuleItem);
-    const previewContext = {
-        days,
-        people,
-        sourceModules: [{ source, id: entity.id, name: entity.name }],
-    };
     const smartCount = moduleItems.filter(item => item.smartRule !== 'fixed').length;
 
     document.getElementById('moduleDetailTitle').textContent = entity.name;
-    document.getElementById('moduleDetailIcon').textContent = entity.icon || '🧰';
-    document.getElementById('moduleDetailSubtitle').textContent = source === 'official'
-        ? '官方小包 · 点击物品可改默认设置'
-        : '我的小包 · 点击物品可改默认设置';
-    document.getElementById('moduleDetailDesc').textContent = entity.desc || '可复用的小包模块。';
-    document.getElementById('moduleDetailTags').innerHTML = (entity.tags || []).map(tag => '<span class="tag">' + esc(tag) + '</span>').join('') || '<span class="tag">标准化小包</span>';
-    document.getElementById('moduleDetailSummary').textContent = `按当前 ${days} 天 / ${people} 人预览，共 ${moduleItems.length} 件物品，其中 ${smartCount} 项会随天数或人数变化。修改会保存到小包里，之后新建行程都会生效。`;
+    document.getElementById('moduleDetailSummary').innerHTML =
+        '<div class="module-detail-badges">' +
+        '<span class="mini-badge">' + (source === 'official' ? '官方小包' : '我的小包') + '</span>' +
+        '<span class="mini-badge soft">' + moduleItems.length + ' 件</span>' +
+        (smartCount ? '<span class="mini-badge soft">' + smartCount + ' 项可变数量</span>' : '') +
+        '</div>' +
+        '<p class="module-detail-desc">' + esc(entity.desc || '可复用的打包模块，创建行程时可一键加入。') + '</p>';
     document.getElementById('moduleDetailItems').innerHTML = moduleItems.length
-        ? moduleItems.map(item => renderModuleDetailItemCard(item, source, id, previewContext, S.currentTrip?.bags || DEFAULT_BAGS)).join('')
-        : '<div class="empty-panel"><div class="empty-hint">这个小包还没有物品，点下方「编辑小包」去添加。</div></div>';
+        ? moduleItems.map(item => renderModuleDetailItemRow(item)).join('')
+        : '<div class="empty-panel"><div class="empty-hint">点「编辑物品」添加或删除。</div></div>';
     document.getElementById('moduleEditBtn').style.display = 'inline-flex';
-    document.getElementById('moduleEditBtn').textContent = source === 'official' ? '编辑官方小包' : '编辑小包';
+    document.getElementById('moduleEditBtn').textContent = '编辑物品';
+    const deleteBtn = document.getElementById('moduleDeleteBtn');
+    deleteBtn.style.display = 'inline-flex';
+    deleteBtn.textContent = source === 'official' ? '删除官方小包' : '删除小包';
     const alreadyOnTrip = S.currentModuleAction === 'add' && S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
     const primaryBtn = document.getElementById('modulePrimaryBtn');
     primaryBtn.textContent = alreadyOnTrip
@@ -959,30 +1075,40 @@ function renderModuleDetailModal(source, id) {
     primaryBtn.classList.toggle('disabled', alreadyOnTrip);
 }
 
-function renderModuleDetailItemCard(item, source, moduleId, previewContext, bags) {
-    const cat = catInfo(item.category);
-    const previewQty = computeSmartQty(
-        item.defaultQty,
-        item.smartRule,
-        previewContext.days,
-        previewContext.people,
-        item.smartConfig,
-        previewContext
-    );
-    const smart = item.smartRule !== 'fixed'
-        ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + '</span>'
+function deleteCurrentModuleFromDetail() {
+    if (!S.currentModule) return;
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    const recoveryHint = source === 'official'
+        ? '\n\n之后可在「我的 → 恢复官方小包」中找回。'
         : '';
-    return '<div class="list-item-card editable" onclick="openModuleItemModal(\'module\', \'' + source + '\', \'' + moduleId + '\', \'' + item.id + '\')">' +
-        '<div class="list-item-main">' +
-        '<div class="list-item-name">' + esc(item.name) + '</div>' +
-        '<div class="item-subline">' +
-        '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-        '<span class="item-pill">' + esc(bagName(item.bag, bags)) + '</span>' +
-        smart +
-        '<span class="item-pill subtle-pill">默认 ×' + item.defaultQty + '</span>' +
+    if (!confirm(`确定删除「${entity.name}」吗？${recoveryHint}`)) return;
+
+    if (source === 'official') {
+        if (!markOfficialModuleDeleted(id)) {
+            toast('删除失败，请重试');
+            return;
+        }
+    } else if (!deleteRecord(id, { silent: true })) {
+        return;
+    }
+
+    closeModal('moduleDetailModal');
+    S.currentModule = null;
+    renderModuleLibrary();
+    refreshTripHub();
+    toast(source === 'official' ? '已删除，可在「我的」中恢复' : '已删除小包');
+}
+
+function renderModuleDetailItemRow(item) {
+    const cat = catInfo(item.category);
+    return '<div class="module-detail-row">' +
+        '<div class="module-detail-main">' +
+        '<span class="module-detail-name">' + esc(item.name) + '</span>' +
+        '<span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== 'fixed' ? ' · 智能数量' : '') + '</span>' +
         '</div>' +
-        '</div>' +
-        '<div class="item-qty">预览 ×' + previewQty + '</div>' +
+        '<span class="module-detail-qty">×' + item.defaultQty + '</span>' +
         '</div>';
 }
 
@@ -1187,12 +1313,13 @@ function deleteModuleItemEdit() {
 function useCurrentModule() {
     if (!S.currentModule) return;
     const { source, id } = S.currentModule;
-    closeModal('moduleDetailModal');
     if (S.currentModuleAction === 'add' && S.currentTrip) {
         addModuleToCurrentTrip(source, id);
-        nav('list');
+        renderModuleDetailModal(source, id);
+        renderModuleLibrary();
         return;
     }
+    closeModal('moduleDetailModal');
     openCreateTripModal([getModuleKey(source, id)]);
 }
 
@@ -1213,6 +1340,10 @@ function updateItemSearch(value) {
     renderItemLibrary();
 }
 
+function updateILibrarySearch(value) {
+    updateItemSearch(value);
+}
+
 function setItemFilter(filterId) {
     S.itemFilter = filterId;
     renderItemLibrary();
@@ -1220,59 +1351,76 @@ function setItemFilter(filterId) {
 
 function renderItemLibrary() {
     const banner = document.getElementById('itemContextBanner');
-    const gridBox = document.getElementById('itemLibraryGrid');
-    const searchInput = document.getElementById('itemSearchInput');
-    const summaryBox = document.getElementById('itemLibrarySummary');
+    const gridBox = document.getElementById('ilibraryGrid') || document.getElementById('itemLibraryGrid');
+    const searchInput = document.getElementById('ilibrarySearchInput') || document.getElementById('itemSearchInput');
+    const summaryBox = document.getElementById('ilibrarySummary') || document.getElementById('itemLibrarySummary');
     const allItems = getItemLibrary();
-    const currentTripNames = new Set((S.currentTrip?.items || []).map(item => String(item.name || '').trim()));
+    const currentTripItemKeys = new Set((S.currentTrip?.items || []).map(item =>
+        String(item.name || '').trim() + '::' + String(item.category || '')
+    ));
+    const isOnCurrentTrip = item => currentTripItemKeys.has(String(item.name || '').trim() + '::' + String(item.category || ''));
 
-    banner.classList.toggle('visible', !!S.currentTrip);
-    banner.textContent = S.currentTrip
-        ? `当前行程：${S.currentTrip.name}。只显示未加入的物品。`
-        : '';
+    if (banner) {
+        banner.classList.toggle('visible', !!S.currentTrip);
+        banner.textContent = S.currentTrip
+            ? `正在为「${S.currentTrip.name}」添加物品；已在清单中的物品会明确标记。`
+            : '';
+    }
 
-    searchInput.value = S.itemSearch;
+    if (searchInput) searchInput.value = S.itemSearch;
     renderItemFilters();
 
     const keyword = S.itemSearch.toLowerCase();
-    const hiddenCount = S.currentTrip ? allItems.filter(item => currentTripNames.has(item.name)).length : 0;
+    const joinedCount = S.currentTrip ? allItems.filter(isOnCurrentTrip).length : 0;
     const items = allItems.filter(item => {
         const filterMatch = S.itemFilter === 'all' || item.category === S.itemFilter;
         const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-        const tripMatch = !S.currentTrip || !currentTripNames.has(item.name);
-        return filterMatch && searchMatch && tripMatch;
-    });
+        return filterMatch && searchMatch;
+    }).sort((a, b) => Number(isOnCurrentTrip(a)) - Number(isOnCurrentTrip(b)));
 
     const customCount = allItems.filter(item => item.source === 'user').length;
     if (summaryBox) {
         summaryBox.innerHTML = '<span>共 ' + allItems.length + ' 件</span>' +
             (customCount ? '<span class="qs-dot">·</span><span>自建 ' + customCount + '</span>' : '') +
-            (hiddenCount ? '<span class="qs-dot">·</span><span>已隐藏 ' + hiddenCount + '</span>' : '');
+            (S.currentTrip ? '<span class="qs-dot">·</span><span>可添加 ' + (allItems.length - joinedCount) + '</span>' +
+                '<span class="qs-dot">·</span><span class="summary-joined">已加入 ' + joinedCount + '</span>' : '');
     }
 
+    if (!gridBox) return;
+
     gridBox.innerHTML = items.length
-        ? items.map(renderLibraryCard).join('')
-        : '<div class="empty-panel full-span"><div class="empty-hint">' + (S.currentTrip ? '本次清单物品已全部补齐。' : '没有匹配的物品。') + '</div></div>';
+        ? items.map(item => renderLibraryCard(item, isOnCurrentTrip(item))).join('')
+        : '<div class="empty-panel full-span"><div class="empty-hint">没有匹配的物品。</div></div>';
 }
 
 function renderItemFilters() {
     const options = [{ id: 'all', name: '全部' }, ...DEFAULT_CATEGORIES.map(cat => ({ id: cat.id, name: cat.name }))];
-    document.getElementById('itemFilterRow').innerHTML = options.map(option =>
-        '<button class="filter-chip ' + (S.itemFilter === option.id ? 'active' : '') + '" onclick="setItemFilter(\'' + option.id + '\')">' + esc(option.name) + '</button>'
+    const filterRow = document.getElementById('ilibraryFilterRow') || document.getElementById('itemFilterRow');
+    if (!filterRow) return;
+    filterRow.innerHTML = options.map(option =>
+        '<button class="filter-chip ' + (S.itemFilter === option.id ? 'active' : '') + '" data-action-click="setItemFilter(\'' + option.id + '\')">' + esc(option.name) + '</button>'
     ).join('');
 }
 
-function renderLibraryCard(item) {
+function renderLibraryCard(item, alreadyAdded = false) {
     const cat = catInfo(item.category);
     const addButton = S.currentTrip
-        ? '<button class="library-action primary" onclick="event.stopPropagation();addLibraryItemToCurrentTrip(\'' + item.id + '\')">+ 加入</button>'
+        ? (alreadyAdded
+            ? '<span class="library-action added">已加入 ✓</span>'
+            : '<button class="library-action primary" data-action-click="event.stopPropagation();addLibraryItemToCurrentTrip(\'' + item.id + '\')">加入</button>')
         : '';
-    const tagsHtml = (item.tags || []).map(tag => '<span class="library-item-tag">' + esc(tag) + '</span>').join('');
-    return '<div class="library-card ' + (item.source === 'user' ? 'user-built' : '') + '" onclick="openLibraryItemModal(\'' + item.id + '\')">' +
+    const cardAction = S.currentTrip
+        ? (alreadyAdded ? '' : 'addLibraryItemToCurrentTrip(\'' + item.id + '\')')
+        : 'openLibraryItemModal(\'' + item.id + '\')';
+    return '<div class="library-card ' + (item.source === 'user' ? 'user-built ' : '') + (alreadyAdded ? 'on-trip' : '') + '"' +
+        (cardAction ? ' data-action-click="' + cardAction + '" role="button" tabindex="0"' : '') + '>' +
         '<div class="library-card-body">' +
+        '<div class="library-card-top">' +
+        '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
+        (item.source === 'user' ? '<span class="mini-badge soft">自建</span>' : '') +
+        '</div>' +
         '<div class="library-name">' + esc(item.name) + '</div>' +
-        '<div class="library-meta">' + esc(cat.name) + ' · ' + esc(bagName(item.bag, DEFAULT_BAGS)) + ' · ×' + item.defaultQty + '</div>' +
-        (tagsHtml ? '<div class="library-item-tags">' + tagsHtml + '</div>' : '') +
+        '<div class="library-meta">' + esc(bagName(item.bag, DEFAULT_BAGS)) + ' · 默认 ×' + item.defaultQty + '</div>' +
         '</div>' +
         (addButton ? '<div class="library-actions">' + addButton + '</div>' : '') +
         '</div>';
@@ -1340,17 +1488,20 @@ function renderTripBuilderModules() {
                 ? resolveOfficialModuleItems(module, getTripBuilderDays(), getTripBuilderPeople())
                 : resolveCustomModuleItems(module, getTripBuilderDays(), getTripBuilderPeople());
             const smartCount = preview.filter(item => item.smartRule !== 'fixed').length;
+            const previewNames = preview.slice(0, 3).map(item => item.name).join('、');
+            const isScenario = module.role === 'scenario' || (module.tags || []).includes('场景补充');
             const typeLabel = module.group === 'baby'
-                ? (module.role === 'base' ? '宝宝底盘' : '宝宝插件')
-                : (source === 'official' ? '官方小包' : '我的小包');
+                ? (isScenario ? '场景补充' : '宝宝小包')
+                : (source === 'official' ? (isScenario ? '场景补充' : '官方小包') : '我的小包');
             const stateLabel = locked ? '默认开启' : (selected ? '已勾选' : '点选');
-            return '<div class="picker-item module-choice ' + (selected ? 'selected' : '') + '" onclick="toggleTripBuilderModule(\'' + source + '\',\'' + module.id + '\')">' +
+            return '<div class="picker-item module-choice ' + (selected ? 'selected' : '') + '" data-action-click="toggleTripBuilderModule(\'' + source + '\',\'' + module.id + '\')">' +
                 '<div class="picker-item-top">' +
                 '<span class="item-pill">' + esc(typeLabel) + '</span>' +
                 '<span class="mini-badge picker-tile-state">' + stateLabel + '</span>' +
                 '</div>' +
                 '<div class="picker-item-name">' + esc(module.icon || '🧰') + ' ' + esc(module.name) + '</div>' +
                 '<div class="picker-item-meta">' + preview.length + ' 件物品 · ' + smartCount + ' 项会变动</div>' +
+                (previewNames ? '<div class="picker-item-preview">' + esc(previewNames) + (preview.length > 3 ? '…' : '') + '</div>' : '') +
                 '</div>';
         }).join('')
         : '<div class="empty-panel full-span"><div class="empty-title">还没有可选小包</div><div class="empty-hint">先去创建一个吧。</div></div>';
@@ -1360,7 +1511,7 @@ function toggleTripBuilderModule(source, id) {
     const key = getModuleKey(source, id);
     const module = getModuleEntity(source, id);
     if (isBabyBaseModuleEntity(module) && tripBuilderHasBabyAddonSelection()) {
-        toast('带娃行程会默认带上宝宝基础包');
+        toast('宝宝场景会默认带上日常出门包');
         return;
     }
     if (S.tripBuilderSelection.has(key)) S.tripBuilderSelection.delete(key);
@@ -1432,7 +1583,10 @@ function confirmCreateTrip() {
     });
     applyTripSmartFill(trip, false);
 
-    saveRecord(trip);
+    if (!saveRecord(trip)) {
+        toast('保存失败，请检查设备存储空间后重试');
+        return;
+    }
     closeModal('createTripModal');
     openTrip(trip.id, 'plan');
     toast(selected.some(entry => isBabyModuleEntity(entry.module) && !isBabyBaseModuleEntity(entry.module)) ? '行程已创建，已自动带上宝宝基础包' : '行程已创建');
@@ -1466,6 +1620,7 @@ function addModuleToCurrentTrip(source, id) {
         ? resolveOfficialModuleItems(entity, S.currentTrip.days, S.currentTrip.people)
         : resolveCustomModuleItems(entity, S.currentTrip.days, S.currentTrip.people);
     mergeItemsIntoCurrentTrip(items, 'module', { source, id: entity.id, name: entity.name });
+    if (S.currentPage === 'kits') renderModuleLibrary();
     toast(isBabyModuleEntity(entity) && !isBabyBaseModuleEntity(entity) ? '已加入插件包，并自动补上宝宝基础包' : '已把小包加入当前行程');
 }
 
@@ -1485,10 +1640,10 @@ function mergeItemsIntoCurrentTrip(items, strategy = 'manual', sourceModule = nu
     mergeTripItems(S.currentTrip.items, items, S.currentTrip, strategy);
     if (sourceModule) upsertTripSourceModule(S.currentTrip, sourceModule);
     if (strategy === 'module') applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
     renderItemLibrary();
-    renderHome();
+    refreshTripHub();
 }
 
 function openLibraryItemModal(itemId = null) {
@@ -1531,6 +1686,18 @@ function addLibraryItemTag() {
     S.currentEditingTags.push(val);
     renderLibraryItemTags();
     if (input) input.value = '';
+}
+
+function toggleLibraryItemTagSection() {
+    toggleTagSection('libraryItemTagSection', 'libraryItemTagToggle');
+}
+
+function toggleTagSection(sectionId, toggleId) {
+    const section = document.getElementById(sectionId);
+    const toggle = document.getElementById(toggleId);
+    if (!section) return;
+    const expanded = section.classList.toggle('expanded');
+    if (toggle) toggle.textContent = expanded ? '收起标签' : '+ 添加标签';
 }
 
 function removeLibraryItemTagByIndex(index) {
@@ -1604,7 +1771,10 @@ function saveLibraryItem() {
         if (S.libraryModalEditId && index === 0) return;
     });
 
-    saveItemLibrary(items);
+    if (!saveItemLibrary(items)) {
+        toast('物品库保存失败，请重试');
+        return;
+    }
     closeModal('libraryItemModal');
     renderItemLibrary();
     renderModuleBuilderItems();
@@ -1619,7 +1789,10 @@ function deleteLibraryItem() {
         toast('系统物品不支持删除');
         return;
     }
-    saveItemLibrary(items.filter(item => item.id !== S.libraryModalEditId));
+    if (!saveItemLibrary(items.filter(item => item.id !== S.libraryModalEditId))) {
+        toast('删除失败，请重试');
+        return;
+    }
     closeModal('libraryItemModal');
     renderItemLibrary();
     renderModuleBuilderItems();
@@ -1736,6 +1909,21 @@ function addTripItemTag() {
     if (input) input.value = '';
 }
 
+function toggleTripItemTagSection() {
+    toggleTagSection('tripItemTagSection', 'tripItemTagToggle');
+}
+
+function updateItemPickerSearch(value) {
+    const query = String(value || '').trim().toLowerCase();
+    document.querySelectorAll('#itemPickerItems .picker-item').forEach(item => {
+        item.style.display = !query || item.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+
+function confirmItemPicker() {
+    closeModal('itemPickerModal');
+}
+
 function removeTripItemTagByIndex(index) {
     if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
     S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
@@ -1790,20 +1978,20 @@ function saveCurrentTripItem() {
         item.smartLocked = item.qty !== suggested;
     }
 
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     closeModal('tripItemModal');
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast('物品已更新');
 }
 
 function deleteCurrentTripItem() {
     if (!S.currentTrip || !S.tripItemEditId) return;
     S.currentTrip.items = S.currentTrip.items.filter(item => item.id !== S.tripItemEditId);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     closeModal('tripItemModal');
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast('已删除物品');
 }
 
@@ -1812,26 +2000,26 @@ function togglePackItem(itemId) {
     const item = S.currentTrip.items.find(entry => entry.id === itemId);
     if (!item) return;
     item.packed = !item.packed;
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
 }
 
 function markAllPacked() {
     if (!S.currentTrip) return;
     S.currentTrip.items.forEach(item => { item.packed = true; });
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast('已全部标记完成');
 }
 
 function markAllUnpacked() {
     if (!S.currentTrip) return;
     S.currentTrip.items.forEach(item => { item.packed = false; });
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast('已恢复为未打包');
 }
 
@@ -1846,27 +2034,29 @@ function openCreateModuleModal(initialItems = null, options = {}) {
     S.moduleBuilderItems = (baseItems || []).map(item => tripOrModuleItemToModuleItem(item));
     syncModuleBuilderSelectionFromItems();
     S.moduleBuilderSearch = '';
+    S.moduleAddPanelOpen = false;
 
-    document.getElementById('moduleBuilderModalTitle').textContent = editModule
-        ? (editSource === 'official' ? '编辑官方小包' : '编辑我的小包')
-        : '新建我的小包';
-    document.getElementById('moduleBuilderSaveBtn').textContent = editModule ? '保存小包修改' : '保存到我的小包';
+    document.getElementById('moduleBuilderModalTitle').textContent = editModule ? '编辑小包' : '新建小包';
+    document.getElementById('moduleBuilderSaveBtn').textContent = '保存';
     document.getElementById('moduleBuilderDeleteBtn').style.visibility = editModule ? 'visible' : 'hidden';
-    document.getElementById('moduleBuilderHint').textContent = editModule
-        ? '上方「小包内物品」可点击逐项调整；下方物品库可继续滑选补货。保存后，之后新建行程都会按这里的默认设置生成。'
-        : '从物品库滑选加入小包；加入后可在上方「小包内物品」点击调整默认数量。保存后新建行程都会沿用这些设置。';
-
     document.getElementById('moduleBuilderName').value = editModule?.name || '';
-    document.getElementById('moduleBuilderIcon').value = editModule?.icon || '🧰';
-    document.getElementById('moduleBuilderDesc').value = editModule?.desc || '';
     document.getElementById('moduleBuilderSearch').value = '';
-    document.getElementById('moduleQuickItemName').value = '';
-    document.getElementById('moduleQuickItemQty').value = 1;
-    document.getElementById('moduleQuickItemCategory').value = 'misc';
+    const panel = document.getElementById('moduleAddPanel');
+    if (panel) panel.hidden = true;
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     showModal('createModuleModal');
     setTimeout(() => document.getElementById('moduleBuilderName').focus(), 50);
+}
+
+function toggleModuleAddPanel() {
+    S.moduleAddPanelOpen = !S.moduleAddPanelOpen;
+    const panel = document.getElementById('moduleAddPanel');
+    if (panel) panel.hidden = !S.moduleAddPanelOpen;
+    if (S.moduleAddPanelOpen) {
+        renderModuleBuilderItems();
+        setTimeout(() => document.getElementById('moduleBuilderSearch')?.focus(), 50);
+    }
 }
 
 function updateModuleBuilderSearch(value) {
@@ -1874,236 +2064,68 @@ function updateModuleBuilderSearch(value) {
     renderModuleBuilderItems();
 }
 
-function clearModuleBuilderSelection() {
-    S.moduleBuilderSelection = new Set();
-    S.moduleBuilderItems = [];
+function removeModuleBuilderItem(itemId) {
+    const target = S.moduleBuilderItems.find(item => item.id === itemId);
+    S.moduleBuilderItems = S.moduleBuilderItems.filter(item => item.id !== itemId);
+    if (target) {
+        const library = getItemLibrary();
+        const assetId = library.find(asset => asset.name === target.name)?.id;
+        if (assetId) S.moduleBuilderSelection.delete(assetId);
+    }
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
 }
 
-function updateModuleQuickItemCategory() {
-    const input = document.getElementById('moduleQuickItemName');
-    const select = document.getElementById('moduleQuickItemCategory');
-    if (!input || !select) return;
-    const current = select.value;
-    if (current && current !== 'misc') return;
-    select.value = guessCat(input.value.trim());
-}
-
-function addBuilderCustomItem() {
-    const name = document.getElementById('moduleQuickItemName').value.trim();
-    if (!name) {
-        toast('请先填写物品名称');
+function addModuleBuilderItemByAssetId(itemId) {
+    const library = getItemLibrary();
+    const asset = library.find(entry => entry.id === itemId);
+    if (!asset) return;
+    if (S.moduleBuilderItems.some(item => item.name === asset.name)) {
+        toast('已在包内');
         return;
     }
-    const qty = Math.max(1, parseInt(document.getElementById('moduleQuickItemQty').value) || 1);
-    const category = document.getElementById('moduleQuickItemCategory').value || guessCat(name);
-    const bag = category === 'misc' && name.includes('宝宝') ? 'bag-baby' : (CATEGORY_BAG_MAP[category] || 'bag-misc');
-    const { smartRule, smartConfig } = resolveItemSmartPlan(name, category);
-    const library = getItemLibrary();
-    let target = library.find(item => item.name === name) || null;
-
-    if (!target) {
-        target = normalizeLibraryItem({
-            id: 'asset-' + gid(),
-            name,
-            defaultQty: qty,
-            category,
-            bag,
-            smartRule,
-            smartConfig,
-            source: 'user',
-        });
-        library.unshift(target);
-        saveItemLibrary(library);
-    } else {
-        target = normalizeLibraryItem({
-            ...target,
-            defaultQty: qty,
-            category,
-            bag,
-            smartRule,
-            smartConfig,
-        });
-        const idx = library.findIndex(item => item.id === target.id);
-        if (idx >= 0) library[idx] = target;
-        saveItemLibrary(library);
-    }
-
-    S.moduleBuilderSelection.add(target.id);
-    if (!S.moduleBuilderItems.some(item => item.name === target.name)) {
-        S.moduleBuilderItems.push(createModuleItemFromAsset(target));
-    }
-    document.getElementById('moduleQuickItemName').value = '';
-    document.getElementById('moduleQuickItemQty').value = 1;
-    document.getElementById('moduleQuickItemCategory').value = 'misc';
+    S.moduleBuilderSelection.add(itemId);
+    S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
-    renderItemLibrary();
-    toast('新物品已加入物品库，并选入当前小包');
 }
 
 function renderModuleBuilderSelectedItems() {
     const box = document.getElementById('moduleBuilderSelectedItems');
-    const section = document.getElementById('moduleBuilderSelectedSection');
-    const meta = document.getElementById('moduleBuilderSelectedMeta');
-    if (!box || !section) return;
+    if (!box) return;
 
     const items = S.moduleBuilderItems || [];
-    section.style.display = items.length ? 'block' : 'none';
-    if (meta) meta.textContent = items.length ? `共 ${items.length} 件 · 点击可改默认数量、分类和归属小包` : '点击物品可改默认数量、分类和归属小包';
-
     box.innerHTML = items.length
-        ? items.map(item => {
-            const cat = catInfo(item.category);
-            const smart = item.smartRule !== 'fixed'
-                ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + '</span>'
-                : '';
-            return '<div class="list-item-card editable compact" onclick="openModuleItemModal(\'builder\', null, null, \'' + item.id + '\')">' +
-                '<div class="list-item-main">' +
-                '<div class="list-item-name">' + esc(item.name) + '</div>' +
-                '<div class="item-subline">' +
-                '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-                '<span class="item-pill">' + esc(bagName(item.bag, DEFAULT_BAGS)) + '</span>' +
-                smart +
-                '</div></div>' +
-                '<div class="item-qty">×' + item.defaultQty + '</div></div>';
-        }).join('')
-        : '';
+        ? items.map(item =>
+            '<div class="module-edit-row">' +
+            '<span class="module-edit-name">' + esc(item.name) + '</span>' +
+            '<span class="module-edit-qty">×' + item.defaultQty + '</span>' +
+            '<button type="button" class="chip-remove" data-remove-module-item="' + item.id + '" aria-label="移除">×</button>' +
+            '</div>'
+        ).join('')
+        : '<div class="empty-hint">还没有物品，点「+ 添加」从物品库挑选。</div>';
 }
 
 function renderModuleBuilderItems() {
     const box = document.getElementById('moduleBuilderItems');
     if (!box) return;
 
+    const selectedNames = new Set((S.moduleBuilderItems || []).map(item => item.name));
     const keyword = S.moduleBuilderSearch.toLowerCase();
     const items = getItemLibrary()
+        .filter(item => !selectedNames.has(item.name))
         .filter(item => !keyword || item.name.toLowerCase().includes(keyword))
-        .sort((a, b) => {
-            const selectedDiff = Number(S.moduleBuilderSelection.has(b.id)) - Number(S.moduleBuilderSelection.has(a.id));
-            if (selectedDiff !== 0) return selectedDiff;
-            const userDiff = Number(b.source === 'user') - Number(a.source === 'user');
-            if (userDiff !== 0) return userDiff;
-            return a.name.localeCompare(b.name, 'zh-Hans-CN');
-        });
+        .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'));
 
     box.innerHTML = items.length
-        ? items.map(item => {
-            const selected = S.moduleBuilderSelection.has(item.id);
-            const cat = catInfo(item.category);
-            return '<div class="picker-item ' + (selected ? 'selected' : '') + '" data-item-id="' + item.id + '">' +
-                '<div class="picker-item-top">' +
-                '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-                '<span class="mini-badge picker-tile-state">' + (selected ? '已选' : '滑选') + '</span>' +
-                '</div>' +
-                '<div class="picker-item-name">' + esc(item.name) + '</div>' +
-                '<div class="picker-item-meta">默认 ×' + item.defaultQty + ' · ' + esc(smartRuleShort(item.smartRule)) + '</div>' +
-                '</div>';
-        }).join('')
-        : '<div class="empty-panel full-span"><div class="empty-title">没有找到物品</div><div class="empty-hint">换个关键词试试。</div></div>';
-
-    syncModuleBuilderMeta();
-}
-
-function syncModuleBuilderMeta() {
-    const meta = document.getElementById('moduleBuilderCount');
-    const clearBtn = document.getElementById('moduleBuilderClearBtn');
-    const count = S.moduleBuilderItems?.length || 0;
-    if (meta) meta.textContent = `已选 ${count} 件`;
-    if (clearBtn) clearBtn.textContent = count ? `清空（${count}）` : '清空选择';
-}
-
-function setupModuleBuilderGesture() {
-    const box = document.getElementById('moduleBuilderItems');
-    if (!box || box.dataset.gestureReady === 'true') return;
-    box.dataset.gestureReady = 'true';
-    box.addEventListener('pointerdown', handleModuleBuilderPointerDown);
-    box.addEventListener('pointermove', handleModuleBuilderPointerMove);
-    document.addEventListener('pointerup', endModuleBuilderGesture);
-    document.addEventListener('pointercancel', endModuleBuilderGesture);
-}
-
-function handleModuleBuilderPointerDown(event) {
-    const box = document.getElementById('moduleBuilderItems');
-    const tile = event.target.closest('.picker-item');
-    if (!box || !tile || !box.contains(tile)) return;
-
-    const itemId = tile.dataset.itemId;
-    const shouldSelect = !S.moduleBuilderSelection.has(itemId);
-    S.moduleBuilderGesture = {
-        active: true,
-        pointerId: event.pointerId,
-        mode: shouldSelect ? 'add' : 'remove',
-        visited: new Set(),
-    };
-
-    try {
-        box.setPointerCapture(event.pointerId);
-    } catch {
-        // ignore
-    }
-
-    applyModuleBuilderGesture(itemId);
-    event.preventDefault();
-}
-
-function handleModuleBuilderPointerMove(event) {
-    if (!S.moduleBuilderGesture.active || S.moduleBuilderGesture.pointerId !== event.pointerId) return;
-    const box = document.getElementById('moduleBuilderItems');
-    if (!box) return;
-    const node = document.elementFromPoint(event.clientX, event.clientY);
-    const tile = node && node.closest ? node.closest('.picker-item') : null;
-    if (!tile || !box.contains(tile)) return;
-    applyModuleBuilderGesture(tile.dataset.itemId);
-    event.preventDefault();
-}
-
-function applyModuleBuilderGesture(itemId) {
-    if (!itemId || S.moduleBuilderGesture.visited.has(itemId)) return;
-    S.moduleBuilderGesture.visited.add(itemId);
-    setModuleBuilderItemSelected(itemId, S.moduleBuilderGesture.mode === 'add');
-}
-
-function setModuleBuilderItemSelected(itemId, selected) {
-    const library = getItemLibrary();
-    const asset = library.find(entry => entry.id === itemId);
-    if (!asset) return;
-
-    if (selected) {
-        S.moduleBuilderSelection.add(itemId);
-        if (!S.moduleBuilderItems.some(item => item.name === asset.name)) {
-            S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
-        }
-    } else {
-        S.moduleBuilderSelection.delete(itemId);
-        S.moduleBuilderItems = S.moduleBuilderItems.filter(item => item.name !== asset.name);
-    }
-
-    const tile = document.querySelector('.picker-item[data-item-id="' + itemId + '"]');
-    if (tile) {
-        tile.classList.toggle('selected', selected);
-        const state = tile.querySelector('.picker-tile-state');
-        if (state) state.textContent = selected ? '已选' : '滑选';
-    }
-    renderModuleBuilderSelectedItems();
-    syncModuleBuilderMeta();
-}
-
-function endModuleBuilderGesture(event) {
-    if (!S.moduleBuilderGesture.active) return;
-    if (event?.pointerId != null && event.pointerId !== S.moduleBuilderGesture.pointerId) return;
-    const box = document.getElementById('moduleBuilderItems');
-    try {
-        box?.releasePointerCapture?.(S.moduleBuilderGesture.pointerId);
-    } catch {
-        // ignore
-    }
-    S.moduleBuilderGesture = {
-        active: false,
-        pointerId: null,
-        mode: 'add',
-        visited: new Set(),
-    };
+        ? items.map(item =>
+            '<div class="picker-item addable" data-item-id="' + item.id + '">' +
+            '<div class="picker-item-name">' + esc(item.name) + '</div>' +
+            '</div>'
+        ).join('')
+        : '<div class="empty-panel full-span"><div class="empty-hint">' +
+            (keyword ? '没有匹配的物品' : '物品库里的都已加入') +
+            '</div></div>';
 }
 
 function saveCustomModule() {
@@ -2126,8 +2148,8 @@ function saveCustomModule() {
             ...existing,
             id: existing?.id || ('official-module-' + gid()),
             name,
-            icon: document.getElementById('moduleBuilderIcon').value.trim() || '🧰',
-            desc: document.getElementById('moduleBuilderDesc').value.trim(),
+            icon: existing?.icon || '·',
+            desc: existing?.desc || '',
             purpose: existing?.purpose || 'starter',
             group: existing?.group || '',
             role: existing?.role || '',
@@ -2139,10 +2161,13 @@ function saveCustomModule() {
         if (idx >= 0) officialModules[idx] = nextModule;
         else officialModules.unshift(nextModule);
         items.forEach(upsertLibraryFromModuleItem);
-        saveOfficialModules(officialModules);
+        if (!saveOfficialModules(officialModules)) {
+            toast('小包保存失败，请重试');
+            return;
+        }
         closeModal('createModuleModal');
         renderModuleLibrary();
-        renderHome();
+        refreshTripHub();
         toast('官方小包已更新，之后新建行程都会按新设置生成');
         return;
     }
@@ -2152,8 +2177,8 @@ function saveCustomModule() {
         id: existing?.id || ('module-' + gid()),
         recordType: 'module',
         name,
-        icon: document.getElementById('moduleBuilderIcon').value.trim() || '🧰',
-        desc: document.getElementById('moduleBuilderDesc').value.trim(),
+        icon: existing?.icon || '·',
+        desc: existing?.desc || '',
         purpose: 'custom',
         tags: existing?.tags || ['我的小包'],
         items,
@@ -2162,10 +2187,13 @@ function saveCustomModule() {
     });
 
     items.forEach(upsertLibraryFromModuleItem);
-    saveRecord(module);
+    if (!saveRecord(module)) {
+        toast('小包保存失败，请重试');
+        return;
+    }
     closeModal('createModuleModal');
     renderModuleLibrary();
-    renderHome();
+    refreshTripHub();
     toast(existing ? '小包已更新，之后新建行程都会按新设置生成' : '已保存到我的小包');
 }
 
@@ -2174,14 +2202,17 @@ function deleteCurrentModuleDraft() {
     if (!confirm(S.moduleBuilderDraftSource === 'official' ? '确定删除这个官方小包吗？' : '确定删除这个小包吗？')) return;
 
     if (S.moduleBuilderDraftSource === 'official') {
-        saveOfficialModules(getOfficialModules().filter(item => item.id !== S.moduleBuilderDraftId));
+        if (!markOfficialModuleDeleted(S.moduleBuilderDraftId)) {
+            toast('删除失败，请重试');
+            return;
+        }
     } else {
-        deleteRecord(S.moduleBuilderDraftId, { silent: true });
+        if (!deleteRecord(S.moduleBuilderDraftId, { silent: true })) return;
     }
 
     closeModal('createModuleModal');
     renderModuleLibrary();
-    renderHome();
+    refreshTripHub();
     toast(S.moduleBuilderDraftSource === 'official' ? '已删除官方小包' : '已删除小包');
 }
 
@@ -2192,7 +2223,6 @@ function saveCurrentTripAsModule() {
     }
     openCreateModuleModal(S.currentTrip.items);
     document.getElementById('moduleBuilderName').value = S.currentTrip.name + ' 小包';
-    document.getElementById('moduleBuilderDesc').value = `由行程「${S.currentTrip.name}」沉淀而来，可在后续 Trips 中复用。`;
 }
 
 function deleteTrip(id) {
@@ -2211,14 +2241,20 @@ function duplicateTrip(id) {
     copy.recordType = 'trip';
     copy.createdAt = new Date().toISOString();
     copy.updatedAt = new Date().toISOString();
-    saveRecord(copy);
-    renderHome();
+    if (!saveRecord(copy)) {
+        toast('复制失败，请重试');
+        return;
+    }
+    refreshTripHub();
     toast('已复制行程');
 }
 
 function deleteRecord(id, options = {}) {
     const records = getRecords().filter(record => record.id !== id);
-    saveRecords(records);
+    if (!saveRecords(records)) {
+        toast('删除失败，请重试');
+        return false;
+    }
     if (S.currentTripId === id) {
         S.currentTripId = null;
         S.currentTrip = null;
@@ -2228,17 +2264,24 @@ function deleteRecord(id, options = {}) {
         closeModal('moduleDetailModal');
     }
     if (!options.silent) {
-        if (S.currentPage === 'list') nav('home');
-        renderHome();
+        if (S.currentPage === 'list') nav('list');
+        refreshTripHub();
         renderModuleLibrary();
         toast('已删除');
     }
+    return true;
 }
 
 function persistCurrentTrip() {
-    if (!S.currentTrip?.id) return;
+    if (!S.currentTrip?.id) return false;
     S.currentTrip.updatedAt = new Date().toISOString();
-    saveRecord(S.currentTrip);
+    const saved = saveRecord(S.currentTrip);
+    if (!saved) {
+        const stored = getTrips().find(trip => trip.id === S.currentTripId);
+        if (stored) S.currentTrip = deepClone(stored);
+        toast('行程保存失败，请检查设备存储空间后重试');
+    }
+    return saved;
 }
 function stepValue(id, delta) {
     const input = document.getElementById(id);
@@ -2274,7 +2317,7 @@ function tripBuilderHasBabyAddonSelection() {
     return Array.from(S.tripBuilderSelection).some(key => {
         const [source, id] = splitModuleKey(key);
         const module = getModuleEntity(source, id);
-        return isBabyModuleEntity(module) && !isBabyBaseModuleEntity(module);
+        return isBabyModuleEntity(module) && module?.role === 'scenario';
     });
 }
 
@@ -2310,7 +2353,7 @@ function fillCatSelect(id, selected) {
 function fillBagSelect(id, selected, bags = DEFAULT_BAGS) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = (bags || DEFAULT_BAGS).map(bag => '<option value="' + bag.id + '"' + (bag.id === selected ? ' selected' : '') + '>' + bag.icon + ' ' + bag.name + '</option>').join('');
+    el.innerHTML = (bags || DEFAULT_BAGS).map(bag => '<option value="' + bag.id + '"' + (bag.id === selected ? ' selected' : '') + '>' + esc(bag.name) + '</option>').join('');
 }
 function esc(value) {
     const div = document.createElement('div');
@@ -2320,22 +2363,42 @@ function esc(value) {
 
 function setupModalOverlays() {
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        const dialog = overlay.querySelector('.modal');
+        if (dialog) {
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('tabindex', '-1');
+        }
         overlay.addEventListener('click', event => {
-            if (event.target === overlay) overlay.classList.remove('active');
+            if (event.target === overlay) closeModal(overlay.id);
         });
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        const activeOverlay = document.querySelector('.modal-overlay.active');
+        if (activeOverlay) closeModal(activeOverlay.id);
     });
 }
 
 function showModal(id) {
-    document.getElementById(id)?.classList.add('active');
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    modalReturnFocus = document.activeElement;
+    overlay.classList.add('active');
+    setTimeout(() => {
+        const target = overlay.querySelector('input:not([type="hidden"]), textarea, select, button, [tabindex="0"]');
+        target?.focus();
+    }, 0);
 }
 
 function closeModal(id) {
     if (id === 'createModuleModal') {
         S.moduleBuilderDraftId = null;
-        endModuleBuilderGesture();
+        S.moduleAddPanelOpen = false;
     }
     document.getElementById(id)?.classList.remove('active');
+    if (modalReturnFocus instanceof HTMLElement) modalReturnFocus.focus();
+    modalReturnFocus = null;
 }
 
 function toast(message) {
@@ -2350,19 +2413,16 @@ function toast(message) {
 
 const ONBOARDING_STEPS = [
     {
-        icon: '🧰',
-        title: '第一步：整理小包',
-        desc: '把你常带的物品按用途分组，比如洗漱包、化妆包、证件包。系统已预置了一批官方小包，你也可以新建自己的。',
+        title: '整理小包',
+        desc: '把常带物品按用途分组，比如洗漱包、化妆包。系统已预置官方小包，你也可以新建自己的。',
     },
     {
-        icon: '📝',
-        title: '第二步：新建行程',
-        desc: '每次出门前，新建一个行程，勾选这次需要带的小包。系统会自动合并物品并按天数、人数建议数量。',
+        title: '新建行程',
+        desc: '每次出门前新建行程，勾选需要的小包，系统自动合并物品并按天数、人数建议数量。',
     },
     {
-        icon: '🎒',
-        title: '第三步：打包出发',
-        desc: '打开行程后切换到"打包模式"，实物打包时逐一勾选，再也不怕落东西。',
+        title: '打包出发',
+        desc: '打开行程后切换到打包模式，实物打包时逐一勾选。',
     },
 ];
 
@@ -2382,8 +2442,7 @@ function renderOnboardingStep() {
     const skipBtn = document.getElementById('onboardingSkip');
     if (!stepEl || !step) return;
 
-    stepEl.innerHTML = '<div class="onboarding-icon">' + step.icon + '</div>' +
-        '<div class="onboarding-title">' + step.title + '</div>' +
+    stepEl.innerHTML = '<div class="onboarding-title">' + step.title + '</div>' +
         '<div class="onboarding-desc">' + step.desc + '</div>';
 
     dotsEl.innerHTML = ONBOARDING_STEPS.map((_, i) =>
@@ -2405,7 +2464,7 @@ function nextOnboardingStep() {
 }
 
 function finishOnboarding() {
-    localStorage.setItem(STORAGE_KEYS.onboarded, '1');
+    safeStorageSet(STORAGE_KEYS.onboarded, '1');
     closeModal('onboardingModal');
 }
 
@@ -2416,22 +2475,24 @@ function renderMePage() {
     const modules = getMyModules();
     const library = getItemLibrary();
     const officialCount = getOfficialModules().length;
+    const activeCount = trips.filter(trip => getTripStatus(trip).key !== 'done').length;
 
+    document.getElementById('meName').textContent = '行理';
     document.getElementById('meStats').innerHTML = [
+        { label: '进行中', value: activeCount },
         { label: '行程', value: trips.length },
         { label: '小包', value: modules.length + officialCount },
         { label: '物品', value: library.length },
-    ].map(stat => `
-        <div class="me-stat">
-            <div class="me-stat-value">${stat.value}</div>
-            <div class="me-stat-label">${stat.label}</div>
-        </div>
-    `).join('');
+    ].map(stat =>
+        '<div class="me-stat"><div class="me-stat-value">' + stat.value + '</div><div class="me-stat-label">' + stat.label + '</div></div>'
+    ).join('');
 }
 
 function resetOfficialModules() {
     if (!confirm('确定恢复所有官方小包到初始状态？你自建的小包不会受影响。')) return;
-    localStorage.removeItem(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.deletedOfficialModules);
+    safeStorageRemove(STORAGE_KEYS.officialSeedVersion);
     ensureItemLibrarySeeded();
     renderModuleLibrary();
     renderMePage();
@@ -2440,54 +2501,63 @@ function resetOfficialModules() {
 
 function clearAllData() {
     if (!confirm('确定清除所有数据？包括行程、小包和物品库，此操作不可撤销。')) return;
-    localStorage.removeItem(STORAGE_KEYS.records);
-    localStorage.removeItem(STORAGE_KEYS.itemLibrary);
-    localStorage.removeItem(STORAGE_KEYS.officialModules);
-    localStorage.removeItem(STORAGE_KEYS.onboarded);
+    safeStorageRemove(STORAGE_KEYS.records);
+    safeStorageRemove(STORAGE_KEYS.itemLibrary);
+    safeStorageRemove(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.deletedOfficialModules);
+    safeStorageRemove(STORAGE_KEYS.onboarded);
     S.currentTrip = null;
     S.currentTripId = null;
     ensureItemLibrarySeeded();
-    nav('home');
+    nav('list');
     toast('数据已清除');
 }
 
-// Expose functions to global scope for HTML onclick/oninput handlers
+// Expose the allowlisted actions used by CSP-safe delegated event handlers.
 Object.assign(window, {
     // nav & pages
-    openMainPage, openTripPage, goBack, nav,
+    openMainPage, openSubPage, openTripPage, goBack, nav,
     // trip builder
     openCreateTripModal, confirmCreateTrip, stepValue,
-    toggleTripBuilderModule, changeCurrentTripSetting,
+    toggleTripBuilderModule, changeCurrentTripSetting, updateCurrentTripSetting,
     // trip page
     openTrip, setTripMode, toggleTripMode, setPackView,
     togglePackItem, toggleBagCollapse, toggleTripInfoCard, markAllPacked, markAllUnpacked,
     reapplyTripSmartFill, resyncCurrentTripFromModules, removeModuleFromCurrentTrip, saveCurrentTripAsModule,
     goSelectModuleForTrip, goSelectItemsForTrip,
     // module
-    openCreateModuleModal, saveCustomModule, deleteCurrentModuleDraft,
-    clearModuleBuilderSelection, addBuilderCustomItem,
-    useCurrentModule, openEditCurrentModule, openModuleDetail,
+    openCreateModuleModal, saveCustomModule, deleteCurrentModuleDraft, deleteCurrentModuleFromDetail,
+    toggleModuleAddPanel, updateModuleBuilderSearch,
+    useCurrentModule, openEditCurrentModule, openEditModuleModal, openModuleDetail,
     openModuleItemModal, saveModuleItemEdit, deleteModuleItemEdit,
-    setModuleFilter, updateModuleSearch, updateModuleBuilderSearch,
+    setModuleFilter, updateModuleSearch,
     // library
-    saveLibraryItem, deleteLibraryItem, openLibraryItemModal,
-    addLibraryItemTag,
-    setItemFilter, updateItemSearch,
+    saveLibraryItem, deleteLibraryItem, openLibraryItemModal, addLibraryItemToCurrentTrip,
+    addLibraryItemTag, toggleLibraryItemTagSection,
+    setItemFilter, updateItemSearch, updateILibrarySearch,
     // manual item
     openManualItemModal, saveManualTripItem,
     // trip item edit
     openTripItemModal, saveCurrentTripItem, deleteCurrentTripItem,
-    addTripItemTag,
+    addTripItemTag, toggleTripItemTagSection,
     // modals
-    showModal, closeModal,
+    showModal, closeModal, updateItemPickerSearch, confirmItemPicker,
     // onboarding
     startOnboarding, nextOnboardingStep, finishOnboarding,
     // me page
     resetOfficialModules, clearAllData,
     // home extras
     toggleHomeHistory, duplicateTrip, deleteTrip,
-    // kit view
-    setKitView,
+    openTripActionsSheet, closeTripActionsSheet, duplicateTripFromSheet, deleteTripFromSheet,
 });
 
-init();
+try {
+    init();
+} catch (error) {
+    console.error('[xingli] init failed', error);
+    const content = document.getElementById('listContent');
+    if (content) {
+        content.innerHTML = '<div class="empty-panel"><div class="empty-title">页面加载失败</div>' +
+            '<div class="empty-hint">请关闭后重新打开；如果仍然失败，请更新到最新版本。</div></div>';
+    }
+}

@@ -21,7 +21,7 @@ export function getItemLibrary() {
 }
 
 export function saveItemLibrary(items) {
-    writeJson(STORAGE_KEYS.itemLibrary, sortLibraryItems((items || []).map(normalizeLibraryItem)));
+    return writeJson(STORAGE_KEYS.itemLibrary, sortLibraryItems((items || []).map(normalizeLibraryItem)));
 }
 
 export function buildSeedItemLibrary() {

@@ -1,0 +1,12 @@
+{
+  "appId": "com.xingli.packhelper",
+  "appName": "行理",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "backgroundColor": "#f3f5fb"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

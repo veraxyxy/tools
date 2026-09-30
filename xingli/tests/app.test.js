@@ -9,6 +9,7 @@ const {
     DEFAULT_BAGS,
     CATEGORY_BAG_MAP,
     BABY_MODULE_IDS,
+    OFFICIAL_MODULES,
     guessCat,
     matchCat,
     gid,
@@ -28,6 +29,7 @@ const {
     getTripProgress,
     getTripStatus,
     saveOfficialModules,
+    DataStore,
 } = require('../src/data/index.js');
 
 // ===== guessCat 智能分类函数 =====
@@ -140,7 +142,7 @@ describe('bagName 包名称函数', () => {
     test('不存在的包返回未分配', () => { expect(bagName('bag-nonexistent', DEFAULT_BAGS)).toBe('未分配'); });
     test('空数组返回未分配', () => { expect(bagName('bag-hygiene', [])).toBe('未分配'); });
     test('null bags 使用默认', () => { expect(bagName('bag-hygiene', null)).toBe('未分配'); });
-    test('宝宝包名称正确', () => { expect(bagName('bag-baby', DEFAULT_BAGS)).toBe('宝宝基础包'); });
+    test('宝宝包名称正确', () => { expect(bagName('bag-baby', DEFAULT_BAGS)).toBe('宝宝日常出门包'); });
 });
 
 // ===== parseBulkNames 批量解析 =====
@@ -180,7 +182,7 @@ describe('CATEGORY_BAG_MAP 映射逻辑', () => {
     test('衣物映射到衣服包', () => { expect(CATEGORY_BAG_MAP['clothing']).toBe('bag-clothing'); });
     test('洗漱映射到洗漱包', () => { expect(CATEGORY_BAG_MAP['hygiene']).toBe('bag-hygiene'); });
     test('化妆映射到化妆包', () => { expect(CATEGORY_BAG_MAP['makeup']).toBe('bag-makeup'); });
-    test('护肤映射到洗漱包（合并）', () => { expect(CATEGORY_BAG_MAP['skincare']).toBe('bag-hygiene'); });
+    test('护肤映射到独立护肤包', () => { expect(CATEGORY_BAG_MAP['skincare']).toBe('bag-skincare'); });
     test('不存在的分类返回 undefined', () => { expect(CATEGORY_BAG_MAP['nonexistent']).toBeUndefined(); });
 });
 
@@ -402,6 +404,53 @@ describe('getTripProgress / getTripStatus', () => {
 });
 
 describe('removeModuleFromTrip / isModuleOnTrip', () => {
+    test('小包改名后仍按稳定 ID 移除对应物品', () => {
+        saveOfficialModules([
+            { id: 'mod-renamed', name: '新名字', icon: '🧴', purpose: 'starter', items: [] },
+        ]);
+        const trip = normalizeTripRecord({
+            id: 'trip-renamed-module',
+            name: '改名测试',
+            sourceModules: [{ source: 'official', id: 'mod-renamed', name: '旧名字' }],
+            items: [normalizeTripItem({
+                id: 'renamed-item',
+                name: '牙刷',
+                sourceModules: ['旧名字'],
+                sourceModuleKeys: ['official:mod-renamed'],
+            })],
+        });
+
+        const result = removeModuleFromTrip(trip, 'official', 'mod-renamed');
+        expect(result.changed).toBe(true);
+        expect(result.removedItems).toBe(1);
+        expect(trip.items).toHaveLength(0);
+    });
+
+    test('同名小包通过稳定 ID 区分物品来源', () => {
+        saveOfficialModules([
+            { id: 'same-a', name: '同名包', icon: '🅰️', purpose: 'starter', items: [] },
+            { id: 'same-b', name: '同名包', icon: '🅱️', purpose: 'starter', items: [] },
+        ]);
+        const trip = normalizeTripRecord({
+            id: 'trip-same-name',
+            name: '同名测试',
+            sourceModules: [
+                { source: 'official', id: 'same-a', name: '同名包' },
+                { source: 'official', id: 'same-b', name: '同名包' },
+            ],
+            items: [normalizeTripItem({
+                id: 'shared-item',
+                name: '纸巾',
+                sourceModules: ['同名包'],
+                sourceModuleKeys: ['official:same-a', 'official:same-b'],
+            })],
+        });
+
+        removeModuleFromTrip(trip, 'official', 'same-a');
+        expect(trip.items).toHaveLength(1);
+        expect(trip.items[0].sourceModuleKeys).toEqual(['official:same-b']);
+    });
+
     test('移除小包时删掉仅属于它的物品', () => {
         const trip = normalizeTripRecord({
             id: 'trip-remove-mod',
@@ -634,7 +683,10 @@ describe('DEFAULT_BAGS 数据完整性', () => {
         expect(ids).toContain('bag-baby');
         expect(ids).toContain('bag-baby-vaccine');
         expect(ids).toContain('bag-baby-feeding');
-        expect(ids).toContain('bag-baby-overnight');
+        expect(ids).toContain('bag-baby-clothing');
+        expect(ids).toContain('bag-baby-bath');
+        expect(ids).toContain('bag-baby-medicine');
+        expect(ids).toContain('bag-baby-gear');
         expect(ids).toContain('bag-baby-outdoor');
     });
     test('每个包都有 id name icon', () => {
@@ -643,5 +695,52 @@ describe('DEFAULT_BAGS 数据完整性', () => {
             expect(typeof bag.name).toBe('string');
             expect(typeof bag.icon).toBe('string');
         });
+    });
+});
+
+describe('DataStore 写入结果', () => {
+    test('存储适配器写入失败时向上层返回 false', () => {
+        const adapter = {
+            read: () => null,
+            write: () => false,
+            remove: () => true,
+        };
+        const store = new DataStore(adapter);
+        expect(store.saveRecords([])).toBe(false);
+        expect(store.saveRecord({ id: 'failed-trip', recordType: 'trip', name: '保存失败' })).toBe(false);
+    });
+
+    test('新版官方小包会合并进旧的本地数据，已删除的不会复活', () => {
+        const data = new Map();
+        const adapter = {
+            read: key => data.get(key) ?? null,
+            write: (key, value) => { data.set(key, value); return true; },
+            remove: key => data.delete(key),
+        };
+        const store = new DataStore(adapter);
+        store.saveOfficialModules([{ id: 'module-hygiene', name: '我改过的洗漱包', items: [] }]);
+        expect(store.getOfficialModules().some(module => module.id === 'module-business-trip')).toBe(true);
+        expect(store.getOfficialModules().find(module => module.id === 'module-hygiene').name).toBe('我改过的洗漱包');
+
+        store.markOfficialModuleDeleted('module-business-trip');
+        expect(store.getOfficialModules().some(module => module.id === 'module-business-trip')).toBe(false);
+    });
+});
+
+describe('新增官方场景包', () => {
+    test.each([
+        ['module-business-trip', '商务出差包'],
+        ['module-weekend-short', '周末短途包'],
+        ['module-road-trip', '自驾出行包'],
+        ['module-international', '海外出行包'],
+        ['module-concert', '演唱会包'],
+        ['module-solo-hiking', '单人徒步登山包'],
+        ['module-long-haul-flight', '长途飞机场景'],
+        ['module-travel-anti-theft', '旅行防盗场景'],
+        ['module-cold-weather', '寒冷天气场景'],
+    ])('%s 包含可用的默认物品', (id, name) => {
+        const module = OFFICIAL_MODULES.find(entry => entry.id === id);
+        expect(module?.name).toBe(name);
+        expect(module?.items.length).toBeGreaterThan(5);
     });
 });

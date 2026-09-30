@@ -15,14 +15,19 @@
   var DEFAULT_BAGS = [
     { id: "bag-hygiene", name: "\u6D17\u6F31\u5305", icon: "\u{1F9F4}" },
     { id: "bag-makeup", name: "\u5316\u5986\u5305", icon: "\u{1F484}" },
+    { id: "bag-skincare", name: "\u62A4\u80A4\u5305", icon: "\u{1FAE7}" },
     { id: "bag-docs", name: "\u8BC1\u4EF6\u5305", icon: "\u{1F4C1}" },
     { id: "bag-clothing", name: "\u8863\u670D\u5305", icon: "\u{1F455}" },
-    { id: "bag-baby", name: "\u5B9D\u5B9D\u57FA\u7840\u5305", icon: "\u{1F37C}" },
-    { id: "bag-baby-vaccine", name: "\u75AB\u82D7\u63D2\u4EF6\u5305", icon: "\u{1F489}" },
-    { id: "bag-baby-feeding", name: "\u5582\u517B\u63D2\u4EF6\u5305", icon: "\u{1F9C3}" },
-    { id: "bag-baby-overnight", name: "\u8FC7\u591C\u63D2\u4EF6\u5305", icon: "\u{1F319}" },
-    { id: "bag-baby-outdoor", name: "\u6237\u5916\u63D2\u4EF6\u5305", icon: "\u26F0\uFE0F" },
+    { id: "bag-baby", name: "\u5B9D\u5B9D\u65E5\u5E38\u51FA\u95E8\u5305", icon: "\u{1F9F7}" },
+    { id: "bag-baby-feeding", name: "\u5B9D\u5B9D\u5582\u517B\u5305", icon: "\u{1F37C}" },
+    { id: "bag-baby-clothing", name: "\u5B9D\u5B9D\u8863\u7269\u5305", icon: "\u{1F455}" },
+    { id: "bag-baby-bath", name: "\u5B9D\u5B9D\u8FC7\u591C\u8865\u5145\u5305", icon: "\u{1F319}" },
+    { id: "bag-baby-medicine", name: "\u5B9D\u5B9D\u836F\u54C1\u5305", icon: "\u{1F321}\uFE0F" },
+    { id: "bag-baby-gear", name: "\u5B9D\u5B9D\u51FA\u884C\u88C5\u5907\u5305", icon: "\u{1F697}" },
+    { id: "bag-baby-vaccine", name: "\u5B9D\u5B9D\u75AB\u82D7\u573A\u666F", icon: "\u{1F489}" },
+    { id: "bag-baby-outdoor", name: "\u5B9D\u5B9D\u6237\u5916\u573A\u666F", icon: "\u{1F33F}" },
     { id: "bag-electronics", name: "\u7535\u5B50\u5305", icon: "\u{1F50C}" },
+    { id: "bag-camera", name: "\u6444\u5F71\u8BBE\u5907\u5305", icon: "\u{1F4F7}" },
     { id: "bag-small", name: "\u968F\u8EAB\u5C0F\u5305", icon: "\u{1F45B}" },
     { id: "bag-big", name: "\u5927\u4EF6\u6536\u7EB3\u5305", icon: "\u{1F9F3}" },
     { id: "bag-medicine", name: "\u836F\u54C1\u5305", icon: "\u{1F48A}" },
@@ -31,7 +36,7 @@
   var CATEGORY_BAG_MAP = {
     hygiene: "bag-hygiene",
     makeup: "bag-makeup",
-    skincare: "bag-hygiene",
+    skincare: "bag-skincare",
     "small-bag": "bag-small",
     "big-bag": "bag-big",
     misc: "bag-misc",
@@ -43,6 +48,8 @@
   var MODULE_FILTERS = [
     { id: "all", name: "\u5168\u90E8" },
     { id: "starter", name: "\u57FA\u7840" },
+    { id: "short", name: "\u77ED\u9014" },
+    { id: "business", name: "\u51FA\u5DEE" },
     { id: "travel", name: "\u51FA\u884C" },
     { id: "family", name: "\u5B9D\u5B9D" },
     { id: "daily", name: "\u968F\u8EAB" },
@@ -52,12 +59,22 @@
     records: "packHelper_lists",
     itemLibrary: "packHelper_itemLibrary",
     officialModules: "packHelper_officialModules",
+    officialSeedVersion: "packHelper_officialSeedVersion",
+    deletedOfficialModules: "packHelper_deletedOfficialModules",
     onboarded: "packHelper_onboarded"
   };
   var BABY_MODULE_IDS = {
     base: "module-baby-base",
-    vaccine: "module-baby-vaccine",
     feeding: "module-baby-feeding",
+    clothing: "module-baby-clothing",
+    // 沿用旧的过夜模块 ID，避免已有行程失去来源关联。
+    bath: "module-baby-overnight",
+    comfort: "module-baby-comfort",
+    snacks: "module-baby-snacks",
+    medicine: "module-baby-medicine",
+    gear: "module-baby-gear",
+    vaccine: "module-baby-vaccine",
+    // 保留旧键名，兼容已有行程与智能推荐数据。
     overnight: "module-baby-overnight",
     outdoor: "module-baby-outdoor"
   };
@@ -100,11 +117,14 @@
   }
   function suggestBagForItem(name, category) {
     const n = String(name || "");
-    if (["\u75AB\u82D7\u672C", "\u9000\u70E7\u8D34", "\u9000\u70ED\u8D34", "\u533B\u4FDD\u5361"].some((keyword) => n.includes(keyword))) return "bag-baby-vaccine";
-    if (["\u5976\u74F6", "\u5976\u7C89", "\u5976\u7C89\u683C", "\u8F85\u98DF\u7897", "\u56F4\u515C", "\u56F4\u5634", "\u4FDD\u6E29\u676F"].some((keyword) => n.includes(keyword))) return "bag-baby-feeding";
-    if (["\u4FBF\u643A\u70E7\u6C34\u58F6", "\u5976\u74F6\u5237", "\u6298\u53E0\u6FA1\u76C6"].some((keyword) => n.includes(keyword))) return "bag-baby-overnight";
-    if (["\u9A71\u868A\u6DB2", "\u9632\u6652\u971C", "\u4FBF\u643A\u9A6C\u6876", "\u5927\u91CF\u96F6\u98DF"].some((keyword) => n.includes(keyword))) return "bag-baby-outdoor";
-    if (n.includes("\u5B9D\u5B9D") || ["\u5C3F\u4E0D\u6E7F", "\u7EB8\u5C3F\u88E4", "\u9694\u5C3F\u57AB", "\u68C9\u67D4\u5DFE", "\u6E7F\u5DFE\uFF08\u5A74\u513F\u4E13\u7528\uFF09", "\u5907\u7528\u8863\u88E4", "\u5B89\u629A\u5976\u5634", "\u53E3\u6C34\u5DFE"].some((keyword) => n.includes(keyword))) return "bag-baby";
+    if (["\u75AB\u82D7\u672C", "\u533B\u4FDD\u5361"].some((keyword) => n.includes(keyword))) return "bag-baby-vaccine";
+    if (["\u5976\u74F6", "\u5976\u7C89", "\u50A8\u5976\u888B", "\u8F85\u98DF\u7897", "\u8F85\u98DF\u526A", "\u4FDD\u6E29\u676F", "\u6C34\u6E29\u8BA1"].some((keyword) => n.includes(keyword))) return "bag-baby-feeding";
+    if (["\u70E7\u6C34\u58F6", "\u5976\u74F6\u5237", "\u5976\u74F6\u6E05\u6D01\u5242", "\u6D17\u7897\u6D77\u7EF5", "\u62A4\u81C0\u818F", "\u6D74\u7F38\u5957", "\u6CE1\u6FA1\u888B", "\u5B9D\u5B9D\u6D74\u5DFE", "\u5B9D\u5B9D\u6C90\u6D74\u9732", "\u6298\u53E0\u6FA1\u76C6"].some((keyword) => n.includes(keyword))) return "bag-baby-bath";
+    if (["\u5B9D\u5B9D\u9000\u70E7\u836F", "\u9000\u70ED\u8D34", "\u4F53\u6E29\u8BA1", "D3", "AD", "\u5B9D\u5B9D\u6B62\u75D2\u818F"].some((keyword) => n.includes(keyword))) return "bag-baby-medicine";
+    if (["\u5A74\u513F\u8F66", "\u5B9D\u5B9D\u80CC\u5E26", "\u6E38\u6CF3\u5708"].some((keyword) => n.includes(keyword))) return "bag-baby-gear";
+    if (["\u5B9D\u5B9D\u8863\u670D", "\u5B9D\u5B9D\u88E4\u5B50", "\u5B9D\u5B9D\u889C\u5B50", "\u53E3\u6C34\u515C", "\u56F4\u515C", "\u7F69\u8863", "\u76D6\u6BEF", "\u7761\u888B"].some((keyword) => n.includes(keyword))) return "bag-baby-clothing";
+    if (["\u5B9D\u5B9D\u9A71\u868A\u6C34", "\u9632\u868A\u8D34", "\u5B9D\u5B9D\u9632\u6652\u971C", "\u4FBF\u643A\u9A6C\u6876"].some((keyword) => n.includes(keyword))) return "bag-baby-outdoor";
+    if (n.includes("\u5B9D\u5B9D") || ["\u5C3F\u4E0D\u6E7F", "\u7EB8\u5C3F\u88E4", "\u9694\u5C3F\u57AB", "\u68C9\u67D4\u5DFE", "\u4E91\u67D4\u5DFE", "\u5A74\u513F\u6E7F\u5DFE", "\u5373\u98DF\u7CA5", "\u679C\u6CE5", "\u6CE1\u8299", "\u5C0F\u9992\u5934", "\u7ED8\u672C", "\u4FBF\u643A\u5C0F\u73A9\u5177", "\u5B89\u629A\u5976\u5634"].some((keyword) => n.includes(keyword))) return "bag-baby";
     return CATEGORY_BAG_MAP[category] || "bag-misc";
   }
 
@@ -119,15 +139,14 @@
       tags: ["\u57FA\u7840", "\u8FC7\u591C", "\u9AD8\u9891"],
       items: [
         { name: "\u7259\u5237\u7259\u818F", c: "hygiene" },
+        { name: "\u6298\u53E0\u7259\u5237\u676F", c: "hygiene" },
         { name: "\u6D17\u9762\u5976", c: "hygiene" },
         { name: "\u68B3\u5B50", c: "hygiene" },
-        { name: "\u6F31\u53E3\u6C34", c: "hygiene" },
+        { name: "\u76AE\u7B4B", c: "small-bag" },
         { name: "\u7259\u7EBF", c: "hygiene" },
         { name: "\u6BDB\u5DFE", c: "hygiene", smart: "perPerson" },
-        { name: "\u6D17\u53D1\u6C34\u5206\u88C5\u74F6", c: "hygiene" },
-        { name: "\u62A4\u53D1\u7D20\u5206\u88C5\u74F6", c: "hygiene" },
-        { name: "\u6C90\u6D74\u9732\u5206\u88C5\u74F6", c: "hygiene" },
-        { name: "\u6298\u53E0\u7259\u5237\u676F", c: "hygiene" }
+        { name: "\u6D17\u53D1\u6C34\u3001\u62A4\u53D1\u7D20", c: "hygiene" },
+        { name: "\u6C90\u6D74\u9732", c: "hygiene" }
       ]
     },
     {
@@ -138,11 +157,10 @@
       desc: "\u628A\u5986\u9762\u9700\u8981\u7684\u56FA\u5B9A\u7269\u54C1\u6536\u6210\u4E00\u4E2A\u5C0F\u5305\uFF0C\u51FA\u884C\u65F6\u6309\u9700\u52FE\u9009\u3002",
       tags: ["\u5986\u9762", "\u56FA\u5B9A\u642D\u914D", "\u9AD8\u9891"],
       items: [
-        { name: "\u53E3\u7EA2", c: "makeup" },
-        { name: "\u5507\u91C9", c: "makeup" },
+        { name: "\u53E3\u7EA2/\u5507\u91C9", c: "makeup" },
         { name: "\u7C89\u5E95\u6DB2", c: "makeup" },
         { name: "\u7C89\u6251", c: "makeup" },
-        { name: "\u6C14\u57AB", c: "makeup" },
+        { name: "\u6C14\u57AB\u7C89\u5E95\u6DB2", c: "makeup" },
         { name: "\u773C\u5F71\u76D8", c: "makeup" },
         { name: "\u7709\u7B14", c: "makeup" },
         { name: "\u773C\u7EBF\u7B14", c: "makeup" },
@@ -153,7 +171,6 @@
         { name: "\u4FEE\u5BB9", c: "makeup" },
         { name: "\u906E\u7455", c: "makeup" },
         { name: "\u5B9A\u5986\u55B7\u96FE", c: "makeup" },
-        { name: "\u7F8E\u5986\u86CB", c: "makeup" },
         { name: "\u5316\u5986\u5237", c: "makeup" }
       ]
     },
@@ -171,8 +188,43 @@
         { name: "\u94F6\u884C\u5361", c: "small-bag" },
         { name: "\u73B0\u91D1", c: "small-bag" },
         { name: "\u8F66\u7968/\u673A\u7968", c: "docs" },
-        { name: "\u9152\u5E97\u9884\u8BA2\u786E\u8BA4\u5355", c: "docs" },
         { name: "\u884C\u7A0B\u5355", c: "docs" }
+      ]
+    },
+    {
+      id: "module-skincare",
+      name: "\u62A4\u80A4\u5305",
+      icon: "\u{1FAE7}",
+      purpose: "starter",
+      desc: "\u628A\u65E5\u5E38\u62A4\u80A4\u3001\u5378\u5986\u548C\u9690\u5F62\u773C\u955C\u7528\u54C1\u96C6\u4E2D\u6536\u7EB3\uFF0C\u907F\u514D\u548C\u5316\u5986\u54C1\u6DF7\u5728\u4E00\u8D77\u53CD\u590D\u7FFB\u627E\u3002",
+      tags: ["\u62A4\u80A4", "\u5378\u5986", "\u5E38\u7528\u5C0F\u5305"],
+      items: [
+        { name: "\u773C\u971C", c: "skincare" },
+        { name: "\u723D\u80A4\u6C34", c: "skincare" },
+        { name: "\u4E73\u6DB2", c: "skincare" },
+        { name: "\u4FDD\u6E7F\u971C", c: "skincare" },
+        { name: "\u9632\u6652\u971C", c: "skincare" },
+        { name: "\u6DA6\u5507\u818F", c: "skincare" },
+        { name: "\u5378\u5986\u6CB9/\u5378\u5986\u6C34", c: "skincare" },
+        { name: "\u773C\u5507\u5378\u5986\u6DB2", c: "skincare" },
+        { name: "\u5316\u5986\u68C9", c: "skincare" },
+        { name: "\u9762\u819C", c: "skincare" },
+        { name: "\u9690\u5F62\u773C\u955C", c: "small-bag" }
+      ]
+    },
+    {
+      id: "module-carry-on",
+      name: "\u968F\u8EAB\u5C0F\u5305",
+      icon: "\u{1F45B}",
+      purpose: "daily",
+      desc: "\u51FA\u95E8\u524D\u6700\u540E\u786E\u8BA4\u3001\u9700\u8981\u968F\u624B\u62FF\u53D6\u7684\u9AD8\u9891\u7269\u54C1\u3002",
+      tags: ["\u968F\u8EAB", "\u9AD8\u9891", "\u5E38\u7528\u5C0F\u5305"],
+      items: [
+        { name: "\u8BC1\u4EF6", c: "docs", bag: "bag-small" },
+        { name: "\u5145\u7535\u5B9D", c: "electronics", bag: "bag-small" },
+        { name: "\u96E8\u4F1E", c: "misc", bag: "bag-small" },
+        { name: "\u773C\u955C\u5E03", c: "small-bag", bag: "bag-small" },
+        { name: "\u7259\u7EBF", c: "hygiene", bag: "bag-small" }
       ]
     },
     {
@@ -190,92 +242,164 @@
         { name: "\u5185\u88E4", c: "clothing", smart: "perPersonPerDay" },
         { name: "\u889C\u5B50", c: "clothing", smart: "perPersonPerDay" },
         { name: "\u7761\u8863", c: "clothing", smart: "perPerson" },
-        { name: "\u8F7B\u8584\u5916\u5957", c: "clothing", smart: "perPerson" },
+        { name: "\u5916\u5957", c: "clothing", smart: "perPerson" },
         { name: "\u8FD0\u52A8\u978B", c: "clothing", smart: "perPerson" },
         { name: "\u62D6\u978B", c: "clothing", smart: "perPerson" }
       ]
     },
     {
       id: BABY_MODULE_IDS.base,
-      name: "\u5B9D\u5B9D\u57FA\u7840\u5305",
-      icon: "\u{1F37C}",
+      name: "\u5B9D\u5B9D\u65E5\u5E38\u51FA\u95E8\u5305",
+      icon: "\u{1F9F7}",
       purpose: "family",
       group: "baby",
       role: "base",
       defaultOn: true,
-      desc: "\u6240\u6709\u5E26\u5A03\u884C\u7A0B\u7684\u9ED8\u8BA4\u5E95\u76D8\uFF0C\u4F1A\u5728\u9009\u62E9\u4EFB\u4E00\u5B9D\u5B9D\u63D2\u4EF6\u5305\u65F6\u81EA\u52A8\u5E26\u4E0A\u3002",
-      tags: ["\u5B9D\u5B9D", "\u9ED8\u8BA4\u5F00\u542F", "\u57FA\u7840\u5E95\u76D8"],
+      desc: "\u6BCF\u6B21\u5E26\u5B9D\u5B9D\u51FA\u95E8\u90FD\u4F1A\u7528\u5230\u7684\u6362\u6D17\u3001\u7EB8\u5DFE\u3001\u96F6\u98DF\u548C\u5C11\u91CF\u5B89\u629A\u7269\u3002",
+      tags: ["\u5B9D\u5B9D", "\u65E5\u5E38\u51FA\u95E8", "\u9ED8\u8BA4\u5C0F\u5305"],
       items: [
-        { name: "\u5C3F\u4E0D\u6E7F", c: "misc", q: 2, bag: "bag-baby" },
-        { name: "\u6E7F\u5DFE\uFF08\u5A74\u513F\u4E13\u7528\uFF09", c: "misc", q: 1, bag: "bag-baby" },
-        { name: "\u68C9\u67D4\u5DFE", c: "misc", q: 1, bag: "bag-baby" },
-        { name: "\u9694\u5C3F\u57AB", c: "misc", q: 1, bag: "bag-baby" },
-        { name: "\u5907\u7528\u8863\u88E4", c: "clothing", q: 1, bag: "bag-baby" },
-        { name: "\u5B89\u629A\u5976\u5634", c: "misc", q: 1, bag: "bag-baby" }
-      ]
-    },
-    {
-      id: BABY_MODULE_IDS.vaccine,
-      name: "\u75AB\u82D7\u63D2\u4EF6\u5305",
-      icon: "\u{1F489}",
-      purpose: "family",
-      group: "baby",
-      role: "addon",
-      desc: "\u5E26\u5B9D\u5B9D\u53BB\u6253\u75AB\u82D7\u3001\u4F53\u68C0\u8FD9\u7C7B\u534A\u5929\u5916\u51FA\u65F6\u53E0\u52A0\u7684\u8BC1\u4EF6\u548C\u5E94\u6025\u63D2\u4EF6\u3002",
-      tags: ["\u5B9D\u5B9D", "\u63D2\u4EF6", "\u77ED\u65F6\u5916\u51FA"],
-      items: [
-        { name: "\u75AB\u82D7\u672C", c: "docs", bag: "bag-baby-vaccine" },
-        { name: "\u9000\u70E7\u8D34", c: "medicine", q: 2, bag: "bag-baby-vaccine" },
-        { name: "\u533B\u4FDD\u5361", c: "docs", bag: "bag-baby-vaccine" }
+        { name: "\u5C3F\u4E0D\u6E7F", c: "misc", q: 5, smart: "perDay", bag: "bag-baby" },
+        { name: "\u5A74\u513F\u6E7F\u5DFE", c: "misc", bag: "bag-baby" },
+        { name: "\u68C9\u67D4\u5DFE", c: "misc", bag: "bag-baby" },
+        { name: "\u4E91\u67D4\u5DFE", c: "misc", bag: "bag-baby" },
+        { name: "\u9694\u5C3F\u57AB", c: "misc", bag: "bag-baby" },
+        { name: "\u5B9D\u5B9D\u9632\u6652\u971C", c: "skincare", bag: "bag-baby" },
+        { name: "\u514D\u6D17\u6D17\u624B\u6DB2/\u64E6\u624B\u6D88\u6BD2\u6E7F\u5DFE", c: "hygiene", bag: "bag-baby" },
+        { name: "\u5851\u6599\u888B", c: "misc", bag: "bag-baby" },
+        { name: "\u5B9D\u5B9D\u96F6\u98DF", c: "misc", bag: "bag-baby" },
+        { name: "\u7ED8\u672C", c: "misc", bag: "bag-baby" },
+        { name: "\u4FBF\u643A\u5C0F\u73A9\u5177", c: "misc", bag: "bag-baby" },
+        { name: "\u5B89\u629A\u5976\u5634\uFF08\u6309\u9700\uFF09", c: "misc", bag: "bag-baby" },
+        { name: "\u9A71\u868A\u8D34", c: "misc", bag: "bag-baby" }
       ]
     },
     {
       id: BABY_MODULE_IDS.feeding,
-      name: "\u5582\u517B\u63D2\u4EF6\u5305",
-      icon: "\u{1F9C3}",
+      name: "\u5B9D\u5B9D\u5582\u517B\u5305",
+      icon: "\u{1F37C}",
       purpose: "family",
       group: "baby",
-      role: "addon",
-      desc: "\u5976\u7C89\u3001\u5976\u74F6\u548C\u8F85\u98DF\u76F8\u5173\u7269\u54C1\u96C6\u4E2D\u6210\u5305\uFF0C\u6309\u5582\u517B\u9700\u6C42\u968F\u65F6\u53E0\u52A0\u3002",
-      tags: ["\u5B9D\u5B9D", "\u63D2\u4EF6", "\u5582\u517B"],
+      role: "pack",
+      desc: "\u5F53\u5929\u5582\u517B\u6240\u9700\u7684\u5976\u7C89\u3001\u51B2\u6CE1\u7528\u54C1\u548C\u9910\u5177\uFF0C\u6BCD\u4E73\u6216\u5DF2\u65AD\u5976\u5B9D\u5B9D\u53EF\u6309\u9700\u5220\u51CF\u3002",
+      tags: ["\u5B9D\u5B9D", "\u5582\u517B", "\u5E38\u7528\u5C0F\u5305"],
       items: [
-        { name: "\u5976\u7C89\u683C", c: "misc", bag: "bag-baby-feeding" },
+        { name: "\u5976\u7C89", c: "misc", bag: "bag-baby-feeding" },
+        { name: "\u5976\u7C89\u5206\u88C5\u76D2", c: "misc", bag: "bag-baby-feeding" },
         { name: "\u5976\u74F6", c: "misc", q: 2, bag: "bag-baby-feeding" },
         { name: "\u4FDD\u6E29\u676F", c: "misc", bag: "bag-baby-feeding" },
-        { name: "\u8F85\u98DF\u7897", c: "misc", bag: "bag-baby-feeding" },
-        { name: "\u56F4\u515C", c: "misc", q: 1, bag: "bag-baby-feeding" }
+        { name: "\u5B9D\u5B9D\u9762/\u51B2\u6CE1\u9762\uFF08\u6309\u9700\uFF09", c: "misc", q: 3, bag: "bag-baby-feeding" },
+        { name: "\u8F85\u98DF\u7897\u3001\u52FA\u3001\u8F85\u98DF\u526A", c: "misc", bag: "bag-baby-feeding" },
+        { name: "\u5B9D\u5B9D\u6C34\u676F", c: "misc", bag: "bag-baby-feeding" },
+        { name: "\u77FF\u6CC9\u6C34", c: "misc", bag: "bag-baby-feeding" },
+        { name: "\u56F4\u515C+\u53E3\u6C34\u515C", c: "clothing", bag: "bag-baby-feeding" }
       ]
     },
     {
-      id: BABY_MODULE_IDS.overnight,
-      name: "\u8FC7\u591C\u63D2\u4EF6\u5305",
+      id: BABY_MODULE_IDS.clothing,
+      name: "\u5B9D\u5B9D\u8863\u7269\u5305",
+      icon: "\u{1F455}",
+      purpose: "family",
+      group: "baby",
+      role: "pack",
+      desc: "\u6309\u884C\u7A0B\u5929\u6570\u51C6\u5907\u6362\u6D17\u8863\u7269\uFF0C\u6570\u91CF\u53EF\u5728\u52A0\u5165\u884C\u7A0B\u540E\u7EE7\u7EED\u8C03\u6574\u3002",
+      tags: ["\u5B9D\u5B9D", "\u8863\u7269", "\u6309\u5929\u6570"],
+      items: [
+        { name: "\u5B9D\u5B9D\u8863\u670D", c: "clothing", q: 2, smart: "perDay", bag: "bag-baby-clothing" },
+        { name: "\u5B9D\u5B9D\u88E4\u5B50", c: "clothing", smart: "perDay", bag: "bag-baby-clothing" },
+        { name: "\u53E3\u6C34\u515C", c: "clothing", q: 2, smart: "perDay", bag: "bag-baby-clothing" },
+        { name: "\u56F4\u515C/\u7F69\u8863", c: "clothing", bag: "bag-baby-clothing" },
+        { name: "\u5B9D\u5B9D\u978B\u5B50", c: "clothing", bag: "bag-baby-clothing" },
+        { name: "\u76D6\u6BEF", c: "clothing", bag: "bag-baby-clothing" },
+        { name: "\u7761\u888B", c: "clothing", bag: "bag-baby-clothing" },
+        { name: "\u5B9D\u5B9D\u889C\u5B50", c: "clothing", q: 1, smart: "perDay", bag: "bag-baby-clothing" }
+      ]
+    },
+    {
+      id: BABY_MODULE_IDS.bath,
+      name: "\u5B9D\u5B9D\u8FC7\u591C\u8865\u5145\u5305",
       icon: "\u{1F319}",
       purpose: "family",
       group: "baby",
-      role: "addon",
-      desc: "\u53EA\u5728\u5E26\u5B9D\u5B9D\u5916\u4F4F\u65F6\u6253\u5F00\uFF0C\u8865\u8DB3\u6D17\u5976\u74F6\u3001\u6D17\u6FA1\u548C\u591C\u95F4\u6362\u6D17\u76F8\u5173\u7269\u54C1\u3002",
-      tags: ["\u5B9D\u5B9D", "\u63D2\u4EF6", "\u8FC7\u591C"],
+      role: "scenario",
+      desc: "\u53EA\u6709\u5916\u5BBF\u65F6\u624D\u8865\u5145\u70E7\u6C34\u3001\u5976\u74F6\u6E05\u6D17\u3001\u62A4\u81C0\u548C\u6D17\u6FA1\u7528\u54C1\u3002",
+      tags: ["\u5B9D\u5B9D", "\u573A\u666F\u8865\u5145", "\u8FC7\u591C"],
       items: [
-        { name: "\u4FBF\u643A\u70E7\u6C34\u58F6", c: "misc", bag: "bag-baby-overnight" },
-        { name: "\u5976\u74F6\u5237", c: "misc", bag: "bag-baby-overnight" },
-        { name: "\u6298\u53E0\u6FA1\u76C6", c: "misc", bag: "bag-baby-overnight" },
-        { name: "\u7761\u8863", c: "clothing", q: 1, bag: "bag-baby-overnight" }
+        { name: "\u4FBF\u643A\u70E7\u6C34\u58F6", c: "misc", bag: "bag-baby-bath" },
+        { name: "\u5976\u74F6\u5237\u53CA\u6536\u7EB3\u76D2", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u6CA5\u6C34\u67B6", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u5976\u74F6\u6E05\u6D01\u5242", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u6D17\u7897\u6D77\u7EF5", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u62A4\u81C0\u818F", c: "skincare", bag: "bag-baby-bath" },
+        { name: "\u4E00\u6B21\u6027\u6D74\u7F38\u5957/\u6CE1\u6FA1\u888B", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u5B9D\u5B9D\u6D74\u5DFE", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u5B9D\u5B9D\u6C90\u6D74\u9732", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "\u6298\u53E0\u6FA1\u76C6", c: "misc", bag: "bag-baby-bath" },
+        { name: "\u5B9D\u5B9D\u9762\u971C&\u8EAB\u4F53\u4E73", c: "skincare", bag: "bag-baby-bath" },
+        { name: "\u5B9D\u5B9D\u7259\u5237&\u7259\u5237\u676F", c: "hygiene", bag: "bag-baby-bath" },
+        { name: "D3/AD\uFF08\u6309\u65E5\u5E38\u670D\u7528\uFF09", c: "medicine", bag: "bag-baby-bath" }
+      ]
+    },
+    {
+      id: BABY_MODULE_IDS.medicine,
+      name: "\u5B9D\u5B9D\u836F\u54C1\u5305",
+      icon: "\u{1F321}\uFE0F",
+      purpose: "family",
+      group: "baby",
+      role: "pack",
+      desc: "\u5E38\u7528\u836F\u4E0E\u65E5\u5E38\u8865\u5145\u5242\u96C6\u4E2D\u6536\u7EB3\uFF1B\u7528\u836F\u8BF7\u9075\u5FAA\u533B\u751F\u6216\u836F\u5E08\u5EFA\u8BAE\u3002",
+      tags: ["\u5B9D\u5B9D", "\u836F\u54C1", "\u5E94\u6025"],
+      items: [
+        { name: "\u5B9D\u5B9D\u9000\u70E7\u836F", c: "medicine", bag: "bag-baby-medicine" },
+        { name: "\u9000\u70ED\u8D34", c: "medicine", q: 2, bag: "bag-baby-medicine" },
+        { name: "\u4F53\u6E29\u8BA1", c: "medicine", bag: "bag-baby-medicine" },
+        { name: "\u5B9D\u5B9D\u6B62\u75D2\u818F", c: "medicine", bag: "bag-baby-medicine" },
+        { name: "\u9A71\u868A\u8D34", c: "misc", bag: "bag-baby-medicine" }
+      ]
+    },
+    {
+      id: BABY_MODULE_IDS.gear,
+      name: "\u5B9D\u5B9D\u51FA\u884C\u88C5\u5907\u5305",
+      icon: "\u{1F697}",
+      purpose: "family",
+      group: "baby",
+      role: "pack",
+      desc: "\u5A74\u513F\u8F66\u3001\u80CC\u5E26\u7B49\u5927\u4EF6\u88C5\u5907\uFF0C\u6309\u8DEF\u7EBF\u548C\u5B9D\u5B9D\u6708\u9F84\u9009\u62E9\u3002",
+      tags: ["\u5B9D\u5B9D", "\u5927\u4EF6", "\u51FA\u884C\u88C5\u5907"],
+      items: [
+        { name: "\u5A74\u513F\u8F66", c: "big-bag", bag: "bag-baby-gear" },
+        { name: "\u5B9D\u5B9D\u80CC\u5E26", c: "big-bag", bag: "bag-baby-gear" },
+        { name: "\u5B9D\u5B9D\u6307\u7532\u526A", c: "hygiene", bag: "bag-baby-gear" },
+        { name: "\u6E38\u6CF3\u5708\uFF08\u6309\u9700\uFF09", c: "big-bag", bag: "bag-baby-gear" }
+      ]
+    },
+    {
+      id: BABY_MODULE_IDS.vaccine,
+      name: "\u5B9D\u5B9D\u75AB\u82D7\u573A\u666F",
+      icon: "\u{1F489}",
+      purpose: "family",
+      group: "baby",
+      role: "scenario",
+      desc: "\u6253\u75AB\u82D7\u6216\u4F53\u68C0\u65F6\uFF0C\u5728\u5B9D\u5B9D\u5C0F\u5305\u4E4B\u5916\u8865\u5145\u8BC1\u4EF6\uFF1B\u9000\u70ED\u7528\u54C1\u7EDF\u4E00\u653E\u5728\u5B9D\u5B9D\u836F\u54C1\u5305\u3002",
+      tags: ["\u5B9D\u5B9D", "\u573A\u666F\u8865\u5145", "\u4F53\u68C0\u75AB\u82D7"],
+      items: [
+        { name: "\u75AB\u82D7\u672C", c: "docs", bag: "bag-baby-vaccine" },
+        { name: "\u533B\u4FDD\u5361", c: "docs", bag: "bag-baby-vaccine" }
       ]
     },
     {
       id: BABY_MODULE_IDS.outdoor,
-      name: "\u6237\u5916\u63D2\u4EF6\u5305",
-      icon: "\u26F0\uFE0F",
+      name: "\u5B9D\u5B9D\u6237\u5916\u573A\u666F",
+      icon: "\u{1F33F}",
       purpose: "family",
       group: "baby",
-      role: "addon",
-      desc: "\u722C\u5C71\u3001\u9732\u8425\u3001\u516C\u56ED\u4E45\u5F85\u65F6\u53E0\u52A0\uFF0C\u91CD\u70B9\u8865\u9632\u62A4\u548C\u6237\u5916\u8865\u7ED9\u3002",
-      tags: ["\u5B9D\u5B9D", "\u63D2\u4EF6", "\u6237\u5916"],
+      role: "scenario",
+      desc: "\u516C\u56ED\u3001\u9732\u8425\u6216\u957F\u65F6\u95F4\u6237\u5916\u65F6\u8865\u5145\u9632\u6652\u3001\u9632\u868A\u548C\u5982\u5395\u7528\u54C1\u3002",
+      tags: ["\u5B9D\u5B9D", "\u573A\u666F\u8865\u5145", "\u6237\u5916"],
       items: [
-        { name: "\u9A71\u868A\u6DB2", c: "skincare", bag: "bag-baby-outdoor" },
-        { name: "\u9632\u6652\u971C", c: "skincare", bag: "bag-baby-outdoor" },
-        { name: "\u4FBF\u643A\u9A6C\u6876", c: "misc", bag: "bag-baby-outdoor" },
-        { name: "\u5927\u91CF\u96F6\u98DF", c: "misc", q: 2, bag: "bag-baby-outdoor" }
+        { name: "\u5B9D\u5B9D\u9A71\u868A\u6C34", c: "skincare", bag: "bag-baby-outdoor" },
+        { name: "\u9632\u868A\u8D34", c: "misc", q: 2, bag: "bag-baby-outdoor" },
+        { name: "\u5B9D\u5B9D\u9632\u6652\u971C", c: "skincare", bag: "bag-baby-outdoor" },
+        { name: "\u4FBF\u643A\u9A6C\u6876\uFF08\u6309\u9700\uFF09", c: "big-bag", bag: "bag-baby-outdoor" }
       ]
     },
     {
@@ -286,17 +410,264 @@
       desc: "\u957F\u77ED\u9014\u90FD\u80FD\u76F4\u63A5\u62FF\u8D70\u7684\u5145\u7535\u3001\u62CD\u6444\u548C\u529E\u516C\u7535\u5B50\u6A21\u5757\u3002",
       tags: ["\u7535\u5B50", "\u5145\u7535", "\u529E\u516C"],
       items: [
-        { name: "\u624B\u673A", c: "electronics" },
         { name: "\u5145\u7535\u5668\uFF08\u624B\u673A\uFF09", c: "electronics" },
         { name: "\u6570\u636E\u7EBF", c: "electronics", q: 2 },
         { name: "\u5145\u7535\u5B9D", c: "electronics" },
         { name: "\u8033\u673A", c: "electronics" },
         { name: "Apple Watch \u5145\u7535\u5668", c: "electronics" },
         { name: "iPad", c: "electronics" },
-        { name: "iPad \u5145\u7535\u5668", c: "electronics" },
         { name: "\u7B14\u8BB0\u672C\u7535\u8111", c: "electronics" },
         { name: "\u5145\u7535\u5668\uFF08\u7535\u8111\uFF09", c: "electronics" },
         { name: "\u8F6C\u6362\u63D2\u5934", c: "electronics" }
+      ]
+    },
+    {
+      id: "module-adult-medicine",
+      name: "\u5E38\u5907\u836F\u5305",
+      icon: "\u{1F48A}",
+      purpose: "starter",
+      desc: "\u65C5\u884C\u5E38\u89C1\u7684\u5C0F\u4F24\u3001\u53D1\u70ED\u548C\u80A0\u80C3\u4E0D\u9002\u7528\u54C1\uFF1B\u6309\u4E2A\u4EBA\u60C5\u51B5\u589E\u51CF\uFF0C\u5E76\u9075\u5FAA\u533B\u751F\u6216\u836F\u5E08\u5EFA\u8BAE\u3002",
+      tags: ["\u836F\u54C1", "\u5E94\u6025", "\u5E38\u7528\u5C0F\u5305"],
+      items: [
+        { name: "\u4E2A\u4EBA\u5904\u65B9\u836F", c: "medicine" },
+        { name: "\u521B\u53EF\u8D34", c: "medicine", q: 4 },
+        { name: "\u611F\u5192\u836F", c: "medicine" },
+        { name: "\u9000\u70E7\u6B62\u75DB\u836F", c: "medicine" },
+        { name: "\u80A0\u80C3\u836F", c: "medicine" },
+        { name: "\u6655\u8F66\u836F", c: "medicine" },
+        { name: "\u773C\u836F\u6C34", c: "medicine" },
+        { name: "\u9152\u7CBE\u68C9\u7247", c: "medicine", q: 4 },
+        { name: "\u9A71\u868A\u6B62\u75D2\u7528\u54C1", c: "medicine" },
+        { name: "\u53E3\u7F69", c: "small-bag", q: 2 }
+      ]
+    },
+    {
+      id: "module-camera",
+      name: "\u6444\u5F71\u8BBE\u5907\u5305",
+      icon: "\u{1F4F7}",
+      purpose: "travel",
+      desc: "\u76F8\u673A\u3001\u955C\u5934\u3001\u5B58\u50A8\u4E0E\u5145\u7535\u914D\u4EF6\u96C6\u4E2D\u68C0\u67E5\uFF0C\u4E0D\u62CD\u6444\u65F6\u53EF\u4EE5\u6574\u5305\u4E0D\u9009\u3002",
+      tags: ["\u6444\u5F71", "\u7535\u5B50\u8BBE\u5907", "\u53EF\u9009\u5C0F\u5305"],
+      items: [
+        { name: "\u76F8\u673A", c: "electronics", bag: "bag-camera" },
+        { name: "\u955C\u5934", c: "electronics", bag: "bag-camera" },
+        { name: "\u76F8\u673A\u7535\u6C60", c: "electronics", q: 2, bag: "bag-camera" },
+        { name: "\u76F8\u673A\u5145\u7535\u5668", c: "electronics", bag: "bag-camera" },
+        { name: "SD\u5361", c: "electronics", q: 2, bag: "bag-camera" },
+        { name: "\u8BFB\u5361\u5668", c: "electronics", bag: "bag-camera" },
+        { name: "\u955C\u5934\u6E05\u6D01\u5E03", c: "misc", bag: "bag-camera" },
+        { name: "\u76F8\u673A\u6536\u7EB3\u888B", c: "misc", bag: "bag-camera" }
+      ]
+    },
+    {
+      id: "module-business-trip",
+      name: "\u5546\u52A1\u51FA\u5DEE\u5305",
+      icon: "\u{1F4BC}",
+      purpose: "business",
+      desc: "\u4ECE\u529E\u516C\u8BBE\u5907\u5230\u6B63\u5F0F\u7740\u88C5\uFF0C\u9002\u5408\u5BA2\u6237\u62DC\u8BBF\u3001\u4F1A\u8BAE\u548C\u5916\u5730\u9A7B\u70B9\u3002",
+      tags: ["\u51FA\u5DEE", "\u529E\u516C", "\u6B63\u5F0F\u573A\u5408"],
+      items: [
+        { name: "\u5DE5\u4F5C\u8BC1/\u95E8\u7981\u5361", c: "docs" },
+        { name: "\u540D\u7247", c: "docs", q: 10 },
+        { name: "\u7B14\u8BB0\u672C\u7535\u8111", c: "electronics" },
+        { name: "\u5145\u7535\u5668\uFF08\u7535\u8111\uFF09", c: "electronics" },
+        { name: "\u9F20\u6807", c: "electronics" },
+        { name: "U\u76D8", c: "electronics" },
+        { name: "\u6F14\u793A\u8F6C\u63A5\u5934", c: "electronics" },
+        { name: "\u7B14\u8BB0\u672C", c: "misc" },
+        { name: "\u7B14", c: "misc", q: 2 },
+        { name: "\u6B63\u5F0F\u886C\u886B", c: "clothing", smart: "perPersonPerDay" },
+        { name: "\u897F\u88C5/\u6B63\u5F0F\u5916\u5957", c: "clothing", smart: "perPerson" },
+        { name: "\u6B63\u88C5\u978B", c: "clothing", smart: "perPerson" }
+      ]
+    },
+    {
+      id: "module-weekend-short",
+      name: "\u5468\u672B\u77ED\u9014\u5305",
+      icon: "\u{1F392}",
+      purpose: "short",
+      desc: "\u4E00\u5230\u4E24\u665A\u7684\u5468\u8FB9\u6E38\u3001\u63A2\u4EB2\u6216\u4E34\u65F6\u8FC7\u591C\uFF0C\u53EA\u5E26\u771F\u6B63\u5FC5\u9700\u7684\u4E1C\u897F\u3002",
+      tags: ["\u5468\u672B", "\u8FC7\u591C", "\u8F7B\u88C5"],
+      items: [
+        { name: "\u8EAB\u4EFD\u8BC1", c: "docs" },
+        { name: "\u624B\u673A", c: "electronics" },
+        { name: "\u5145\u7535\u5668\uFF08\u624B\u673A\uFF09", c: "electronics" },
+        { name: "\u5145\u7535\u5B9D", c: "electronics" },
+        { name: "\u7259\u5237\u7259\u818F", c: "hygiene" },
+        { name: "\u6D17\u9762\u5976", c: "hygiene" },
+        { name: "\u5185\u8863", c: "clothing", smart: "perPersonPerDay" },
+        { name: "\u5185\u88E4", c: "clothing", smart: "perPersonPerDay" },
+        { name: "\u889C\u5B50", c: "clothing", smart: "perPersonPerDay" },
+        { name: "T\u6064/\u4E0A\u8863", c: "clothing", smart: "perPersonPerDay" },
+        { name: "\u7761\u8863", c: "clothing", smart: "perPerson" },
+        { name: "\u5E38\u5907\u836F", c: "medicine" },
+        { name: "\u96E8\u4F1E", c: "misc" }
+      ]
+    },
+    {
+      id: "module-road-trip",
+      name: "\u81EA\u9A7E\u51FA\u884C\u5305",
+      icon: "\u{1F697}",
+      purpose: "travel",
+      desc: "\u81EA\u9A7E\u51FA\u53D1\u524D\u4E00\u6B21\u68C0\u67E5\u8BC1\u4EF6\u3001\u8F66\u8F7D\u8865\u7ED9\u548C\u9053\u8DEF\u5E94\u6025\u7269\u54C1\u3002",
+      tags: ["\u81EA\u9A7E", "\u8F66\u8F7D", "\u5E94\u6025"],
+      items: [
+        { name: "\u9A7E\u9A76\u8BC1", c: "docs" },
+        { name: "\u884C\u9A76\u8BC1", c: "docs" },
+        { name: "\u8F66\u94A5\u5319", c: "small-bag" },
+        { name: "\u624B\u673A\u652F\u67B6", c: "electronics" },
+        { name: "\u8F66\u8F7D\u5145\u7535\u5668", c: "electronics" },
+        { name: "\u6570\u636E\u7EBF", c: "electronics", q: 2 },
+        { name: "\u996E\u7528\u6C34", c: "misc", q: 2 },
+        { name: "\u96F6\u98DF", c: "misc" },
+        { name: "\u7EB8\u5DFE", c: "misc" },
+        { name: "\u5783\u573E\u888B", c: "misc", q: 3 },
+        { name: "\u58A8\u955C", c: "small-bag" },
+        { name: "\u8F66\u8F7D\u6025\u6551\u5305", c: "medicine" },
+        { name: "\u53CD\u5149\u80CC\u5FC3", c: "misc" },
+        { name: "\u7834\u7A97\u9524", c: "misc" }
+      ]
+    },
+    {
+      id: "module-international",
+      name: "\u6D77\u5916\u51FA\u884C\u5305",
+      icon: "\u{1F30F}",
+      purpose: "travel",
+      desc: "\u4F5C\u4E3A\u6D77\u5916\u573A\u666F\u8865\u5145\uFF0C\u96C6\u4E2D\u6838\u5BF9\u8BC1\u4EF6\u3001\u901A\u4FE1\u3001\u652F\u4ED8\u548C\u8F6C\u6362\u8BBE\u5907\u3002",
+      tags: ["\u573A\u666F\u8865\u5145", "\u51FA\u5883", "\u8BC1\u4EF6", "\u901A\u4FE1"],
+      items: [
+        { name: "\u62A4\u7167", c: "docs" },
+        { name: "\u7B7E\u8BC1/\u5165\u5883\u6587\u4EF6", c: "docs" },
+        { name: "\u8F66\u7968/\u673A\u7968", c: "docs" },
+        { name: "\u9152\u5E97\u9884\u8BA2\u786E\u8BA4\u5355", c: "docs" },
+        { name: "\u65C5\u884C\u4FDD\u9669\u4FDD\u5355", c: "docs" },
+        { name: "\u8BC1\u4EF6\u590D\u5370\u4EF6", c: "docs", q: 2 },
+        { name: "\u5883\u5916\u94F6\u884C\u5361", c: "small-bag" },
+        { name: "\u5C11\u91CF\u5F53\u5730\u73B0\u91D1", c: "small-bag" },
+        { name: "SIM\u5361/eSIM\u4FE1\u606F", c: "docs" },
+        { name: "\u53D6\u5361\u9488", c: "small-bag" },
+        { name: "\u5F53\u5730\u4EA4\u901A\u5361", c: "small-bag" },
+        { name: "\u9ED1\u8272\u6C34\u7B14", c: "small-bag" },
+        { name: "\u8F6C\u6362\u63D2\u5934", c: "electronics" },
+        { name: "\u63D2\u7EBF\u677F", c: "electronics" },
+        { name: "\u5E38\u7528\u836F\u82F1\u6587\u8BF4\u660E", c: "medicine" }
+      ]
+    },
+    {
+      id: "module-long-haul-flight",
+      name: "\u957F\u9014\u98DE\u673A\u573A\u666F",
+      icon: "\u2708\uFE0F",
+      purpose: "travel",
+      desc: "\u98DE\u884C\u65F6\u95F4\u8F83\u957F\u65F6\u8865\u5145\u7761\u7720\u3001\u4FDD\u6E7F\u3001\u4FDD\u6696\u548C\u673A\u4E0A\u5A31\u4E50\u7528\u54C1\uFF1B\u8BC1\u4EF6\u4E0E\u7535\u5B50\u8BBE\u5907\u4ECD\u7531\u5BF9\u5E94\u5C0F\u5305\u8D1F\u8D23\u3002",
+      tags: ["\u573A\u666F\u8865\u5145", "\u957F\u9014\u98DE\u884C", "\u968F\u8EAB\u884C\u674E"],
+      items: [
+        { name: "U\u578B\u6795", c: "small-bag" },
+        { name: "\u773C\u7F69", c: "small-bag" },
+        { name: "\u964D\u566A\u8033\u673A", c: "electronics" },
+        { name: "\u4E00\u6B21\u6027\u62D6\u978B", c: "clothing" },
+        { name: "\u8584\u5916\u5957/\u4FDD\u6696\u6BEF", c: "clothing" },
+        { name: "\u98DE\u673A\u5145\u6C14\u811A\u57AB", c: "small-bag" },
+        { name: "\u6C34\u676F", c: "misc" },
+        { name: "\u624B\u673A\u652F\u67B6", c: "electronics" },
+        { name: "\u79BB\u7EBF\u7535\u5F71/\u4E66\u7C4D", c: "electronics" },
+        { name: "\u9762\u971C", c: "skincare" },
+        { name: "\u6DA6\u5507\u818F", c: "skincare" },
+        { name: "\u62A4\u624B\u971C", c: "skincare" },
+        { name: "\u4FDD\u6E7F\u9762\u819C", c: "skincare" },
+        { name: "\u6F31\u53E3\u6C34", c: "hygiene" },
+        { name: "\u7EB8\u5DFE", c: "misc" },
+        { name: "\u6E7F\u5DFE", c: "misc" },
+        { name: "\u514D\u6D17\u6D17\u624B\u6DB2", c: "hygiene" },
+        { name: "\u53D1\u7EF3", c: "small-bag" }
+      ]
+    },
+    {
+      id: "module-travel-anti-theft",
+      name: "\u65C5\u884C\u9632\u76D7\u573A\u666F",
+      icon: "\u{1F510}",
+      purpose: "travel",
+      desc: "\u5728\u4EBA\u591A\u3001\u6362\u4E58\u591A\u6216\u6252\u7A83\u98CE\u9669\u8F83\u9AD8\u7684\u76EE\u7684\u5730\uFF0C\u6309\u968F\u8EAB\u5305\u7C7B\u578B\u8865\u5145\u9632\u76D7\u7528\u54C1\u3002",
+      tags: ["\u573A\u666F\u8865\u5145", "\u9632\u76D7", "\u968F\u8EAB"],
+      items: [
+        { name: "\u624B\u673A\u9632\u76D7\u94FE", c: "small-bag" },
+        { name: "\u5305\u9632\u76D7\u6263/\u94FE", c: "small-bag" },
+        { name: "8\u5B57\u6263", c: "small-bag", q: 2 },
+        { name: "\u9632\u76D7\u8170\u5305\uFF08\u6309\u9700\uFF09", c: "small-bag" },
+        { name: "\u8D34\u8EAB\u8BC1\u4EF6\u888B\uFF08\u6309\u9700\uFF09", c: "small-bag" },
+        { name: "\u524D\u80CC\u659C\u630E\u5305\uFF08\u6309\u9700\uFF09", c: "small-bag" }
+      ]
+    },
+    {
+      id: "module-cold-weather",
+      name: "\u5BD2\u51B7\u5929\u6C14\u573A\u666F",
+      icon: "\u2744\uFE0F",
+      purpose: "travel",
+      desc: "\u4F4E\u6E29\u3001\u98CE\u96EA\u6216\u663C\u591C\u6E29\u5DEE\u5927\u7684\u76EE\u7684\u5730\uFF0C\u7528\u4E8E\u8865\u5145\u9632\u98CE\u3001\u9632\u6C34\u548C\u4FDD\u6696\u5C42\u3002",
+      tags: ["\u573A\u666F\u8865\u5145", "\u4F4E\u6E29", "\u9632\u6C34\u4FDD\u6696"],
+      items: [
+        { name: "\u9632\u6ED1\u9632\u6C34\u978B", c: "clothing", smart: "perPerson" },
+        { name: "\u7FBD\u7ED2\u670D", c: "clothing", smart: "perPerson" },
+        { name: "\u9632\u6C34\u88E4", c: "clothing", smart: "perPerson" },
+        { name: "\u7F8A\u7ED2\u886B/\u6BDB\u8863", c: "clothing", smart: "perPerson" },
+        { name: "\u4FDD\u6696\u5185\u8863", c: "clothing", smart: "perPerson" },
+        { name: "\u9632\u98CE\u624B\u5957", c: "clothing", smart: "perPerson" },
+        { name: "\u56F4\u5DFE", c: "clothing", smart: "perPerson" },
+        { name: "\u4FDD\u6696\u5E3D", c: "clothing", smart: "perPerson" },
+        { name: "\u6696\u5B9D\u5B9D", c: "misc", q: 4 },
+        { name: "\u4FDD\u6E29\u676F", c: "misc" }
+      ]
+    },
+    {
+      id: "module-concert",
+      name: "\u6F14\u5531\u4F1A\u5305",
+      icon: "\u{1F3A4}",
+      purpose: "travel",
+      desc: "\u4ECE\u5165\u573A\u51ED\u8BC1\u3001\u5E94\u63F4\u5230\u624B\u673A\u7EED\u822A\uFF0C\u9002\u5408\u6F14\u5531\u4F1A\u3001\u97F3\u4E50\u8282\u548C\u5927\u578B\u73B0\u573A\u6D3B\u52A8\u3002",
+      tags: ["\u6F14\u5531\u4F1A", "\u5E94\u63F4", "\u73B0\u573A\u6D3B\u52A8"],
+      items: [
+        { name: "\u8EAB\u4EFD\u8BC1", c: "docs" },
+        { name: "\u7535\u5B50\u7968/\u5165\u573A\u7801", c: "docs" },
+        { name: "\u624B\u673A", c: "electronics" },
+        { name: "\u5145\u7535\u5B9D", c: "electronics" },
+        { name: "\u6570\u636E\u7EBF", c: "electronics" },
+        { name: "\u5E94\u63F4\u68D2", c: "electronics" },
+        { name: "\u5E94\u63F4\u68D2\u5907\u7528\u7535\u6C60", c: "electronics", q: 2 },
+        { name: "\u964D\u566A\u8033\u585E", c: "small-bag" },
+        { name: "\u8F7B\u4FBF\u5C0F\u5305", c: "small-bag" },
+        { name: "\u7EB8\u5DFE", c: "misc" },
+        { name: "\u4E00\u6B21\u6027\u96E8\u8863", c: "misc" },
+        { name: "\u5C0F\u578B\u624B\u6301\u98CE\u6247", c: "electronics" },
+        { name: "\u53E3\u7F69", c: "small-bag", q: 2 },
+        { name: "\u6563\u573A\u4EA4\u901A\u65B9\u6848", c: "docs" }
+      ]
+    },
+    {
+      id: "module-solo-hiking",
+      name: "\u5355\u4EBA\u5F92\u6B65\u767B\u5C71\u5305",
+      icon: "\u{1F97E}",
+      purpose: "travel",
+      desc: "\u5355\u4EBA\u5F92\u6B65\u7684\u5BFC\u822A\u3001\u8865\u7ED9\u3001\u9632\u62A4\u4E0E\u5E94\u6025\u6E05\u5355\u3002\u51FA\u53D1\u524D\u8BF7\u8BC4\u4F30\u8DEF\u7EBF\u548C\u5929\u6C14\uFF0C\u5E76\u5411\u4EB2\u53CB\u544A\u77E5\u884C\u7A0B\u3002",
+      tags: ["\u5F92\u6B65", "\u767B\u5C71", "\u5355\u4EBA", "\u5B89\u5168"],
+      items: [
+        { name: "\u8EAB\u4EFD\u8BC1", c: "docs" },
+        { name: "\u884C\u7A0B\u544A\u77E5/\u7D27\u6025\u8054\u7CFB\u4EBA", c: "docs" },
+        { name: "\u79BB\u7EBF\u5730\u56FE\u4E0E\u8F68\u8FF9", c: "electronics" },
+        { name: "\u624B\u673A", c: "electronics" },
+        { name: "\u5145\u7535\u5B9D", c: "electronics" },
+        { name: "\u5934\u706F", c: "electronics" },
+        { name: "\u5934\u706F\u5907\u7528\u7535\u6C60", c: "electronics", q: 2 },
+        { name: "\u996E\u7528\u6C34", c: "misc", q: 2 },
+        { name: "\u80FD\u91CF\u98DF\u54C1", c: "misc", q: 2 },
+        { name: "\u4E2A\u4EBA\u5E38\u7528\u836F", c: "medicine" },
+        { name: "\u6237\u5916\u6025\u6551\u5305", c: "medicine" },
+        { name: "\u4FDD\u6E29\u6025\u6551\u6BEF", c: "misc" },
+        { name: "\u6C42\u751F\u54E8", c: "misc" },
+        { name: "\u51B2\u950B\u8863/\u9632\u96E8\u5916\u5C42", c: "clothing" },
+        { name: "\u9632\u6652\u971C", c: "skincare" },
+        { name: "\u5E3D\u5B50", c: "clothing" },
+        { name: "\u767B\u5C71\u978B", c: "clothing" },
+        { name: "\u767B\u5C71\u6756", c: "big-bag", q: 2 },
+        { name: "\u5783\u573E\u888B", c: "misc", q: 2 }
       ]
     },
     {
@@ -556,25 +927,26 @@
   }
   function normalizeOfficialModule(module) {
     return {
-      id: module?.id || "official-module-" + gid(),
-      name: module?.name || "\u672A\u547D\u540D\u5B98\u65B9\u5C0F\u5305",
-      icon: module?.icon || "\u{1F9F0}",
-      purpose: module?.purpose || "starter",
-      group: module?.group || "",
-      role: module?.role || "",
-      defaultOn: Boolean(module?.defaultOn),
-      desc: module?.desc || "",
-      tags: Array.isArray(module?.tags) ? uniqueStrings(module.tags) : [],
-      items: (module?.items || []).map(normalizeModuleItem)
+      id: (module == null ? void 0 : module.id) || "official-module-" + gid(),
+      name: (module == null ? void 0 : module.name) || "\u672A\u547D\u540D\u5B98\u65B9\u5C0F\u5305",
+      icon: (module == null ? void 0 : module.icon) || "\u{1F9F0}",
+      purpose: (module == null ? void 0 : module.purpose) || "starter",
+      group: (module == null ? void 0 : module.group) || "",
+      role: (module == null ? void 0 : module.role) || "",
+      defaultOn: Boolean(module == null ? void 0 : module.defaultOn),
+      desc: (module == null ? void 0 : module.desc) || "",
+      tags: Array.isArray(module == null ? void 0 : module.tags) ? uniqueStrings(module.tags) : [],
+      items: ((module == null ? void 0 : module.items) || []).map(normalizeModuleItem)
     };
   }
   function normalizeModuleRecord(record) {
+    var _a, _b;
     return {
       ...record,
       recordType: "module",
       isTemplate: true,
-      icon: record.icon || record.kitMeta?.icon || "\u{1F9F0}",
-      desc: record.desc || record.kitMeta?.desc || "",
+      icon: record.icon || ((_a = record.kitMeta) == null ? void 0 : _a.icon) || "\u{1F9F0}",
+      desc: record.desc || ((_b = record.kitMeta) == null ? void 0 : _b.desc) || "",
       purpose: record.purpose || "custom",
       tags: Array.isArray(record.tags) ? record.tags : [],
       items: (record.items || []).map(normalizeModuleItem),
@@ -598,7 +970,10 @@
       smartBaseQty: Math.max(1, parseInt(item.smartBaseQty) || parseInt(item.defaultQty) || parseInt(item.qty) || 1),
       smartLocked: Boolean(item.smartLocked),
       sourceModules: Array.isArray(item.sourceModules) ? uniqueStrings(item.sourceModules) : item.sourceModule ? [item.sourceModule] : [],
-      tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : []
+      // Stable module identities. `sourceModules` remains the human-readable
+      // snapshot for display and backward compatibility with existing data.
+      sourceModuleKeys: Array.isArray(item.sourceModuleKeys) ? uniqueStrings(item.sourceModuleKeys) : [],
+      tags: Array.isArray(item == null ? void 0 : item.tags) ? uniqueStrings(item.tags) : []
     };
   }
   function normalizeModuleItem(item) {
@@ -615,19 +990,19 @@
     };
   }
   function normalizeLibraryItem(item) {
-    const name = String(item?.name || "\u672A\u547D\u540D\u7269\u54C1").trim();
-    const category = item?.category || guessCat(name);
-    const smartConfig = normalizeSmartConfig(item?.smartConfig || inferSmartConfig(name, category));
+    const name = String((item == null ? void 0 : item.name) || "\u672A\u547D\u540D\u7269\u54C1").trim();
+    const category = (item == null ? void 0 : item.category) || guessCat(name);
+    const smartConfig = normalizeSmartConfig((item == null ? void 0 : item.smartConfig) || inferSmartConfig(name, category));
     return {
-      id: item?.id || "asset-" + gid(),
+      id: (item == null ? void 0 : item.id) || "asset-" + gid(),
       name,
       category,
-      defaultQty: Math.max(1, parseInt(item?.defaultQty) || 1),
-      bag: item?.bag || suggestBagForItem(name, category),
-      smartRule: smartConfig ? "formula" : item?.smartRule || inferSmartRule(name, category),
+      defaultQty: Math.max(1, parseInt(item == null ? void 0 : item.defaultQty) || 1),
+      bag: (item == null ? void 0 : item.bag) || suggestBagForItem(name, category),
+      smartRule: smartConfig ? "formula" : (item == null ? void 0 : item.smartRule) || inferSmartRule(name, category),
       smartConfig,
-      source: item?.source === "user" ? "user" : "system",
-      tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : []
+      source: (item == null ? void 0 : item.source) === "user" ? "user" : "system",
+      tags: Array.isArray(item == null ? void 0 : item.tags) ? uniqueStrings(item.tags) : []
     };
   }
 
@@ -664,8 +1039,9 @@
     };
   }
   function getSmartSceneFactor(smartConfig, tripContext) {
+    var _a;
     const config = normalizeSmartConfig(smartConfig);
-    if (!config || !tripContext?.sourceModules?.length) return 0;
+    if (!config || !((_a = tripContext == null ? void 0 : tripContext.sourceModules) == null ? void 0 : _a.length)) return 0;
     const activeModuleIds = new Set((tripContext.sourceModules || []).map((module) => module.id));
     return Object.keys(config.sceneFactors).reduce((sum, moduleId) => sum + (activeModuleIds.has(moduleId) ? config.sceneFactors[moduleId] : 0), 0);
   }
@@ -691,19 +1067,12 @@
     if (rule === "formula") {
       const config = normalizeSmartConfig(smartConfig);
       if (!config) return "\u57FA\u7840\u91CF + \u5929\u6570\u589E\u91CF + \u573A\u666F\u7CFB\u6570";
-      return `\u57FA\u7840\u91CF + ${config.dailyIncrement}\xD7\u5929\u6570 + \u573A\u666F\u7CFB\u6570`;
+      return "\u57FA\u7840\u91CF + ".concat(config.dailyIncrement, "\xD7\u5929\u6570 + \u573A\u666F\u7CFB\u6570");
     }
     if (rule === "perPerson") return "\u6309\u4EBA\u6570\u5EFA\u8BAE";
     if (rule === "perDay") return "\u6309\u5929\u6570\u5EFA\u8BAE";
     if (rule === "perPersonPerDay") return "\u6309\u5929\u6570 \xD7 \u4EBA\u6570\u5EFA\u8BAE";
     return "\u56FA\u5B9A\u6570\u91CF";
-  }
-  function smartRuleShort(rule) {
-    if (rule === "formula") return "\u516C\u5F0F\u8865\u91CF";
-    if (rule === "perPerson") return "\u6309\u4EBA\u6570";
-    if (rule === "perDay") return "\u6309\u5929\u6570";
-    if (rule === "perPersonPerDay") return "\u6309\u5929/\u4EBA";
-    return "\u56FA\u5B9A";
   }
   function inferSmartConfig(name, category) {
     const n = String(name || "").toLowerCase();
@@ -805,6 +1174,7 @@
         return;
       }
       existing.sourceModules = uniqueStrings([...existing.sourceModules || [], ...candidate.sourceModules || []]);
+      existing.sourceModuleKeys = uniqueStrings([...existing.sourceModuleKeys || [], ...candidate.sourceModuleKeys || []]);
       existing.notes = existing.notes || candidate.notes || "";
       if (strategy === "module") {
         existing.smartRule = strongerSmartRule(existing.smartRule, candidate.smartRule);
@@ -841,15 +1211,17 @@
     read(key) {
       try {
         return localStorage.getItem(key);
-      } catch {
+      } catch (e) {
         return null;
       }
     }
     write(key, value) {
       try {
         localStorage.setItem(key, value);
+        return true;
       } catch (e) {
         console.warn("[LocalStorageAdapter] write failed:", e);
+        return false;
       }
     }
     remove(key) {
@@ -862,6 +1234,47 @@
   };
 
   // src/data/store.js
+  var RETIRED_OFFICIAL_MODULE_IDS = /* @__PURE__ */ new Set([
+    "module-baby-comfort",
+    "module-baby-snacks"
+  ]);
+  var OFFICIAL_SEED_VERSION = 5;
+  var REVISED_OFFICIAL_MODULE_IDS = /* @__PURE__ */ new Set([
+    "module-hygiene",
+    "module-makeup",
+    "module-docs",
+    "module-skincare",
+    "module-clothing",
+    "module-baby-base",
+    "module-baby-feeding",
+    "module-baby-clothing",
+    "module-baby-overnight",
+    "module-baby-medicine",
+    "module-baby-gear",
+    "module-baby-vaccine",
+    "module-baby-outdoor",
+    "module-electronics",
+    "module-international",
+    "module-long-haul-flight"
+  ]);
+  var LEGACY_OFFICIAL_MODULE_NAMES = {
+    "module-hygiene": ["\u6D17\u6F31\u5305"],
+    "module-makeup": ["\u5316\u5986\u5305"],
+    "module-docs": ["\u8BC1\u4EF6\u5305"],
+    "module-skincare": ["\u62A4\u80A4\u5305"],
+    "module-clothing": ["\u8863\u670D\u5305"],
+    "module-baby-base": ["\u5B9D\u5B9D\u57FA\u7840\u5305", "\u5B9D\u5B9D\u6362\u6D17\u62A4\u7406\u5305", "\u5B9D\u5B9D\u65E5\u5E38\u51FA\u95E8\u5305"],
+    "module-baby-feeding": ["\u5582\u517B\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u5582\u517B\u5305"],
+    "module-baby-clothing": ["\u5B9D\u5B9D\u8863\u7269\u5305"],
+    "module-baby-overnight": ["\u8FC7\u591C\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u6D17\u6FA1\u5305", "\u5B9D\u5B9D\u8FC7\u591C\u8865\u5145\u5305"],
+    "module-baby-medicine": ["\u5B9D\u5B9D\u836F\u54C1\u5305"],
+    "module-baby-gear": ["\u5B9D\u5B9D\u51FA\u884C\u88C5\u5907\u5305"],
+    "module-baby-vaccine": ["\u75AB\u82D7\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u75AB\u82D7\u573A\u666F"],
+    "module-baby-outdoor": ["\u6237\u5916\u63D2\u4EF6\u5305", "\u5B9D\u5B9D\u6237\u5916\u573A\u666F"],
+    "module-electronics": ["\u7535\u5B50\u5305"],
+    "module-international": ["\u6D77\u5916\u51FA\u884C\u5305"],
+    "module-long-haul-flight": ["\u957F\u9014\u98DE\u673A\u573A\u666F"]
+  };
   var DataStore = class {
     constructor(adapter = new LocalStorageAdapter()) {
       this._adapter = adapter;
@@ -869,7 +1282,7 @@
     _parseJson(raw, fallback) {
       try {
         return raw ? JSON.parse(raw) : fallback;
-      } catch {
+      } catch (e) {
         return fallback;
       }
     }
@@ -877,14 +1290,14 @@
       return this._parseJson(this._adapter.read(key), fallback);
     }
     writeJson(key, value) {
-      this._adapter.write(key, JSON.stringify(value));
+      return this._adapter.write(key, JSON.stringify(value)) !== false;
     }
     // ===== 记录（Trip + Module 混存）=====
     getRecords() {
       return this.readJson(STORAGE_KEYS.records, []).map(normalizeRecord).sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
     }
     saveRecords(records) {
-      this.writeJson(STORAGE_KEYS.records, records);
+      return this.writeJson(STORAGE_KEYS.records, records);
     }
     saveRecord(record) {
       const records = this.getRecords();
@@ -892,14 +1305,41 @@
       const normalized = normalizeRecord(record);
       if (idx >= 0) records[idx] = normalized;
       else records.unshift(normalized);
-      this.saveRecords(records);
+      return this.saveRecords(records);
     }
     // ===== 官方小包 =====
     getOfficialModules() {
-      return this.readJson(STORAGE_KEYS.officialModules, OFFICIAL_MODULES).map(normalizeOfficialModule);
+      const stored = this.readJson(STORAGE_KEYS.officialModules, null);
+      const deletedIds = new Set(this.readJson(STORAGE_KEYS.deletedOfficialModules, []));
+      const storedSeedVersion = Number(this.readJson(STORAGE_KEYS.officialSeedVersion, 0)) || 0;
+      const shouldRefreshOfficialSeeds = storedSeedVersion < OFFICIAL_SEED_VERSION;
+      if (!stored) {
+        this.writeJson(STORAGE_KEYS.officialSeedVersion, OFFICIAL_SEED_VERSION);
+        return OFFICIAL_MODULES.filter((module) => !deletedIds.has(module.id)).map(normalizeOfficialModule);
+      }
+      const storedModules = (stored || []).map(normalizeOfficialModule).filter((module) => !RETIRED_OFFICIAL_MODULE_IDS.has(module.id));
+      const storedById = new Map(storedModules.map((module) => [module.id, module]));
+      const seedIds = new Set(OFFICIAL_MODULES.map((module) => module.id));
+      const seeded = OFFICIAL_MODULES.filter((module) => !deletedIds.has(module.id)).map((module) => {
+        const storedModule = storedById.get(module.id);
+        const legacyNames = LEGACY_OFFICIAL_MODULE_NAMES[module.id] || [];
+        const canRefreshSeed = !storedModule || legacyNames.includes(storedModule.name);
+        return shouldRefreshOfficialSeeds && REVISED_OFFICIAL_MODULE_IDS.has(module.id) && canRefreshSeed ? normalizeOfficialModule(module) : storedModule || normalizeOfficialModule(module);
+      });
+      const extra = storedModules.filter((module) => !seedIds.has(module.id) && !deletedIds.has(module.id));
+      if (shouldRefreshOfficialSeeds) {
+        this.writeJson(STORAGE_KEYS.officialSeedVersion, OFFICIAL_SEED_VERSION);
+        this.saveOfficialModules([...seeded, ...extra]);
+      }
+      return [...seeded, ...extra];
     }
     saveOfficialModules(modules) {
-      this.writeJson(STORAGE_KEYS.officialModules, (modules || []).map(normalizeOfficialModule));
+      return this.writeJson(STORAGE_KEYS.officialModules, (modules || []).map(normalizeOfficialModule));
+    }
+    markOfficialModuleDeleted(moduleId) {
+      const deleted = new Set(this.readJson(STORAGE_KEYS.deletedOfficialModules, []));
+      deleted.add(moduleId);
+      return this.writeJson(STORAGE_KEYS.deletedOfficialModules, [...deleted]);
     }
     // ===== 便捷访问 =====
     getTrips() {
@@ -914,22 +1354,25 @@
     return _store.readJson(key, fallback);
   }
   function writeJson(key, value) {
-    _store.writeJson(key, value);
+    return _store.writeJson(key, value);
   }
   function getRecords() {
     return _store.getRecords();
   }
   function saveRecords(records) {
-    _store.saveRecords(records);
+    return _store.saveRecords(records);
   }
   function saveRecord(record) {
-    _store.saveRecord(record);
+    return _store.saveRecord(record);
   }
   function getOfficialModules() {
     return _store.getOfficialModules();
   }
   function saveOfficialModules(modules) {
-    _store.saveOfficialModules(modules);
+    return _store.saveOfficialModules(modules);
+  }
+  function markOfficialModuleDeleted(moduleId) {
+    return _store.markOfficialModuleDeleted(moduleId);
   }
   function getTrips() {
     return _store.getTrips();
@@ -953,7 +1396,7 @@
     return sortLibraryItems((items || []).map(normalizeLibraryItem));
   }
   function saveItemLibrary(items) {
-    writeJson(STORAGE_KEYS.itemLibrary, sortLibraryItems((items || []).map(normalizeLibraryItem)));
+    return writeJson(STORAGE_KEYS.itemLibrary, sortLibraryItems((items || []).map(normalizeLibraryItem)));
   }
   function buildSeedItemLibrary() {
     const byName = /* @__PURE__ */ new Map();
@@ -998,7 +1441,7 @@
     const byName = new Map(library.map((item) => [item.name, true]));
     let changed = false;
     items.forEach((item) => {
-      const name = String(item?.name || "").trim();
+      const name = String((item == null ? void 0 : item.name) || "").trim();
       if (!name || byName.has(name)) return;
       const category = item.category || guessCat(name);
       const { smartRule, smartConfig } = resolveItemSmartPlan(name, category, item.smartRule, item.smartConfig);
@@ -1036,13 +1479,17 @@
     return getMyModules().find((module) => module.id === id) || null;
   }
   function resolveOfficialModuleItems(module, days, people) {
-    return (module.items || []).map((item) => createTripItemFromModuleItem(normalizeModuleItem(item), days, people, module.name));
+    const sourceModule = { source: "official", id: module.id, name: module.name };
+    return (module.items || []).map((item) => createTripItemFromModuleItem(normalizeModuleItem(item), days, people, sourceModule));
   }
   function resolveCustomModuleItems(module, days, people) {
-    return (module.items || []).map((item) => createTripItemFromModuleItem(item, days, people, module.name));
+    const sourceModule = { source: "custom", id: module.id, name: module.name };
+    return (module.items || []).map((item) => createTripItemFromModuleItem(item, days, people, sourceModule));
   }
-  function createTripItemFromModuleItem(item, days, people, sourceModuleName) {
+  function createTripItemFromModuleItem(item, days, people, sourceModule) {
     const { smartRule, smartConfig } = resolveItemSmartPlan(item.name, item.category, item.smartRule, item.smartConfig);
+    const sourceModuleName = typeof sourceModule === "string" ? sourceModule : sourceModule == null ? void 0 : sourceModule.name;
+    const sourceModuleKey = typeof sourceModule === "object" && (sourceModule == null ? void 0 : sourceModule.id) ? getModuleKey(sourceModule.source || "custom", sourceModule.id) : "";
     return normalizeTripItem({
       id: "item-" + gid(),
       name: item.name,
@@ -1055,12 +1502,31 @@
       packed: false,
       notes: "",
       sourceModules: sourceModuleName ? [sourceModuleName] : [],
+      sourceModuleKeys: sourceModuleKey ? [sourceModuleKey] : [],
       tags: Array.isArray(item.tags) ? [...item.tags] : []
     });
   }
+  function createTripItemFromAsset(asset, days, people) {
+    const { smartRule, smartConfig } = resolveItemSmartPlan(asset.name, asset.category, asset.smartRule, asset.smartConfig);
+    return normalizeTripItem({
+      id: "item-" + gid(),
+      name: asset.name,
+      category: asset.category,
+      bag: asset.bag || suggestBagForItem(asset.name, asset.category),
+      smartRule,
+      smartConfig,
+      smartBaseQty: asset.defaultQty || 1,
+      qty: computeSmartQty(asset.defaultQty || 1, smartRule, days, people, smartConfig),
+      packed: false,
+      notes: "",
+      sourceModules: [],
+      tags: Array.isArray(asset.tags) ? [...asset.tags] : []
+    });
+  }
   function getTripProgress(trip) {
-    const total = trip.items?.length || 0;
-    const packed = trip.items?.filter((item) => item.packed).length || 0;
+    var _a, _b;
+    const total = ((_a = trip.items) == null ? void 0 : _a.length) || 0;
+    const packed = ((_b = trip.items) == null ? void 0 : _b.filter((item) => item.packed).length) || 0;
     return {
       total,
       packed,
@@ -1070,27 +1536,24 @@
   }
   function getTripStatus(trip) {
     const progress = getTripProgress(trip);
-    if (progress.total > 0 && progress.packed >= progress.total) return { key: "done", label: "\u5DF2\u5B8C\u6210", icon: "\u2705" };
-    if (progress.packed > 0) return { key: "packing", label: "\u6253\u5305\u4E2D", icon: "\u{1F392}" };
-    return { key: "planning", label: "\u89C4\u5212\u4E2D", icon: "\u{1F4DD}" };
+    if (progress.total > 0 && progress.packed >= progress.total) return { key: "done", label: "\u5DF2\u5B8C\u6210", icon: "" };
+    if (progress.packed > 0) return { key: "packing", label: "\u6253\u5305\u4E2D", icon: "" };
+    return { key: "planning", label: "\u89C4\u5212\u4E2D", icon: "" };
   }
   function formatTripMeta(trip) {
-    const modules = trip.sourceModules?.length ? ` \xB7 ${trip.sourceModules.length} \u4E2A\u5C0F\u5305` : "";
-    return `${trip.days || 1} \u5929 \xB7 ${trip.people || 1} \u4EBA \xB7 ${trip.items?.length || 0} \u4EF6${modules}`;
+    var _a, _b;
+    const modules = ((_a = trip.sourceModules) == null ? void 0 : _a.length) ? " \xB7 ".concat(trip.sourceModules.length, " \u4E2A\u5C0F\u5305") : "";
+    return "".concat(trip.days || 1, " \u5929 \xB7 ").concat(trip.people || 1, " \u4EBA \xB7 ").concat(((_b = trip.items) == null ? void 0 : _b.length) || 0, " \u4EF6").concat(modules);
   }
   function formatTripSourceSummary(trip) {
-    if (!trip.sourceModules?.length) return "\u81EA\u7531\u6DFB\u52A0\u7269\u54C1";
+    var _a;
+    if (!((_a = trip.sourceModules) == null ? void 0 : _a.length)) return "\u81EA\u7531\u6DFB\u52A0\u7269\u54C1";
     const names = trip.sourceModules.map((module) => module.name);
     if (names.length <= 2) return names.join(" + ");
-    return names.slice(0, 2).join(" + ") + ` +${names.length - 2} \u4E2A\u5C0F\u5305`;
-  }
-  function formatItemSource(item) {
-    if (!item.sourceModules?.length) return "";
-    if (item.sourceModules.length === 1) return "\u6765\u81EA " + item.sourceModules[0];
-    return `\u6765\u81EA ${item.sourceModules.length} \u4E2A\u5C0F\u5305`;
+    return names.slice(0, 2).join(" + ") + " +".concat(names.length - 2, " \u4E2A\u5C0F\u5305");
   }
   function getModuleKey(source, id) {
-    return `${source}:${id}`;
+    return "".concat(source, ":").concat(id);
   }
   function splitModuleKey(key) {
     return key.split(":");
@@ -1117,12 +1580,17 @@
     }
   }
   function isModuleOnTrip(trip, source, moduleId) {
-    return (trip?.sourceModules || []).some((module) => module.source === source && module.id === moduleId);
+    return ((trip == null ? void 0 : trip.sourceModules) || []).some((module) => module.source === source && module.id === moduleId);
   }
   function removeModuleFromTrip(trip, source, moduleId) {
     const entity = getModuleEntity(source, moduleId);
     if (!entity || !trip) return { changed: false, trip, moduleName: "", removedItems: 0 };
-    const moduleName = entity.name;
+    const allSourceModules = [...trip.sourceModules || []];
+    const sourceMeta = allSourceModules.find(
+      (module) => module.source === source && module.id === moduleId
+    );
+    const moduleName = (sourceMeta == null ? void 0 : sourceMeta.name) || entity.name;
+    const moduleKey = getModuleKey(source, moduleId);
     if (!isModuleOnTrip(trip, source, moduleId)) {
       return { changed: false, trip, moduleName, removedItems: 0 };
     }
@@ -1133,22 +1601,35 @@
     const nextItems = [];
     (trip.items || []).forEach((item) => {
       const sources = [...item.sourceModules || []];
+      const sourceKeys = [...item.sourceModuleKeys || []];
       if (!sources.length) {
         nextItems.push(item);
         return;
       }
-      if (!sources.includes(moduleName)) {
+      const hasStableSource = sourceKeys.includes(moduleKey);
+      const legacyIndex = sources.indexOf(moduleName);
+      if (sourceKeys.length ? !hasStableSource : legacyIndex < 0) {
         nextItems.push(item);
         return;
       }
-      const remaining = sources.filter((name) => name !== moduleName);
-      if (!remaining.length) {
+      const remainingKeys = sourceKeys.filter((key) => key !== moduleKey);
+      if (sourceKeys.length && !remainingKeys.length) {
+        removedItems += 1;
+        return;
+      }
+      const remaining = sourceKeys.length ? uniqueStrings(remainingKeys.map((key) => {
+        var _a;
+        const [entrySource, entryId] = splitModuleKey(key);
+        return (_a = allSourceModules.find((meta) => meta.source === entrySource && meta.id === entryId)) == null ? void 0 : _a.name;
+      }).filter(Boolean)) : sources.filter((_, index) => index !== legacyIndex);
+      if (!sourceKeys.length && !remaining.length) {
         removedItems += 1;
         return;
       }
       nextItems.push({
         ...item,
-        sourceModules: uniqueStrings(remaining)
+        sourceModules: uniqueStrings(remaining),
+        sourceModuleKeys: uniqueStrings(remainingKeys)
       });
     });
     trip.items = nextItems.map(normalizeTripItem);
@@ -1164,15 +1645,15 @@
     upsertTripSourceModule(trip, { source: "official", id: baseModule.id, name: baseModule.name });
   }
   function tripItemSnapshotKey(item) {
-    return `${item.name}::${item.category}`;
+    return "".concat(item.name, "::").concat(item.category);
   }
   function getTripModuleEntries(trip) {
     const entries = [];
     const seen = /* @__PURE__ */ new Set();
-    (trip?.sourceModules || []).forEach((meta) => {
+    ((trip == null ? void 0 : trip.sourceModules) || []).forEach((meta) => {
       const entity = getModuleEntity(meta.source, meta.id);
       if (!entity) return;
-      const key = `${meta.source}:${meta.id}`;
+      const key = "".concat(meta.source, ":").concat(meta.id);
       if (seen.has(key)) return;
       seen.add(key);
       entries.push({
@@ -1238,12 +1719,13 @@
     const { items: moduleItems, sourceModules } = buildTripItemsFromModuleEntries(trip, entries);
     const afterKeys = new Set(moduleItems.map(tripItemSnapshotKey));
     moduleItems.forEach((item) => {
+      var _a;
       const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
       if (!old) return;
       if (preservePacked) item.packed = old.packed;
       if (preserveManualFields) {
         if (old.notes) item.notes = old.notes;
-        if (old.tags?.length) item.tags = [...old.tags];
+        if ((_a = old.tags) == null ? void 0 : _a.length) item.tags = [...old.tags];
       }
       if (preserveLocked && old.smartLocked) {
         item.smartLocked = true;
@@ -1253,6 +1735,7 @@
     const keptManual = [];
     let mergedDuplicates = 0;
     manualItems.forEach((item) => {
+      var _a;
       const key = tripItemSnapshotKey(item);
       const moduleItem = moduleItems.find((entry) => tripItemSnapshotKey(entry) === key);
       if (!moduleItem) {
@@ -1264,7 +1747,7 @@
       if (preservePacked && item.packed) moduleItem.packed = true;
       if (preserveManualFields) {
         if (item.notes && !moduleItem.notes) moduleItem.notes = item.notes;
-        if (item.tags?.length) {
+        if ((_a = item.tags) == null ? void 0 : _a.length) {
           moduleItem.tags = uniqueStrings([...moduleItem.tags || [], ...item.tags]);
         }
       }
@@ -1305,7 +1788,7 @@
 
   // app.js
   var S = {
-    currentPage: "home",
+    currentPage: "list",
     currentTripId: null,
     currentTrip: null,
     currentModule: null,
@@ -1333,88 +1816,215 @@
     tripBuilderSelection: /* @__PURE__ */ new Set(),
     moduleBuilderItems: [],
     moduleItemEditContext: null,
+    tripActionsTargetId: null,
     kitView: "compact",
     collapsedBags: /* @__PURE__ */ new Set(),
-    tripInfoCollapsed: false,
+    tripInfoCollapsed: true,
+    moduleAddPanelOpen: false,
     currentEditingTags: []
   };
+  var modalReturnFocus = null;
   function init() {
     ensureItemLibrarySeeded();
+    applyRuntimeCapabilityClasses();
+    bindDeclarativeActions();
     setupModalOverlays();
-    setupModuleBuilderGesture();
     fillCatSelect("libraryItemCategory");
     fillBagSelect("libraryItemBag", null, DEFAULT_BAGS);
     fillCatSelect("manualItemCategory");
     fillCatSelect("tripItemCategory");
-    fillCatSelect("moduleQuickItemCategory");
     fillCatSelect("moduleItemCategory");
     fillBagSelect("moduleItemBag", null, DEFAULT_BAGS);
     bindFormEvents();
-    nav("home");
-    if (!localStorage.getItem(STORAGE_KEYS.onboarded)) {
+    openTripPage();
+    if (!safeStorageGet(STORAGE_KEYS.onboarded)) {
       setTimeout(startOnboarding, 400);
     }
   }
+  function safeStorageGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      return null;
+    }
+  }
+  function safeStorageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  function safeStorageRemove(key) {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  function applyRuntimeCapabilityClasses() {
+    const flex = document.createElement("div");
+    flex.style.position = "absolute";
+    flex.style.visibility = "hidden";
+    flex.style.display = "flex";
+    flex.style.flexDirection = "column";
+    flex.style.rowGap = "1px";
+    flex.appendChild(document.createElement("div"));
+    flex.appendChild(document.createElement("div"));
+    document.body.appendChild(flex);
+    const supportsFlexGap = flex.scrollHeight === 1;
+    flex.parentNode.removeChild(flex);
+    document.documentElement.classList.add(supportsFlexGap ? "supports-flex-gap" : "no-flex-gap");
+  }
+  var ACTION_EVENT_ATTRIBUTES = {
+    click: "actionClick",
+    input: "actionInput",
+    change: "actionChange"
+  };
+  function bindDeclarativeActions() {
+    Object.keys(ACTION_EVENT_ATTRIBUTES).forEach((eventName) => {
+      document.addEventListener(eventName, (event) => {
+        const actionElement = event.target.closest("[data-action-" + eventName + "]");
+        if (!actionElement) return;
+        const expression = actionElement.dataset[ACTION_EVENT_ATTRIBUTES[eventName]];
+        runDeclarativeAction(expression, actionElement, event);
+      });
+    });
+  }
+  function runDeclarativeAction(expression, element, event) {
+    let source = String(expression || "").trim();
+    if (!source) return;
+    const selfTargetPrefix = "if(event.target===this)";
+    if (source.indexOf(selfTargetPrefix) === 0) {
+      if (event.target !== element) return;
+      source = source.slice(selfTargetPrefix.length);
+    }
+    source.split(";").map((statement) => statement.trim()).filter(Boolean).forEach((statement) => {
+      if (statement === "event.stopPropagation()") {
+        event.stopPropagation();
+        return;
+      }
+      const call = statement.match(/^([A-Za-z_$][\w$]*)\((.*)\)$/);
+      if (!call) return;
+      const action = window[call[1]];
+      if (typeof action !== "function") return;
+      action.apply(element, parseDeclarativeArguments(call[2], element, event));
+    });
+  }
+  function parseDeclarativeArguments(source, element, event) {
+    if (!source.trim()) return [];
+    const tokens = [];
+    let token = "";
+    let quote = "";
+    for (let index = 0; index < source.length; index += 1) {
+      const char = source[index];
+      if (quote) {
+        token += char;
+        if (char === quote && source[index - 1] !== "\\") quote = "";
+      } else if (char === "'" || char === '"') {
+        quote = char;
+        token += char;
+      } else if (char === ",") {
+        tokens.push(token.trim());
+        token = "";
+      } else {
+        token += char;
+      }
+    }
+    tokens.push(token.trim());
+    return tokens.map((value) => parseDeclarativeValue(value, element, event));
+  }
+  function parseDeclarativeValue(value, element, event) {
+    if (value === "this.value") return element.value;
+    if (value === "S.tripMode") return S.tripMode;
+    if (value === "event") return event;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    if (value === "null") return null;
+    if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+    if (value[0] === "'" && value[value.length - 1] === "'" || value[0] === '"' && value[value.length - 1] === '"') {
+      return value.slice(1, -1).replace(/\\(['"\\])/g, "$1");
+    }
+    return value;
+  }
   function bindFormEvents() {
-    document.getElementById("tripDays")?.addEventListener("input", syncTripBuilderSummary);
-    document.getElementById("tripPeople")?.addEventListener("input", syncTripBuilderSummary);
-    document.getElementById("libraryItemCategory")?.addEventListener("change", () => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
+    (_a = document.getElementById("tripDays")) == null ? void 0 : _a.addEventListener("input", syncTripBuilderSummary);
+    (_b = document.getElementById("tripPeople")) == null ? void 0 : _b.addEventListener("input", syncTripBuilderSummary);
+    (_c = document.getElementById("libraryItemCategory")) == null ? void 0 : _c.addEventListener("change", () => {
       syncBagWithCategory("libraryItemCategory", "libraryItemBag", DEFAULT_BAGS);
       updateLibrarySmartHint();
     });
-    document.getElementById("libraryItemName")?.addEventListener("input", updateLibrarySmartHint);
-    document.getElementById("libraryItemBulkInput")?.addEventListener("input", updateLibrarySmartHint);
-    document.getElementById("libraryItemQty")?.addEventListener("input", updateLibrarySmartHint);
-    document.getElementById("manualItemCategory")?.addEventListener("change", () => {
-      syncBagWithCategory("manualItemCategory", "manualItemBag", S.currentTrip?.bags || DEFAULT_BAGS);
+    (_d = document.getElementById("libraryItemName")) == null ? void 0 : _d.addEventListener("input", updateLibrarySmartHint);
+    (_e = document.getElementById("libraryItemBulkInput")) == null ? void 0 : _e.addEventListener("input", updateLibrarySmartHint);
+    (_f = document.getElementById("libraryItemQty")) == null ? void 0 : _f.addEventListener("input", updateLibrarySmartHint);
+    (_g = document.getElementById("manualItemCategory")) == null ? void 0 : _g.addEventListener("change", () => {
+      var _a2;
+      syncBagWithCategory("manualItemCategory", "manualItemBag", ((_a2 = S.currentTrip) == null ? void 0 : _a2.bags) || DEFAULT_BAGS);
       updateManualItemSmartHint();
     });
-    document.getElementById("manualItemName")?.addEventListener("input", updateManualItemSmartHint);
-    document.getElementById("manualItemBulkInput")?.addEventListener("input", updateManualItemSmartHint);
-    document.getElementById("manualItemQty")?.addEventListener("input", updateManualItemSmartHint);
-    document.getElementById("tripItemQty")?.addEventListener("input", updateTripItemSmartMeta);
-    document.getElementById("tripItemCategory")?.addEventListener("change", () => {
-      syncBagWithCategory("tripItemCategory", "tripItemBag", S.currentTrip?.bags || DEFAULT_BAGS);
+    (_h = document.getElementById("manualItemName")) == null ? void 0 : _h.addEventListener("input", updateManualItemSmartHint);
+    (_i = document.getElementById("manualItemBulkInput")) == null ? void 0 : _i.addEventListener("input", updateManualItemSmartHint);
+    (_j = document.getElementById("manualItemQty")) == null ? void 0 : _j.addEventListener("input", updateManualItemSmartHint);
+    (_k = document.getElementById("tripItemQty")) == null ? void 0 : _k.addEventListener("input", updateTripItemSmartMeta);
+    (_l = document.getElementById("tripItemCategory")) == null ? void 0 : _l.addEventListener("change", () => {
+      var _a2;
+      syncBagWithCategory("tripItemCategory", "tripItemBag", ((_a2 = S.currentTrip) == null ? void 0 : _a2.bags) || DEFAULT_BAGS);
       updateTripItemSmartMeta();
     });
-    document.getElementById("moduleQuickItemName")?.addEventListener("input", updateModuleQuickItemCategory);
-    document.getElementById("moduleQuickItemCategory")?.addEventListener("change", updateModuleQuickItemCategory);
-    document.getElementById("libraryItemTagInput")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        addLibraryItemTag();
-      }
+    (_m = document.getElementById("moduleItemQty")) == null ? void 0 : _m.addEventListener("input", updateModuleItemSmartHint);
+    (_n = document.getElementById("moduleBuilderItems")) == null ? void 0 : _n.addEventListener("click", (e) => {
+      const tile = e.target.closest(".picker-item");
+      if (!(tile == null ? void 0 : tile.dataset.itemId)) return;
+      addModuleBuilderItemByAssetId(tile.dataset.itemId);
     });
-    document.getElementById("tripItemTagInput")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        addTripItemTag();
-      }
+    (_o = document.getElementById("moduleBuilderSelectedItems")) == null ? void 0 : _o.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-remove-module-item]");
+      if (!btn) return;
+      removeModuleBuilderItem(btn.dataset.removeModuleItem);
     });
-    document.getElementById("moduleItemCategory")?.addEventListener("change", () => {
-      syncBagWithCategory("moduleItemCategory", "moduleItemBag", DEFAULT_BAGS);
-      updateModuleItemSmartHint();
-    });
-    document.getElementById("moduleItemQty")?.addEventListener("input", updateModuleItemSmartHint);
-    document.getElementById("libraryItemTagsDisplay")?.addEventListener("click", (e) => {
+    (_p = document.getElementById("libraryItemTagsDisplay")) == null ? void 0 : _p.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeLibraryItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
-    document.getElementById("tripItemTagsDisplay")?.addEventListener("click", (e) => {
+    (_q = document.getElementById("tripItemTagsDisplay")) == null ? void 0 : _q.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
+    (_r = document.getElementById("listContent")) == null ? void 0 : _r.addEventListener("click", (e) => {
+      const card = e.target.closest("[data-trip-item-id]");
+      if (!card || S.tripMode !== "plan") return;
+      openTripItemModal(card.dataset.tripItemId);
+    });
+    (_s = document.getElementById("libraryItemTagInput")) == null ? void 0 : _s.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addLibraryItemTag();
+      }
+    });
+    (_t = document.getElementById("tripItemTagInput")) == null ? void 0 : _t.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addTripItemTag();
+      }
+    });
+    (_u = document.getElementById("moduleItemCategory")) == null ? void 0 : _u.addEventListener("change", () => {
+      syncBagWithCategory("moduleItemCategory", "moduleItemBag", DEFAULT_BAGS);
+      updateModuleItemSmartHint();
+    });
   }
   function nav(page) {
+    if (page === "itemlibrary") page = "items";
     S.currentPage = page;
     document.querySelectorAll(".page").forEach((el) => el.classList.toggle("active", el.dataset.page === page));
     renderHeader();
     renderBottomNav();
-    if (page === "home") renderHome();
     if (page === "kits") renderModuleLibrary();
     if (page === "items") renderItemLibrary();
     if (page === "list") renderTripPage();
@@ -1425,26 +2035,22 @@
     S.currentModuleAction = "browse";
     nav(page);
   }
+  function openSubPage(page, returnTo) {
+    S.returnPage = returnTo;
+    S.currentModuleAction = "browse";
+    nav(page);
+  }
   function openTripPage() {
     S.returnPage = null;
     S.currentModuleAction = "browse";
-    if (S.currentTrip) {
-      nav("list");
-      return;
-    }
-    const trips = getTrips();
-    if (!trips.length) {
-      S.currentTripId = null;
-      S.currentTrip = null;
-      nav("list");
-      return;
-    }
-    const active = trips.find((trip) => getTripStatus(trip).key !== "done") || trips[0];
-    openTrip(active.id, "plan");
+    nav("list");
   }
   function goBack() {
-    if (S.currentPage === "list") {
-      nav("home");
+    if (S.currentPage === "list" && S.currentTrip) {
+      S.currentTrip = null;
+      S.currentTripId = null;
+      renderHeader();
+      renderTripPage();
       return;
     }
     if (S.returnPage) {
@@ -1454,34 +2060,40 @@
       nav(target);
       return;
     }
-    nav("home");
+    nav("list");
+  }
+  function refreshTripHub() {
+    if (S.currentPage === "list" && !S.currentTrip) renderTripPage();
   }
   function renderHeader() {
+    var _a;
     const backWrap = document.getElementById("headerBackWrap");
     const title = document.getElementById("headerTitle");
     const eyebrow = document.getElementById("headerEyebrow");
     const right = document.getElementById("headerRight");
-    backWrap.style.visibility = S.currentPage === "list" || S.returnPage ? "visible" : "hidden";
+    backWrap.style.visibility = S.currentPage === "list" && S.currentTrip || S.returnPage ? "visible" : "hidden";
     right.innerHTML = "";
-    if (S.currentPage === "home") {
-      title.textContent = "\u884C\u7406";
-      eyebrow.textContent = "\u7269\u54C1\u5E93 \u2192 \u5C0F\u5305 \u2192 \u884C\u7A0B";
-      right.innerHTML = '<button class="btn-icon" onclick="openCreateTripModal()" aria-label="\u65B0\u5EFA\u884C\u7A0B">\uFF0B</button>';
-    } else if (S.currentPage === "kits") {
+    right.className = "header-right";
+    if (S.currentPage === "kits") {
       title.textContent = "\u5C0F\u5305";
-      eyebrow.textContent = S.currentModuleAction === "add" ? "\u628A\u5C0F\u5305\u52A0\u8FDB\u5F53\u524D\u884C\u7A0B\u5355" : "\u5148\u6C89\u6DC0\uFF0C\u518D\u590D\u7528";
-      right.innerHTML = '<button class="btn-icon" onclick="openCreateModuleModal()" aria-label="\u65B0\u5EFA\u5C0F\u5305">\uFF0B</button>';
+      eyebrow.textContent = S.currentModuleAction === "add" ? "\u52A0\u5165\u5F53\u524D\u884C\u7A0B" : "\u53EF\u590D\u7528\u7684\u6253\u5305\u6A21\u5757";
+      right.innerHTML = '<button class="btn-icon" data-action-click="openCreateModuleModal()" aria-label="\u65B0\u5EFA\u5C0F\u5305">\uFF0B</button>';
     } else if (S.currentPage === "items") {
       title.textContent = "\u7269\u54C1\u5E93";
-      eyebrow.textContent = S.currentTrip ? "\u4ECE\u7269\u54C1\u5E93\u7ED9\u5F53\u524D\u884C\u7A0B\u8865\u8D27" : "\u6C89\u6DC0\u4F60\u7684\u6807\u51C6\u7269\u54C1\u8D44\u4EA7";
-      right.innerHTML = '<button class="btn-icon" onclick="openLibraryItemModal()" aria-label="\u65B0\u589E\u7269\u54C1">\uFF0B</button>';
+      eyebrow.textContent = S.currentTrip ? "\u7ED9\u5F53\u524D\u884C\u7A0B\u8865\u8D27" : "\u5E38\u7528\u7269\u54C1\u4E00\u5904\u7BA1\u7406";
+      right.innerHTML = '<button class="btn-icon" data-action-click="openLibraryItemModal()" aria-label="\u65B0\u589E\u7269\u54C1">\uFF0B</button>';
+    } else if (S.currentPage === "list" && !S.currentTrip) {
+      title.textContent = "\u884C\u7A0B";
+      eyebrow.textContent = "\u89C4\u5212 \xB7 \u6253\u5305 \xB7 \u51FA\u53D1";
+      right.innerHTML = '<button class="btn-icon" data-action-click="openCreateTripModal()" aria-label="\u65B0\u5EFA\u884C\u7A0B">\uFF0B</button>';
     } else if (S.currentPage === "list") {
-      title.textContent = "\u884C\u7A0B\u8BE6\u60C5";
-      eyebrow.textContent = S.tripMode === "plan" ? "\u89C4\u5212\u6A21\u5F0F\uFF1A\u7EC4\u5408\u5C0F\u5305\u3001\u8865\u5145\u7269\u54C1\u3001\u667A\u80FD\u5EFA\u8BAE" : "\u6253\u5305\u6A21\u5F0F\uFF1A\u5BF9\u7167\u5B9E\u7269\u52FE\u9009";
-      right.innerHTML = '<button class="btn-icon" onclick="toggleTripMode()" aria-label="\u5207\u6362\u6A21\u5F0F">' + (S.tripMode === "plan" ? "\u{1F392}" : "\u270F\uFE0F") + "</button>";
+      title.textContent = ((_a = S.currentTrip) == null ? void 0 : _a.name) || "\u884C\u7A0B";
+      eyebrow.textContent = formatTripMeta(S.currentTrip);
+      right.className = "header-right wide";
+      right.innerHTML = '<div class="header-mode-switch"><button type="button" class="header-mode-tab' + (S.tripMode === "plan" ? " active" : "") + '" data-action-click="setTripMode(\'plan\')">\u89C4\u5212</button><button type="button" class="header-mode-tab' + (S.tripMode === "pack" ? " active" : "") + '" data-action-click="setTripMode(\'pack\')">\u6253\u5305</button></div>';
     } else if (S.currentPage === "me") {
       title.textContent = "\u6211\u7684";
-      eyebrow.textContent = "\u8BBE\u7F6E\u4E0E\u6570\u636E\u7BA1\u7406";
+      eyebrow.textContent = "\u8BBE\u7F6E\u4E0E\u6570\u636E";
       right.innerHTML = "";
     }
   }
@@ -1490,55 +2102,68 @@
       btn.classList.toggle("active", btn.dataset.nav === S.currentPage);
     });
   }
-  function renderHome() {
+  function renderTripHub() {
     const trips = getTrips();
-    const modules = getMyModules();
-    const library = getItemLibrary();
-    const active = trips.find((trip) => getTripStatus(trip).key !== "done") || null;
-    const rest = trips.filter((trip) => trip.id !== active?.id);
-    const recent = rest.filter((t) => getTripStatus(t).key !== "done").slice(0, 3);
-    const history = getDoneTrips();
-    const isNewUser = !trips.length && !modules.length;
-    const heroEl = document.getElementById("homeHero");
-    if (heroEl) heroEl.style.display = isNewUser ? "block" : "none";
-    const statsEl = document.getElementById("homeStats");
-    if (statsEl) {
-      statsEl.innerHTML = isNewUser ? "" : "<span>" + trips.length + ' \u4E2A\u884C\u7A0B</span><span class="qs-dot">\xB7</span><span>' + (modules.length + getOfficialModules().length) + ' \u4E2A\u5C0F\u5305</span><span class="qs-dot">\xB7</span><span>' + library.length + " \u4EF6\u7269\u54C1</span>";
-    }
-    const content = document.getElementById("homeContent");
-    if (!content) return;
-    if (isNewUser) {
-      content.innerHTML = renderNewUserGuide();
+    const summaryBox = document.getElementById("listSummary");
+    const switchBox = document.getElementById("listModeSwitch");
+    const actionBar = document.getElementById("listActionBar");
+    const subBar = document.getElementById("listSubBar");
+    const content = document.getElementById("listContent");
+    if (!summaryBox || !content) return;
+    switchBox.innerHTML = "";
+    actionBar.innerHTML = "";
+    subBar.innerHTML = "";
+    if (!trips.length) {
+      summaryBox.innerHTML = "";
+      content.innerHTML = '<div class="trip-hub"><div class="empty-hero"><img class="empty-mascot" src="assets/xingli-dog-mascot.png" alt="" aria-hidden="true"><div class="empty-kicker">\u5F00\u59CB\u7B2C\u4E00\u6B21\u51FA\u884C</div><div class="empty-title">\u8FD8\u6CA1\u6709\u884C\u7A0B</div><div class="empty-hint">\u7528\u5C0F\u5305\u62FC\u51FA\u6E05\u5355\uFF0C\u518D\u6309\u5929\u6309\u4EBA\u667A\u80FD\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="empty-steps"><div class="empty-step"><span class="empty-step-num">1</span><div><div class="empty-step-title">\u6574\u7406\u5C0F\u5305</div><div class="empty-step-desc">\u6D17\u6F31\u3001\u5316\u5986\u3001\u8BC1\u4EF6\u7B49\u5E38\u5E26\u7EC4\u5408</div></div></div><div class="empty-step"><span class="empty-step-num">2</span><div><div class="empty-step-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="empty-step-desc">\u52FE\u9009\u8FD9\u6B21\u8981\u5E26\u7684\u5C0F\u5305</div></div></div><div class="empty-step"><span class="empty-step-num">3</span><div><div class="empty-step-title">\u6253\u5305\u52FE\u9009</div><div class="empty-step-desc">\u5BF9\u7167\u5B9E\u7269\u9010\u9879\u6253\u52FE</div></div></div></div><div class="empty-actions stacked"><button class="btn-primary wide" type="button" data-action-click="openCreateTripModal()">\u65B0\u5EFA\u884C\u7A0B</button><button class="btn-secondary wide" type="button" data-action-click="openMainPage(\'kits\')">\u5148\u770B\u5C0F\u5305</button></div></div>';
       return;
     }
+    const active = trips.filter((trip) => getTripStatus(trip).key !== "done");
+    const done = trips.filter((trip) => getTripStatus(trip).key === "done");
+    summaryBox.innerHTML = '<div class="hub-toolbar"><img class="hub-mascot" src="assets/xingli-dog-mascot.png" alt="" aria-hidden="true"><div class="hub-toolbar-copy"><div class="hub-toolbar-title">\u6211\u7684\u884C\u7A0B</div><div class="hub-toolbar-meta">' + active.length + " \u4E2A\u8FDB\u884C\u4E2D \xB7 \u5171 " + trips.length + ' \u4E2A</div></div><button class="btn-primary" type="button" data-action-click="openCreateTripModal()">\u65B0\u5EFA</button></div>';
     let html = "";
-    if (active) {
-      html += '<section class="section"><div class="section-head"><h3 class="section-title">\u8FDB\u884C\u4E2D</h3><span class="section-meta">' + getTripStatus(active).label + "</span></div>" + renderActiveTrip(active) + "</section>";
+    if (active.length) {
+      html += '<section class="section trip-home-section"><div class="section-head"><h3 class="section-title">\u8FDB\u884C\u4E2D</h3><span class="section-meta">' + active.length + '</span></div><div class="trip-list-compact">' + active.map(renderTripCardCompact).join("") + "</div></section>";
     } else {
-      html += '<div class="home-cta-banner" onclick="openCreateTripModal()"><div class="home-cta-icon">\u{1F4DD}</div><div class="home-cta-body"><div class="home-cta-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="home-cta-desc">\u9009\u51E0\u4E2A\u5C0F\u5305\uFF0C\u667A\u80FD\u751F\u6210\u6253\u5305\u6E05\u5355</div></div><div class="home-cta-arrow">\u203A</div></div>';
+      html += '<div class="soft-banner">\u6682\u65E0\u8FDB\u884C\u4E2D\u7684\u884C\u7A0B\uFF0C\u70B9\u53F3\u4E0A\u89D2\u65B0\u5EFA\u4E00\u5F20\u3002</div>';
     }
-    if (recent.length) {
-      html += '<section class="section"><div class="section-head"><h3 class="section-title">\u6700\u8FD1</h3></div><div class="trip-list-compact">' + recent.map(renderTripCardCompact).join("") + "</div></section>";
-    }
-    if (history.length) {
-      const showing = S.homeHistoryExpanded ? history : history.slice(0, 2);
-      html += '<section class="section"><div class="section-head"><h3 class="section-title">\u5DF2\u5B8C\u6210</h3><span class="section-meta section-link" onclick="toggleHomeHistory()">' + (S.homeHistoryExpanded ? "\u6536\u8D77" : history.length > 2 ? "\u67E5\u770B\u5168\u90E8 " + history.length + " \u6761" : "") + '</span></div><div class="trip-list-compact">' + showing.map(renderTripCardCompact).join("") + "</div></section>";
+    if (done.length) {
+      const showing = S.homeHistoryExpanded ? done : done.slice(0, 3);
+      html += '<section class="section trip-home-section section-gap-top"><div class="section-head"><h3 class="section-title">\u5DF2\u5B8C\u6210</h3>' + (done.length > 3 ? '<span class="section-meta section-link" data-action-click="toggleHomeHistory()">' + (S.homeHistoryExpanded ? "\u6536\u8D77" : "\u5168\u90E8 " + done.length) + "</span>" : '<span class="section-meta">' + done.length + "</span>") + '</div><div class="trip-list-compact">' + showing.map(renderTripCardCompact).join("") + "</div></section>";
     }
     content.innerHTML = html;
   }
-  function renderNewUserGuide() {
-    return `<div class="home-features"><div class="feature-card" onclick="openMainPage('kits')"><div class="feature-icon">\u{1F9F0}</div><div class="feature-body"><div class="feature-title">\u6574\u7406\u5C0F\u5305</div><div class="feature-desc">\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E 9 \u4E2A\u5B98\u65B9\u5C0F\u5305\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openCreateTripModal()"><div class="feature-icon">\u{1F4DD}</div><div class="feature-body"><div class="feature-title">\u65B0\u5EFA\u884C\u7A0B</div><div class="feature-desc">\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002</div></div><div class="home-cta-arrow">\u203A</div></div><div class="feature-card" onclick="openMainPage('items')"><div class="feature-icon">\u{1F392}</div><div class="feature-body"><div class="feature-title">\u7269\u54C1\u5E93</div><div class="feature-desc">\u7BA1\u7406\u4F60\u7684\u7269\u54C1\u5E93\uFF0C\u6DFB\u52A0\u4E2A\u4EBA\u5E38\u7528\u7269\u54C1\uFF0C\u6253\u5305\u65F6\u968F\u624B\u6311\u9009\u3002</div></div><div class="home-cta-arrow">\u203A</div></div></div>`;
-  }
-  function renderActiveTrip(trip) {
-    const progress = getTripProgress(trip);
-    const status = getTripStatus(trip);
-    return '<div class="active-trip-card"><div class="active-trip-top"><span class="status-chip ' + status.key + '">' + status.label + '</span><span class="section-meta">' + esc(formatTripMeta(trip)) + '</span></div><div class="list-summary-title">' + esc(trip.name) + '</div><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + "</div>" + renderProgress(progress) + `<div class="hero-actions" style="margin-top:14px;"><button class="btn-secondary" onclick="openTrip('` + trip.id + `','plan')">\u7EE7\u7EED\u89C4\u5212</button><button class="btn-primary" onclick="openTrip('` + trip.id + `','pack')">\u5F00\u59CB\u6253\u5305</button></div></div>`;
+  function toggleHomeHistory() {
+    if (getDoneTrips().length <= 3) return;
+    S.homeHistoryExpanded = !S.homeHistoryExpanded;
+    refreshTripHub();
   }
   function renderTripCardCompact(trip) {
+    var _a;
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
-    const openMode = status.key === "done" ? "plan" : "pack";
-    return `<div class="trip-card-compact"><div class="trip-card-compact-main" onclick="openTrip('` + trip.id + "','" + openMode + `')"><div class="trip-compact-icon">` + status.icon + '</div><div class="trip-compact-body"><div class="trip-compact-name">' + esc(trip.name) + '</div><div class="trip-compact-meta">' + esc(formatTripMeta(trip)) + '</div></div><div class="trip-compact-progress"><div class="progress-ring" style="--pct:' + progress.pct + '"><span class="progress-ring-text">' + progress.pct + `%</span></div></div></div><div class="trip-compact-actions"><button type="button" class="icon-action compact" onclick="duplicateTrip('` + trip.id + `')" title="\u590D\u5236\u884C\u7A0B" aria-label="\u590D\u5236\u884C\u7A0B">\u{1F4CB}</button><button type="button" class="icon-action compact" onclick="deleteTrip('` + trip.id + `')" title="\u5220\u9664\u884C\u7A0B" aria-label="\u5220\u9664\u884C\u7A0B">\u{1F5D1}\uFE0F</button></div></div>`;
+    const openMode = progress.packed > 0 && status.key !== "done" ? "pack" : "plan";
+    return '<div class="trip-row"><button type="button" class="trip-row-hit" data-action-click="openTrip(\'' + trip.id + "','" + openMode + '\')"><div class="trip-row-content"><div class="trip-row-top"><div class="trip-row-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span></div><div class="trip-row-subtitle">' + esc(formatTripMeta(trip)) + (((_a = trip.sourceModules) == null ? void 0 : _a.length) ? " \xB7 " + esc(formatTripSourceSummary(trip)) : "") + '</div></div><div class="trip-row-trail"><div class="progress-ring progress-ring-sm" style="--pct:' + progress.pct + '"><span class="progress-ring-text">' + progress.pct + '%</span></div><span class="trip-row-chevron" aria-hidden="true">\u203A</span></div></button><button type="button" class="trip-row-menu" data-action-click="openTripActionsSheet(\'' + trip.id + '\')" aria-label="\u66F4\u591A\u64CD\u4F5C">\u22EF</button></div>';
+  }
+  function openTripActionsSheet(tripId) {
+    var _a;
+    S.tripActionsTargetId = tripId;
+    (_a = document.getElementById("tripActionsSheet")) == null ? void 0 : _a.classList.add("active");
+  }
+  function closeTripActionsSheet() {
+    var _a;
+    S.tripActionsTargetId = null;
+    (_a = document.getElementById("tripActionsSheet")) == null ? void 0 : _a.classList.remove("active");
+  }
+  function duplicateTripFromSheet() {
+    const id = S.tripActionsTargetId;
+    closeTripActionsSheet();
+    if (id) duplicateTrip(id);
+  }
+  function deleteTripFromSheet() {
+    const id = S.tripActionsTargetId;
+    closeTripActionsSheet();
+    if (id) deleteTrip(id);
   }
   function renderTripSourceModulesBar(trip) {
     const modules = trip.sourceModules || [];
@@ -1546,7 +2171,7 @@
       return '<div class="info-card subtle">\u8FD8\u6CA1\u6709\u5173\u8054\u5C0F\u5305\u3002\u70B9\u300C\u4ECE\u5C0F\u5305\u6DFB\u52A0\u300D\u628A\u6807\u51C6\u5316\u5C0F\u5305\u52A0\u8FDB\u6765\u3002</div>';
     }
     return '<div class="trip-modules-panel"><div class="trip-modules-head"><span class="trip-modules-label">\u5DF2\u9009\u5C0F\u5305</span><span class="trip-modules-hint">\u70B9 \xD7 \u79FB\u9664\uFF1B\u6539\u5C0F\u5305\u5B9A\u4E49\u540E\u8BF7\u91CD\u65B0\u540C\u6B65</span></div><div class="trip-module-chips">' + modules.map(
-      (module) => '<span class="trip-module-chip">' + esc(module.name) + `<button type="button" class="chip-remove" onclick="removeModuleFromCurrentTrip('` + module.source + "', '" + module.id + `')" aria-label="\u79FB\u9664 ` + esc(module.name) + '">\xD7</button></span>'
+      (module) => '<span class="trip-module-chip">' + esc(module.name) + '<button type="button" class="chip-remove" data-action-click="removeModuleFromCurrentTrip(\'' + module.source + "', '" + module.id + '\')" aria-label="\u79FB\u9664 ' + esc(module.name) + '">\xD7</button></span>'
     ).join("") + "</div></div>";
   }
   function renderProgress(progress) {
@@ -1555,11 +2180,6 @@
   function getDoneTrips() {
     return getTrips().filter((trip) => getTripStatus(trip).key === "done");
   }
-  function toggleHomeHistory() {
-    if (getDoneTrips().length <= 2) return;
-    S.homeHistoryExpanded = !S.homeHistoryExpanded;
-    renderHome();
-  }
   function renderTripPage() {
     const summaryBox = document.getElementById("listSummary");
     const switchBox = document.getElementById("listModeSwitch");
@@ -1567,11 +2187,7 @@
     const subBar = document.getElementById("listSubBar");
     const content = document.getElementById("listContent");
     if (!S.currentTrip) {
-      summaryBox.innerHTML = `<div class="empty-panel"><div class="empty-icon">\u{1F4ED}</div><div class="empty-title">\u8FD8\u6CA1\u6709\u6253\u5F00\u7684\u884C\u7A0B</div><div class="empty-hint">\u4ECE\u9996\u9875\u8FDB\u5165\u8FDB\u884C\u4E2D\u7684\u884C\u7A0B\uFF0C\u6216\u65B0\u5EFA\u4E00\u5F20\u884C\u7A0B\u5355\u5F00\u59CB\u6574\u7406\u3002</div><div class="empty-actions"><button class="btn-secondary" type="button" onclick="openMainPage('home')">\u56DE\u9996\u9875</button><button class="btn-primary" type="button" onclick="openCreateTripModal()">\u65B0\u5EFA\u884C\u7A0B</button></div></div>`;
-      switchBox.innerHTML = "";
-      actionBar.innerHTML = "";
-      subBar.innerHTML = "";
-      content.innerHTML = "";
+      renderTripHub();
       return;
     }
     const trip = S.currentTrip;
@@ -1579,48 +2195,67 @@
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
     const collapsed = S.tripInfoCollapsed ? " collapsed" : "";
+    const cardClass = "list-summary-card" + (S.tripInfoCollapsed ? " is-collapsed" : "") + (S.tripMode === "pack" ? " pack-mode" : "");
     const allTrips = getTrips();
-    const tripSwitcher = allTrips.length > 1 ? '<div class="trip-switch-row"><span class="trip-switch-label">\u5207\u6362\u884C\u7A0B</span><select class="trip-switch-select" aria-label="\u5207\u6362\u884C\u7A0B" onchange="openTrip(this.value, S.tripMode)">' + allTrips.map((entry) => '<option value="' + entry.id + '"' + (entry.id === trip.id ? " selected" : "") + ">" + esc(entry.name) + "</option>").join("") + "</select></div>" : "";
-    summaryBox.innerHTML = '<div class="list-summary-card"><div class="list-summary-top"><div><div class="list-summary-title-row"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + "</span></div>" + tripSwitcher + '<div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + '</div></div><button class="pill-button" onclick="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button></div>' + renderProgress(progress) + '<div class="trip-info-toggle" onclick="toggleTripInfoCard()"><span class="trip-info-toggle-text">\u884C\u7A0B\u8BBE\u7F6E</span><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div><div class="trip-info-body' + collapsed + `"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', -1)">\u2212</button><input type="number" min="1" max="90" value="` + trip.days + `" aria-label="\u884C\u7A0B\u5929\u6570" onchange="updateCurrentTripSetting('days', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('days', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', -1)">\u2212</button><input type="number" min="1" max="20" value="` + trip.people + `" aria-label="\u51FA\u884C\u4EBA\u6570" onchange="updateCurrentTripSetting('people', this.value)"><button class="stepper-btn" onclick="changeCurrentTripSetting('people', 1)">+</button></div></div><div class="trip-info-actions">` + ((trip.sourceModules || []).length ? '<button type="button" class="btn-recompute" onclick="resyncCurrentTripFromModules()">\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65</button>' : "") + '<button type="button" class="btn-recompute' + ((trip.sourceModules || []).length ? " outline" : "") + '" onclick="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">' + ((trip.sourceModules || []).length ? "\u6539\u8FC7\u5C0F\u5305\u5B9A\u4E49\u540E\uFF0C\u53EF\u70B9\u300C\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65\u300D\u66F4\u65B0\u672C\u884C\u7A0B\uFF1B\u624B\u8C03\u6570\u91CF\u4E0E\u6253\u5305\u52FE\u9009\u4F1A\u5C3D\u91CF\u4FDD\u7559\u3002" : "\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE " + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002") + "</div></div>";
-    switchBox.innerHTML = '<button class="mode-tab ' + (S.tripMode === "plan" ? "active" : "") + `" onclick="setTripMode('plan')">\u89C4\u5212\u6A21\u5F0F</button><button class="mode-tab ` + (S.tripMode === "pack" ? "active" : "") + `" onclick="setTripMode('pack')">\u6253\u5305\u6A21\u5F0F</button>`;
+    const tripSwitcher = allTrips.length > 1 ? '<div class="trip-switch-row"><select class="trip-switch-select" aria-label="\u5207\u6362\u884C\u7A0B" data-action-change="openTrip(this.value, S.tripMode)">' + allTrips.map((entry) => '<option value="' + entry.id + '"' + (entry.id === trip.id ? " selected" : "") + ">" + esc(entry.name) + "</option>").join("") + "</select></div>" : "";
+    summaryBox.innerHTML = '<div class="' + cardClass + '"><div class="trip-summary-bar" data-action-click="toggleTripInfoCard()"><div class="trip-summary-bar-main"><div class="list-summary-title">' + esc(trip.name) + '</div><span class="status-chip ' + status.key + '">' + status.label + '</span><span class="trip-summary-pct">' + progress.pct + '%</span></div><span class="trip-info-toggle-arrow' + collapsed + '">\u25BC</span></div>' + tripSwitcher + '<div class="trip-summary-expanded"><div class="list-summary-meta">' + esc(formatTripSourceSummary(trip)) + " \xB7 " + esc(formatTripMeta(trip)) + "</div>" + renderProgress(progress) + '<div class="trip-info-body' + collapsed + '"><div class="trip-info-row"><div class="trip-info-row-label">\u5929\u6570</div><div class="stepper"><button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'days\', -1)">\u2212</button><input type="number" min="1" max="90" value="' + trip.days + '" aria-label="\u884C\u7A0B\u5929\u6570" data-action-change="updateCurrentTripSetting(\'days\', this.value)"><button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'days\', 1)">+</button></div></div><div class="trip-info-row"><div class="trip-info-row-label">\u4EBA\u6570</div><div class="stepper"><button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'people\', -1)">\u2212</button><input type="number" min="1" max="20" value="' + trip.people + '" aria-label="\u51FA\u884C\u4EBA\u6570" data-action-change="updateCurrentTripSetting(\'people\', this.value)"><button class="stepper-btn" data-action-click="changeCurrentTripSetting(\'people\', 1)">+</button></div></div><div class="trip-info-actions"><button type="button" class="btn-ghost" data-action-click="saveCurrentTripAsModule()">\u5B58\u4E3A\u5C0F\u5305</button>' + ((trip.sourceModules || []).length ? '<button type="button" class="btn-recompute" data-action-click="resyncCurrentTripFromModules()">\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65</button>' : "") + '<button type="button" class="btn-recompute outline" data-action-click="reapplyTripSmartFill()">\u91CD\u65B0\u667A\u80FD\u586B\u5145</button></div></div><div class="trip-smart-note">' + ((trip.sourceModules || []).length ? "\u6539\u8FC7\u5C0F\u5305\u540E\u53EF\u91CD\u65B0\u540C\u6B65\uFF1B\u624B\u8C03\u6570\u91CF\u4E0E\u52FE\u9009\u4F1A\u5C3D\u91CF\u4FDD\u7559\u3002" : "\u5DF2\u5EFA\u8BAE " + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\uFF1B\u624B\u6539\u8FC7\u7684\u6570\u91CF\u4F18\u5148\u4FDD\u7559\u3002") + "</div></div></div>";
+    switchBox.innerHTML = "";
     if (S.tripMode === "plan") {
-      actionBar.innerHTML = [
-        '<button class="btn-secondary" onclick="goSelectModuleForTrip()">\u4ECE\u5C0F\u5305\u6DFB\u52A0</button>',
-        '<button class="btn-secondary" onclick="goSelectItemsForTrip()">\u4ECE\u7269\u54C1\u5E93\u6DFB\u52A0</button>',
-        '<button class="btn-primary" onclick="openManualItemModal()">\u624B\u52A8\u6DFB\u52A0\u7269\u54C1</button>'
-      ].join("");
+      actionBar.innerHTML = (trip.items.length ? '<button type="button" class="start-pack-cta" data-action-click="setTripMode(\'pack\')"><span class="start-pack-copy"><strong>\u5F00\u59CB\u6253\u5305</strong><small>\u5171 ' + trip.items.length + ' \u4EF6\uFF0C\u8FB9\u6536\u62FE\u8FB9\u52FE\u9009</small></span><span class="start-pack-arrow" aria-hidden="true">\u2192</span></button>' : "") + '<div class="trip-edit-actions"><button class="btn-secondary" data-action-click="goSelectModuleForTrip()">\u4ECE\u5C0F\u5305\u6DFB\u52A0</button><button class="btn-secondary" data-action-click="goSelectItemsForTrip()">\u4ECE\u7269\u54C1\u5E93</button><button class="btn-primary" data-action-click="openManualItemModal()">\u624B\u52A8\u6DFB\u52A0</button></div>';
       subBar.innerHTML = renderTripSourceModulesBar(trip);
-      content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join("") : renderTripEmpty();
+      content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
-      actionBar.innerHTML = [
-        '<button class="btn-secondary" onclick="markAllPacked()">\u6807\u8BB0\u5168\u90E8\u5B8C\u6210</button>',
-        '<button class="btn-secondary" onclick="markAllUnpacked()">\u6062\u590D\u4E3A\u672A\u6253\u5305</button>'
-      ].join("");
-      subBar.innerHTML = '<div class="pack-view-switch"><button class="pack-view-tab ' + (S.packView === "bags" ? "active" : "") + `" onclick="setPackView('bags')">\u6309\u5C0F\u5305\u770B</button><button class="pack-view-tab ` + (S.packView === "remaining" ? "active" : "") + `" onclick="setPackView('remaining')">\u672A\u6253\u5305</button><button class="pack-view-tab ` + (S.packView === "all" ? "active" : "") + `" onclick="setPackView('all')">\u5168\u90E8</button></div>`;
+      actionBar.innerHTML = trip.items.some((item) => item.packed) ? '<button class="btn-secondary" data-action-click="markAllUnpacked()">\u91CD\u7F6E\u6253\u5305\u8FDB\u5EA6</button>' : "";
+      subBar.innerHTML = '<div class="pack-view-switch"><button class="pack-view-tab ' + (S.packView === "bags" ? "active" : "") + '" data-action-click="setPackView(\'bags\')">\u6309\u5C0F\u5305</button><button class="pack-view-tab ' + (S.packView === "remaining" ? "active" : "") + '" data-action-click="setPackView(\'remaining\')">\u672A\u6253\u5305</button><button class="pack-view-tab ' + (S.packView === "all" ? "active" : "") + '" data-action-click="setPackView(\'all\')">\u5168\u90E8</button></div>';
       content.innerHTML = renderPackContent(trip);
     }
   }
   function renderTripEmpty() {
-    return '<div class="empty-panel"><div class="empty-icon">\u{1F9F3}</div><div class="empty-title">\u8FD9\u5F20\u884C\u7A0B\u5355\u8FD8\u662F\u7A7A\u7684</div><div class="empty-hint">\u53BB\u52FE\u9009\u4E00\u4E2A\u6216\u591A\u4E2A\u5C0F\u5305\uFF0C\u6216\u8005\u76F4\u63A5\u624B\u52A8\u52A0\u5355\u4E2A\u7269\u54C1\u3002</div></div>';
+    return '<div class="empty-panel"><div class="empty-title">\u8FD9\u5F20\u884C\u7A0B\u5355\u8FD8\u662F\u7A7A\u7684</div><div class="empty-hint">\u52FE\u9009\u5C0F\u5305\uFF0C\u6216\u624B\u52A8\u6DFB\u52A0\u7269\u54C1\u3002</div></div>';
+  }
+  function renderPlanBagGroups(trip) {
+    const bags = trip.bags || DEFAULT_BAGS;
+    const groups = bags.map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) })).filter((group) => group.items.length);
+    const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
+    if (unassigned.length) {
+      groups.push({ bag: { id: "unassigned", icon: "", name: "\u672A\u5206\u914D" }, items: unassigned });
+    }
+    return groups.map(
+      (group) => '<div class="bag-group" id="plan-bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + (group.bag.icon || "") + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6</span></div><div class="bag-group-items">' + group.items.map(renderTripPlanItemCard).join("") + "</div></div>"
+    ).join("");
   }
   function renderTripPlanItemCard(item) {
-    const cat = catInfo(item.category);
-    const sourceText = formatItemSource(item);
-    const tagsHtml = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
-    const smartBadge = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(item.smartLocked ? "\u6570\u91CF\u5DF2\u624B\u8C03" : smartRuleShort(item.smartRule)) + "</span>" : "";
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + '"><button class="check-button ' + (item.packed ? "checked" : "") + `" onclick="togglePackItem('` + item.id + `')">\u2713</button><div class="list-item-main" onclick="openTripItemModal('` + item.id + `')"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>" + smartBadge + (sourceText ? '<span class="item-pill">' + esc(sourceText) + "</span>" : "") + "</div>" + (item.notes ? '<div class="item-notes">\u5907\u6CE8\uFF1A' + esc(item.notes) + "</div>" : "") + (tagsHtml ? '<div class="item-subline">' + tagsHtml + "</div>" : "") + '</div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<div class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" data-trip-item-id="' + item.id + '"><div class="plan-card-name">' + (item.packed ? '<span class="packed-dot">\u2713</span>' : "") + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + "</span>" : "") + "</div></div>";
   }
   function renderPackContent(trip) {
     if (!trip.items.length) return renderTripEmpty();
     if (S.packView === "remaining") {
       const remaining = trip.items.filter((item) => !item.packed);
       if (!remaining.length) {
-        return '<div class="empty-panel"><div class="empty-icon">\u{1F389}</div><div class="empty-title">\u5168\u90E8\u6253\u5305\u5B8C\u6210</div><div class="empty-hint">\u8FD9\u6B21\u51FA\u95E8\u9700\u8981\u5E26\u7684\u4E1C\u897F\u90FD\u51C6\u5907\u597D\u4E86\u3002</div></div>';
+        return '<div class="empty-panel"><div class="empty-title">\u5168\u90E8\u6253\u5305\u5B8C\u6210</div><div class="empty-hint">\u9700\u8981\u5E26\u7684\u4E1C\u897F\u90FD\u51C6\u5907\u597D\u4E86\u3002</div></div>';
       }
-      return remaining.map(renderPackItemCard).join("");
+      const bags = trip.bags || DEFAULT_BAGS;
+      const groups = bags.map((bag) => ({ bag, items: remaining.filter((item) => item.bag === bag.id) })).filter((group) => group.items.length);
+      const unassigned = remaining.filter((item) => !bags.some((bag) => bag.id === item.bag));
+      if (unassigned.length) {
+        groups.push({ bag: { id: "unassigned", icon: "", name: "\u672A\u5206\u914D" }, items: unassigned });
+      }
+      return groups.map(
+        (group) => '<div class="bag-group" id="bag-remain-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + (group.bag.icon || "") + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><span class="bag-progress-count">' + group.items.length + '\u4EF6\u672A\u6253</span></div><div class="bag-group-items">' + group.items.map(renderPackItemCard).join("") + "</div></div>"
+      ).join("");
     }
     if (S.packView === "all") {
-      return trip.items.map(renderPackItemCard).join("");
+      const bags = trip.bags || DEFAULT_BAGS;
+      const groups = bags.map((bag) => ({ bag, items: trip.items.filter((item) => item.bag === bag.id) })).filter((group) => group.items.length);
+      const unassigned = trip.items.filter((item) => !bags.some((bag) => bag.id === item.bag));
+      if (unassigned.length) {
+        groups.push({ bag: { id: "unassigned", icon: "", name: "\u672A\u5206\u914D" }, items: unassigned });
+      }
+      return groups.map((group) => {
+        const packed = group.items.filter((item) => item.packed).length;
+        const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
+        return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><button type="button" class="bag-group-header" data-action-click="toggleBagCollapse(\'' + group.bag.id + '\')" aria-expanded="' + !collapsed + '" aria-controls="bag-all-items-' + group.bag.id + '"><div class="bag-group-label"><span class="bag-icon">' + (group.bag.icon || "") + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">' + packed + "/" + group.items.length + '</span><span class="bag-toggle" aria-hidden="true">\u25BC</span></div></button><div class="bag-group-items" id="bag-all-items-' + group.bag.id + '">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      }).join("");
     }
     return renderBagsPackView(trip);
   }
@@ -1636,36 +2271,45 @@
     return groups.map((group) => {
       const packed = group.items.filter((item) => item.packed).length;
       const collapsed = S.collapsedBags.has(group.bag.id) ? " collapsed" : "";
-      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><div class="bag-group-header"><div class="bag-group-label"><span class="bag-icon">' + group.bag.icon + '</span><span class="bag-name">' + esc(group.bag.name) + `</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-toggle" onclick="toggleBagCollapse('` + group.bag.id + `')">\u25BC</span></div></div><div class="bag-group-items">` + group.items.map(renderPackItemCard).join("") + "</div></div>";
+      return '<div class="bag-group' + collapsed + '" id="bag-' + group.bag.id + '"><button type="button" class="bag-group-header" data-action-click="toggleBagCollapse(\'' + group.bag.id + '\')" aria-expanded="' + !collapsed + '" aria-controls="bag-items-' + group.bag.id + '"><div class="bag-group-label"><span class="bag-icon">' + (group.bag.icon || "") + '</span><span class="bag-name">' + esc(group.bag.name) + '</span></div><div style="display:flex;align-items:center;gap:8px"><span class="bag-progress-count">' + packed + "/" + group.items.length + '</span><span class="bag-toggle" aria-hidden="true">\u25BC</span></div></button><div class="bag-group-items" id="bag-items-' + group.bag.id + '">' + group.items.map(renderPackItemCard).join("") + "</div></div>";
     }).join("");
   }
   function toggleBagCollapse(bagId) {
+    var _a;
     if (S.collapsedBags.has(bagId)) {
       S.collapsedBags.delete(bagId);
     } else {
       S.collapsedBags.add(bagId);
     }
     const el = document.getElementById("bag-" + bagId);
-    if (el) el.classList.toggle("collapsed", S.collapsedBags.has(bagId));
+    if (el) {
+      const collapsed = S.collapsedBags.has(bagId);
+      el.classList.toggle("collapsed", collapsed);
+      (_a = el.querySelector(".bag-group-header")) == null ? void 0 : _a.setAttribute("aria-expanded", String(!collapsed));
+    }
   }
   function toggleTripInfoCard() {
     S.tripInfoCollapsed = !S.tripInfoCollapsed;
     const summaryBox = document.getElementById("listSummary");
     if (!summaryBox) return;
+    const card = summaryBox.querySelector(".list-summary-card");
     const toggle = summaryBox.querySelector(".trip-info-toggle-arrow");
     const body = summaryBox.querySelector(".trip-info-body");
+    const expanded = summaryBox.querySelector(".trip-summary-expanded");
+    if (card) card.classList.toggle("is-collapsed", S.tripInfoCollapsed);
     if (toggle) toggle.classList.toggle("collapsed", S.tripInfoCollapsed);
     if (body) body.classList.toggle("collapsed", S.tripInfoCollapsed);
+    if (expanded) expanded.classList.toggle("collapsed", S.tripInfoCollapsed);
   }
   function renderPackItemCard(item) {
-    const cat = catInfo(item.category);
-    const tags = (item.tags || []).map((tag) => '<span class="item-pill" style="background:var(--secondary-soft);color:#1d7fbf">' + esc(tag) + "</span>").join("");
-    const sourceModules = item.sourceModules || [];
-    const sourcePill = sourceModules.length > 0 ? '<span class="item-pill source-module-pill" title="' + sourceModules.map(esc).join(", ") + '">' + esc(sourceModules.length > 1 ? sourceModules[0] + "\u7B49" : sourceModules[0]) + "</span>" : "";
-    return '<div class="list-item-card' + (item.packed ? " packed" : "") + `" onclick="togglePackItem('` + item.id + `')"><button class="check-button ` + (item.packed ? "checked" : "") + '">\u2713</button><div class="list-item-main"><div class="list-item-name">' + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (sourcePill ? sourcePill : '<span class="item-pill">' + esc(bagName(item.bag, S.currentTrip.bags)) + "</span>") + (tags ? tags : "") + '</div></div><div class="item-qty">\xD7' + item.qty + "</div></div>";
+    return '<button type="button" class="list-item-card plan-card' + (item.packed ? " packed" : "") + '" data-action-click="togglePackItem(\'' + item.id + '\')" aria-pressed="' + item.packed + '"><span class="pack-check" aria-hidden="true">' + (item.packed ? "\u2713" : "") + '</span><div class="plan-card-name">' + esc(item.name) + (item.qty > 1 ? '<span class="plan-card-qty">\xD7' + item.qty + "</span>" : "") + "</div></button>";
   }
   function setTripMode(mode) {
     S.tripMode = mode;
+    if (mode === "pack") {
+      S.collapsedBags = /* @__PURE__ */ new Set();
+      S.tripInfoCollapsed = true;
+    }
     renderHeader();
     renderTripPage();
   }
@@ -1683,7 +2327,7 @@
     S.currentTrip = deepClone(trip);
     S.tripMode = mode;
     S.collapsedBags = /* @__PURE__ */ new Set();
-    S.tripInfoCollapsed = false;
+    S.tripInfoCollapsed = true;
     nav("list");
   }
   function changeCurrentTripSetting(field, delta) {
@@ -1701,16 +2345,16 @@
     if (field === "days") S.currentTrip.days = value;
     if (field === "people") S.currentTrip.people = value;
     applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
   }
   function reapplyTripSmartFill() {
     if (!S.currentTrip) return;
     applyTripSmartFill(S.currentTrip, true);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
     toast("\u5DF2\u91CD\u65B0\u6309\u5929\u6570\u548C\u4EBA\u6570\u667A\u80FD\u586B\u5145");
   }
   function resyncCurrentTripFromModules() {
@@ -1723,48 +2367,47 @@
       return;
     }
     const result = resyncTripFromSourceModules(S.currentTrip);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     refreshTripSettingViews();
-    renderHome();
+    refreshTripHub();
     if (!result.changed) {
       toast("\u5DF2\u4E0E\u5C0F\u5305\u5B9A\u4E49\u4E00\u81F4\uFF0C\u65E0\u9700\u53D8\u66F4");
       return;
     }
     const parts = [];
-    if (result.added) parts.push(`\u65B0\u589E ${result.added} \u4EF6`);
-    if (result.removed) parts.push(`\u79FB\u9664 ${result.removed} \u4EF6`);
-    if (result.updated) parts.push(`\u66F4\u65B0 ${result.updated} \u4EF6`);
-    if (result.mergedDuplicates) parts.push(`\u5408\u5E76\u540C\u540D ${result.mergedDuplicates} \u4EF6`);
-    toast(parts.length ? `\u5DF2\u4ECE\u5C0F\u5305\u540C\u6B65\uFF08${result.moduleCount} \u4E2A\u5C0F\u5305\uFF09\uFF1A${parts.join("\uFF0C")}` : "\u5DF2\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65");
+    if (result.added) parts.push("\u65B0\u589E ".concat(result.added, " \u4EF6"));
+    if (result.removed) parts.push("\u79FB\u9664 ".concat(result.removed, " \u4EF6"));
+    if (result.updated) parts.push("\u66F4\u65B0 ".concat(result.updated, " \u4EF6"));
+    if (result.mergedDuplicates) parts.push("\u5408\u5E76\u540C\u540D ".concat(result.mergedDuplicates, " \u4EF6"));
+    toast(parts.length ? "\u5DF2\u4ECE\u5C0F\u5305\u540C\u6B65\uFF08".concat(result.moduleCount, " \u4E2A\u5C0F\u5305\uFF09\uFF1A").concat(parts.join("\uFF0C")) : "\u5DF2\u6309\u5C0F\u5305\u91CD\u65B0\u540C\u6B65");
   }
   function removeModuleFromCurrentTrip(source, id) {
     if (!S.currentTrip) return;
     const entity = getModuleEntity(source, id);
     if (!entity) return;
-    if (!confirm(`\u786E\u5B9A\u4ECE\u5F53\u524D\u884C\u7A0B\u79FB\u9664\u300C${entity.name}\u300D\uFF1F
-
-\u4EC5\u6765\u81EA\u8FD9\u4E2A\u5C0F\u5305\u7684\u7269\u54C1\u4F1A\u88AB\u79FB\u9664\uFF1B\u82E5\u7269\u54C1\u540C\u65F6\u6765\u81EA\u591A\u4E2A\u5C0F\u5305\uFF0C\u4F1A\u4FDD\u7559\u5E76\u53BB\u6389\u8BE5\u6765\u6E90\u3002`)) {
+    if (!confirm("\u786E\u5B9A\u4ECE\u5F53\u524D\u884C\u7A0B\u79FB\u9664\u300C".concat(entity.name, "\u300D\uFF1F\n\n\u4EC5\u6765\u81EA\u8FD9\u4E2A\u5C0F\u5305\u7684\u7269\u54C1\u4F1A\u88AB\u79FB\u9664\uFF1B\u82E5\u7269\u54C1\u540C\u65F6\u6765\u81EA\u591A\u4E2A\u5C0F\u5305\uFF0C\u4F1A\u4FDD\u7559\u5E76\u53BB\u6389\u8BE5\u6765\u6E90\u3002"))) {
       return;
     }
     const result = removeModuleFromTrip(S.currentTrip, source, id);
     if (!result.changed) return;
     applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
-    toast(result.removedItems ? `\u5DF2\u79FB\u9664\u300C${result.moduleName}\u300D\uFF0C\u5E76\u5220\u6389 ${result.removedItems} \u4EF6\u4EC5\u5C5E\u4E8E\u5B83\u7684\u7269\u54C1` : `\u5DF2\u79FB\u9664\u300C${result.moduleName}\u300D`);
+    refreshTripHub();
+    toast(result.removedItems ? "\u5DF2\u79FB\u9664\u300C".concat(result.moduleName, "\u300D\uFF0C\u5E76\u5220\u6389 ").concat(result.removedItems, " \u4EF6\u4EC5\u5C5E\u4E8E\u5B83\u7684\u7269\u54C1") : "\u5DF2\u79FB\u9664\u300C".concat(result.moduleName, "\u300D"));
   }
   function refreshTripListContent() {
     const content = document.getElementById("listContent");
     if (!content || !S.currentTrip) return;
     const trip = S.currentTrip;
     if (S.tripMode === "plan") {
-      content.innerHTML = trip.items.length ? trip.items.map(renderTripPlanItemCard).join("") : renderTripEmpty();
+      content.innerHTML = trip.items.length ? renderPlanBagGroups(trip) : renderTripEmpty();
     } else {
       content.innerHTML = renderPackContent(trip);
     }
   }
   function patchTripSummaryMetrics() {
+    var _a, _b;
     if (!S.currentTrip) return;
     const summaryBox = document.getElementById("listSummary");
     if (!summaryBox) return;
@@ -1772,6 +2415,8 @@
     const progress = getTripProgress(trip);
     const status = getTripStatus(trip);
     const smartCount = trip.items.filter((item) => item.smartRule !== "fixed").length;
+    const pctEl = summaryBox.querySelector(".trip-summary-pct");
+    if (pctEl) pctEl.textContent = progress.pct + "%";
     const progressEl = summaryBox.querySelector(".saved-list-progress");
     if (progressEl) progressEl.outerHTML = renderProgress(progress);
     const statusChip = summaryBox.querySelector(".status-chip");
@@ -1786,8 +2431,8 @@
       smartNote.textContent = "\u5DF2\u6309\u5F53\u524D\u8BBE\u7F6E\u5EFA\u8BAE " + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF\u7269\u54C1\uFF1B\u4F60\u624B\u52A8\u6539\u8FC7\u7684\u6570\u91CF\u4F1A\u4F18\u5148\u4FDD\u7559\u3002";
     }
     const rows = summaryBox.querySelectorAll(".trip-info-row");
-    const daysInput = rows[0]?.querySelector("input");
-    const peopleInput = rows[1]?.querySelector("input");
+    const daysInput = (_a = rows[0]) == null ? void 0 : _a.querySelector("input");
+    const peopleInput = (_b = rows[1]) == null ? void 0 : _b.querySelector("input");
     if (daysInput && document.activeElement !== daysInput) daysInput.value = trip.days;
     if (peopleInput && document.activeElement !== peopleInput) peopleInput.value = trip.people;
   }
@@ -1812,10 +2457,13 @@
     const officialBox = document.getElementById("officialModuleGrid");
     const myBox = document.getElementById("myModuleGrid");
     const myMeta = document.getElementById("myModuleMeta");
-    const toggle = document.getElementById("kitViewToggle");
-    toggle.innerHTML = '<button class="kit-view-btn ' + (S.kitView === "compact" ? "active" : "") + `" onclick="setKitView('compact')">\u7CBE\u7B80</button><button class="kit-view-btn ` + (S.kitView === "normal" ? "active" : "") + `" onclick="setKitView('normal')">\u8BE6\u60C5</button>`;
     banner.classList.toggle("visible", S.currentModuleAction === "add" && !!S.currentTrip);
-    banner.textContent = S.currentModuleAction === "add" && S.currentTrip ? `\u5F53\u524D\u884C\u7A0B\uFF1A${S.currentTrip.name}\u3002\u6253\u5F00\u4E00\u4E2A\u5C0F\u5305\u540E\uFF0C\u53EF\u628A\u6574\u5305\u7269\u54C1\u4E00\u952E\u52A0\u5165\u5F53\u524D\u884C\u7A0B\u3002` : "\u4F60\u5148\u5728\u8FD9\u91CC\u7EF4\u62A4\u6807\u51C6\u5316\u5C0F\u5305\uFF1B\u521B\u5EFA Trips \u65F6\uFF0C\u518D\u4ECE\u5E93\u91CC\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\u7EC4\u5408\u3002";
+    if (S.currentModuleAction === "add" && S.currentTrip) {
+      const added = (S.currentTrip.sourceModules || []).length;
+      banner.textContent = "\u4E3A\u300C".concat(S.currentTrip.name, "\u300D\u6DFB\u52A0\u5C0F\u5305\uFF08\u5DF2\u6DFB\u52A0 ").concat(added, " \u4E2A\uFF0C\u5E26\u300C\u5DF2\u6DFB\u52A0\u300D\u6807\u8BB0\u7684\u65E0\u9700\u91CD\u590D\u52A0\u5165\uFF09");
+    } else {
+      banner.textContent = "\u7EF4\u62A4\u53EF\u590D\u7528\u5C0F\u5305\uFF1B\u65B0\u5EFA\u884C\u7A0B\u65F6\u52FE\u9009\u7EC4\u5408\u3002";
+    }
     renderModuleFilters();
     document.getElementById("moduleSearchInput").value = S.moduleSearch;
     const keyword = S.moduleSearch.toLowerCase();
@@ -1831,34 +2479,28 @@
       const searchMatch = !keyword || searchBlob.includes(keyword);
       return filterMatch && searchMatch;
     });
-    officialBox.innerHTML = official.length ? official.map((m) => renderOfficialModuleCard(m, S.kitView)).join("") : '<div class="empty-panel"><div class="empty-hint">\u6CA1\u6709\u5339\u914D\u7684\u5B98\u65B9\u5C0F\u5305\u3002</div></div>';
-    myMeta.textContent = mine.length ? `${mine.length} \u4E2A\u53EF\u590D\u7528\u5C0F\u5305` : "\u8FD8\u6CA1\u6709";
-    myBox.innerHTML = mine.length ? mine.map((m) => renderMyModuleCard(m, S.kitView)).join("") : '<div class="empty-panel"><div class="empty-title">\u8FD8\u6CA1\u6709\u6211\u7684\u5C0F\u5305</div><div class="empty-hint">\u53EF\u4EE5\u4ECE\u5B98\u65B9\u5C0F\u5305\u8D77\u6B65\uFF0C\u4E5F\u53EF\u4EE5\u4ECE\u7269\u54C1\u5E93\u6ED1\u9009\u540E\u65B0\u5EFA\u3002</div></div>';
+    officialBox.innerHTML = official.length ? official.map((m) => renderOfficialModuleCard(m)).join("") : '<div class="empty-panel"><div class="empty-hint">\u6CA1\u6709\u5339\u914D\u7684\u5C0F\u5305\u3002</div></div>';
+    myMeta.textContent = mine.length ? "".concat(mine.length, " \u4E2A") : "";
+    myBox.innerHTML = mine.length ? mine.map((m) => renderMyModuleCard(m)).join("") : '<div class="empty-panel"><div class="empty-title">\u8FD8\u6CA1\u6709\u6211\u7684\u5C0F\u5305</div><div class="empty-hint">\u70B9\u53F3\u4E0A\u89D2 + \u65B0\u5EFA\uFF0C\u6216\u4ECE\u5B98\u65B9\u5C0F\u5305\u590D\u5236\u4FEE\u6539\u3002</div></div>';
   }
   function renderModuleFilters() {
     document.getElementById("moduleFilterRow").innerHTML = MODULE_FILTERS.map(
-      (filter) => '<button class="filter-chip ' + (S.moduleFilter === filter.id ? "active" : "") + `" onclick="setModuleFilter('` + filter.id + `')">` + esc(filter.name) + "</button>"
+      (filter) => '<button class="filter-chip ' + (S.moduleFilter === filter.id ? "active" : "") + '" data-action-click="setModuleFilter(\'' + filter.id + "')\">" + esc(filter.name) + "</button>"
     ).join("");
   }
-  function renderOfficialModuleCard(module, view = "normal") {
+  function isModuleOnCurrentTrip(source, id) {
+    return S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
+  }
+  function renderOfficialModuleCard(module) {
     const preview = resolveOfficialModuleItems(module, getPreviewDays(), getPreviewPeople());
-    const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
-    if (view === "compact") {
-      return `<div class="kit-card compact recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
-    }
-    return `<div class="kit-card recommended" onclick="openModuleDetail('official','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + module.icon + `</div><div class="inline-actions"><span class="kit-badge">\u5B98\u65B9\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('official','` + module.id + `')" title="\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc) + '</div><div class="tag-row">' + (module.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u968F\u5929\u6570/\u4EBA\u6570\u53D8\u5316</div></div>";
+    const added = S.currentModuleAction === "add" && isModuleOnCurrentTrip("official", module.id);
+    const tag = module.tags && module.tags[0] || "\u5B98\u65B9";
+    return '<div class="kit-card compact recommended' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('official','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u5B98\u65B9 \xB7 ' + esc(tag) + '</div><div class="kit-card-name">' + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
   }
-  function renderMyModuleCard(module, view = "normal") {
+  function renderMyModuleCard(module) {
     const preview = resolveCustomModuleItems(module, getPreviewDays(), getPreviewPeople());
-    const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
-    if (view === "compact") {
-      return `<div class="kit-card compact" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + '</div><div class="kit-card-name">' + esc(module.name) + "</div></div></div>";
-    }
-    return `<div class="kit-card" onclick="openModuleDetail('custom','` + module.id + `')"><div class="kit-card-top"><div class="kit-card-icon">` + esc(module.icon || "\u{1F9F0}") + `</div><div class="inline-actions"><span class="kit-badge soft">\u6211\u7684\u5C0F\u5305</span><button class="icon-action" onclick="event.stopPropagation();openEditModuleModal('custom','` + module.id + `')" title="\u7F16\u8F91\u5C0F\u5305">\u270F\uFE0F</button></div></div><div class="kit-card-name">` + esc(module.name) + '</div><div class="kit-card-desc">' + esc(module.desc || "\u4F60\u81EA\u5DF1\u7EF4\u62A4\u7684\u53EF\u590D\u7528\u5C0F\u5305\u6A21\u5757") + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u53EF\u667A\u80FD\u586B\u5145</div></div>";
-  }
-  function setKitView(view) {
-    S.kitView = view;
-    renderModuleLibrary();
+    const added = S.currentModuleAction === "add" && isModuleOnCurrentTrip("custom", module.id);
+    return '<div class="kit-card compact' + (added ? " added" : "") + "\" data-action-click=\"openModuleDetail('custom','" + module.id + '\')"><div class="kit-card-body"><div class="kit-card-kicker">\u6211\u7684\u5C0F\u5305</div><div class="kit-card-name">' + esc(module.name) + '</div><div class="kit-card-meta">' + preview.length + " \u4EF6\u7269\u54C1</div></div>" + (added ? '<span class="kit-added-badge">\u5DF2\u6DFB\u52A0</span>' : '<span class="kit-card-chevron">\u203A</span>') + "</div>";
   }
   function openModuleDetail(source, id) {
     S.currentModule = { source, id };
@@ -1868,42 +2510,46 @@
   function renderModuleDetailModal(source, id) {
     const entity = getModuleEntity(source, id);
     if (!entity) return;
-    const days = getPreviewDays();
-    const people = getPreviewPeople();
     const moduleItems = (entity.items || []).map(normalizeModuleItem);
-    const previewContext = {
-      days,
-      people,
-      sourceModules: [{ source, id: entity.id, name: entity.name }]
-    };
     const smartCount = moduleItems.filter((item) => item.smartRule !== "fixed").length;
     document.getElementById("moduleDetailTitle").textContent = entity.name;
-    document.getElementById("moduleDetailIcon").textContent = entity.icon || "\u{1F9F0}";
-    document.getElementById("moduleDetailSubtitle").textContent = source === "official" ? "\u5B98\u65B9\u5C0F\u5305 \xB7 \u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u8BBE\u7F6E" : "\u6211\u7684\u5C0F\u5305 \xB7 \u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u8BBE\u7F6E";
-    document.getElementById("moduleDetailDesc").textContent = entity.desc || "\u53EF\u590D\u7528\u7684\u5C0F\u5305\u6A21\u5757\u3002";
-    document.getElementById("moduleDetailTags").innerHTML = (entity.tags || []).map((tag) => '<span class="tag">' + esc(tag) + "</span>").join("") || '<span class="tag">\u6807\u51C6\u5316\u5C0F\u5305</span>';
-    document.getElementById("moduleDetailSummary").textContent = `\u6309\u5F53\u524D ${days} \u5929 / ${people} \u4EBA\u9884\u89C8\uFF0C\u5171 ${moduleItems.length} \u4EF6\u7269\u54C1\uFF0C\u5176\u4E2D ${smartCount} \u9879\u4F1A\u968F\u5929\u6570\u6216\u4EBA\u6570\u53D8\u5316\u3002\u4FEE\u6539\u4F1A\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u751F\u6548\u3002`;
-    document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item) => renderModuleDetailItemCard(item, source, id, previewContext, S.currentTrip?.bags || DEFAULT_BAGS)).join("") : '<div class="empty-panel"><div class="empty-hint">\u8FD9\u4E2A\u5C0F\u5305\u8FD8\u6CA1\u6709\u7269\u54C1\uFF0C\u70B9\u4E0B\u65B9\u300C\u7F16\u8F91\u5C0F\u5305\u300D\u53BB\u6DFB\u52A0\u3002</div></div>';
+    document.getElementById("moduleDetailSummary").innerHTML = '<div class="module-detail-badges"><span class="mini-badge">' + (source === "official" ? "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305") + '</span><span class="mini-badge soft">' + moduleItems.length + " \u4EF6</span>" + (smartCount ? '<span class="mini-badge soft">' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF</span>" : "") + '</div><p class="module-detail-desc">' + esc(entity.desc || "\u53EF\u590D\u7528\u7684\u6253\u5305\u6A21\u5757\uFF0C\u521B\u5EFA\u884C\u7A0B\u65F6\u53EF\u4E00\u952E\u52A0\u5165\u3002") + "</p>";
+    document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item) => renderModuleDetailItemRow(item)).join("") : '<div class="empty-panel"><div class="empty-hint">\u70B9\u300C\u7F16\u8F91\u7269\u54C1\u300D\u6DFB\u52A0\u6216\u5220\u9664\u3002</div></div>';
     document.getElementById("moduleEditBtn").style.display = "inline-flex";
-    document.getElementById("moduleEditBtn").textContent = source === "official" ? "\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305" : "\u7F16\u8F91\u5C0F\u5305";
+    document.getElementById("moduleEditBtn").textContent = "\u7F16\u8F91\u7269\u54C1";
+    const deleteBtn = document.getElementById("moduleDeleteBtn");
+    deleteBtn.style.display = "inline-flex";
+    deleteBtn.textContent = source === "official" ? "\u5220\u9664\u5B98\u65B9\u5C0F\u5305" : "\u5220\u9664\u5C0F\u5305";
     const alreadyOnTrip = S.currentModuleAction === "add" && S.currentTrip && isModuleOnTrip(S.currentTrip, source, id);
     const primaryBtn = document.getElementById("modulePrimaryBtn");
     primaryBtn.textContent = alreadyOnTrip ? "\u5DF2\u5728\u5F53\u524D\u884C\u7A0B" : S.currentModuleAction === "add" && S.currentTrip ? "\u52A0\u5165\u5F53\u524D\u884C\u7A0B" : "\u7528\u4E8E\u65B0\u884C\u7A0B";
     primaryBtn.disabled = alreadyOnTrip;
     primaryBtn.classList.toggle("disabled", alreadyOnTrip);
   }
-  function renderModuleDetailItemCard(item, source, moduleId, previewContext, bags) {
+  function deleteCurrentModuleFromDetail() {
+    if (!S.currentModule) return;
+    const { source, id } = S.currentModule;
+    const entity = getModuleEntity(source, id);
+    if (!entity) return;
+    const recoveryHint = source === "official" ? "\n\n\u4E4B\u540E\u53EF\u5728\u300C\u6211\u7684 \u2192 \u6062\u590D\u5B98\u65B9\u5C0F\u5305\u300D\u4E2D\u627E\u56DE\u3002" : "";
+    if (!confirm("\u786E\u5B9A\u5220\u9664\u300C".concat(entity.name, "\u300D\u5417\uFF1F").concat(recoveryHint))) return;
+    if (source === "official") {
+      if (!markOfficialModuleDeleted(id)) {
+        toast("\u5220\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+        return;
+      }
+    } else if (!deleteRecord(id, { silent: true })) {
+      return;
+    }
+    closeModal("moduleDetailModal");
+    S.currentModule = null;
+    renderModuleLibrary();
+    refreshTripHub();
+    toast(source === "official" ? "\u5DF2\u5220\u9664\uFF0C\u53EF\u5728\u300C\u6211\u7684\u300D\u4E2D\u6062\u590D" : "\u5DF2\u5220\u9664\u5C0F\u5305");
+  }
+  function renderModuleDetailItemRow(item) {
     const cat = catInfo(item.category);
-    const previewQty = computeSmartQty(
-      item.defaultQty,
-      item.smartRule,
-      previewContext.days,
-      previewContext.people,
-      item.smartConfig,
-      previewContext
-    );
-    const smart = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + "</span>" : "";
-    return `<div class="list-item-card editable" onclick="openModuleItemModal('module', '` + source + "', '" + moduleId + "', '" + item.id + `')"><div class="list-item-main"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, bags)) + "</span>" + smart + '<span class="item-pill subtle-pill">\u9ED8\u8BA4 \xD7' + item.defaultQty + '</span></div></div><div class="item-qty">\u9884\u89C8 \xD7' + previewQty + "</div></div>";
+    return '<div class="module-detail-row"><div class="module-detail-main"><span class="module-detail-name">' + esc(item.name) + '</span><span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== "fixed" ? " \xB7 \u667A\u80FD\u6570\u91CF" : "") + '</span></div><span class="module-detail-qty">\xD7' + item.defaultQty + "</span></div>";
   }
   function tripOrModuleItemToModuleItem(item) {
     return normalizeModuleItem({
@@ -1919,7 +2565,10 @@
   function syncModuleBuilderSelectionFromItems() {
     const library = getItemLibrary();
     S.moduleBuilderSelection = new Set(
-      S.moduleBuilderItems.map((item) => library.find((asset) => asset.name === item.name)?.id).filter(Boolean)
+      S.moduleBuilderItems.map((item) => {
+        var _a;
+        return (_a = library.find((asset) => asset.name === item.name)) == null ? void 0 : _a.id;
+      }).filter(Boolean)
     );
   }
   function upsertLibraryFromModuleItem(moduleItem) {
@@ -1975,6 +2624,7 @@
     return item ? { item, entity } : null;
   }
   function openModuleItemModal(mode, source, moduleId, itemId) {
+    var _a;
     const ctx = { mode, source: source || null, moduleId: moduleId || null, itemId };
     S.moduleItemEditContext = ctx;
     let item = null;
@@ -1982,7 +2632,7 @@
       item = S.moduleBuilderItems.find((entry) => entry.id === itemId);
     } else {
       const entity = getModuleEntity(source, moduleId);
-      item = entity?.items?.find((entry) => entry.id === itemId);
+      item = (_a = entity == null ? void 0 : entity.items) == null ? void 0 : _a.find((entry) => entry.id === itemId);
     }
     if (!item) return;
     item = normalizeModuleItem(item);
@@ -1995,23 +2645,25 @@
     showModal("moduleItemModal");
   }
   function updateModuleItemSmartHint() {
+    var _a, _b, _c;
     const hint = document.getElementById("moduleItemSmartHint");
     const ctx = S.moduleItemEditContext;
     if (!hint || !ctx) return;
     const found = findModuleItemContext(ctx.itemId);
-    if (!found?.item) return;
-    const category = document.getElementById("moduleItemCategory")?.value || found.item.category;
-    const qty = Math.max(1, parseInt(document.getElementById("moduleItemQty")?.value) || 1);
+    if (!(found == null ? void 0 : found.item)) return;
+    const category = ((_a = document.getElementById("moduleItemCategory")) == null ? void 0 : _a.value) || found.item.category;
+    const qty = Math.max(1, parseInt((_b = document.getElementById("moduleItemQty")) == null ? void 0 : _b.value) || 1);
     const { smartRule, smartConfig } = resolveItemSmartPlan(found.item.name, category, found.item.smartRule, found.item.smartConfig);
-    const previewContext = ctx.mode === "module" && ctx.moduleId ? { sourceModules: [{ source: ctx.source, id: ctx.moduleId, name: getModuleEntity(ctx.source, ctx.moduleId)?.name || "" }] } : null;
+    const previewContext = ctx.mode === "module" && ctx.moduleId ? { sourceModules: [{ source: ctx.source, id: ctx.moduleId, name: ((_c = getModuleEntity(ctx.source, ctx.moduleId)) == null ? void 0 : _c.name) || "" }] } : null;
     const previewQty = smartRule === "fixed" ? qty : computeSmartQty(qty, smartRule, getPreviewDays(), getPreviewPeople(), smartConfig, previewContext);
-    hint.textContent = smartRule === "fixed" ? `\u9ED8\u8BA4\u56FA\u5B9A\u6570\u91CF \xD7${qty}\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u7528\u8FD9\u4E2A\u5305\u521B\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u91CF\u751F\u6210\u3002` : `\u9ED8\u8BA4\u57FA\u7840\u91CF \xD7${qty}\uFF0C\u6309\u300C${smartRuleLabel(smartRule, smartConfig)}\u300D\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u9884\u89C8\u7EA6 \xD7${previewQty}\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u3002`;
+    hint.textContent = smartRule === "fixed" ? "\u9ED8\u8BA4\u56FA\u5B9A\u6570\u91CF \xD7".concat(qty, "\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u7528\u8FD9\u4E2A\u5305\u521B\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u91CF\u751F\u6210\u3002") : "\u9ED8\u8BA4\u57FA\u7840\u91CF \xD7".concat(qty, "\uFF0C\u6309\u300C").concat(smartRuleLabel(smartRule, smartConfig), "\u300D\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u9884\u89C8\u7EA6 \xD7").concat(previewQty, "\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u3002");
   }
   function saveModuleItemEdit() {
+    var _a, _b;
     const ctx = S.moduleItemEditContext;
     if (!ctx) return;
     const found = findModuleItemContext(ctx.itemId);
-    if (!found?.item) return;
+    if (!(found == null ? void 0 : found.item)) return;
     const nextItem = normalizeModuleItem({
       ...found.item,
       defaultQty: Math.max(1, parseInt(document.getElementById("moduleItemQty").value) || 1),
@@ -2038,13 +2690,14 @@
     saveModuleEntityItems(ctx.source, ctx.moduleId, items);
     upsertLibraryFromModuleItem(nextItem);
     closeModal("moduleItemModal");
-    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+    if (((_a = S.currentModule) == null ? void 0 : _a.source) === ctx.source && ((_b = S.currentModule) == null ? void 0 : _b.id) === ctx.moduleId) {
       renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
     toast("\u5DF2\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u8BBE\u7F6E\u751F\u6210");
   }
   function deleteModuleItemEdit() {
+    var _a, _b, _c;
     const ctx = S.moduleItemEditContext;
     if (!ctx) return;
     if (ctx.mode === "builder") {
@@ -2052,7 +2705,7 @@
       S.moduleBuilderItems = S.moduleBuilderItems.filter((entry) => entry.id !== ctx.itemId);
       if (target) {
         const library = getItemLibrary();
-        const assetId = library.find((asset) => asset.name === target.name)?.id;
+        const assetId = (_a = library.find((asset) => asset.name === target.name)) == null ? void 0 : _a.id;
         if (assetId) S.moduleBuilderSelection.delete(assetId);
       }
       closeModal("moduleItemModal");
@@ -2066,7 +2719,7 @@
     const items = (entity.items || []).filter((item) => item.id !== ctx.itemId);
     saveModuleEntityItems(ctx.source, ctx.moduleId, items);
     closeModal("moduleItemModal");
-    if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
+    if (((_b = S.currentModule) == null ? void 0 : _b.source) === ctx.source && ((_c = S.currentModule) == null ? void 0 : _c.id) === ctx.moduleId) {
       renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
@@ -2075,12 +2728,13 @@
   function useCurrentModule() {
     if (!S.currentModule) return;
     const { source, id } = S.currentModule;
-    closeModal("moduleDetailModal");
     if (S.currentModuleAction === "add" && S.currentTrip) {
       addModuleToCurrentTrip(source, id);
-      nav("list");
+      renderModuleDetailModal(source, id);
+      renderModuleLibrary();
       return;
     }
+    closeModal("moduleDetailModal");
     openCreateTripModal([getModuleKey(source, id)]);
   }
   function openEditCurrentModule() {
@@ -2097,46 +2751,57 @@
     S.itemSearch = value.trim();
     renderItemLibrary();
   }
+  function updateILibrarySearch(value) {
+    updateItemSearch(value);
+  }
   function setItemFilter(filterId) {
     S.itemFilter = filterId;
     renderItemLibrary();
   }
   function renderItemLibrary() {
+    var _a;
     const banner = document.getElementById("itemContextBanner");
-    const gridBox = document.getElementById("itemLibraryGrid");
-    const searchInput = document.getElementById("itemSearchInput");
-    const summaryBox = document.getElementById("itemLibrarySummary");
+    const gridBox = document.getElementById("ilibraryGrid") || document.getElementById("itemLibraryGrid");
+    const searchInput = document.getElementById("ilibrarySearchInput") || document.getElementById("itemSearchInput");
+    const summaryBox = document.getElementById("ilibrarySummary") || document.getElementById("itemLibrarySummary");
     const allItems = getItemLibrary();
-    const currentTripNames = new Set((S.currentTrip?.items || []).map((item) => String(item.name || "").trim()));
-    banner.classList.toggle("visible", !!S.currentTrip);
-    banner.textContent = S.currentTrip ? `\u5F53\u524D\u884C\u7A0B\uFF1A${S.currentTrip.name}\u3002\u53EA\u663E\u793A\u672A\u52A0\u5165\u7684\u7269\u54C1\u3002` : "";
-    searchInput.value = S.itemSearch;
+    const currentTripItemKeys = new Set((((_a = S.currentTrip) == null ? void 0 : _a.items) || []).map(
+      (item) => String(item.name || "").trim() + "::" + String(item.category || "")
+    ));
+    const isOnCurrentTrip = (item) => currentTripItemKeys.has(String(item.name || "").trim() + "::" + String(item.category || ""));
+    if (banner) {
+      banner.classList.toggle("visible", !!S.currentTrip);
+      banner.textContent = S.currentTrip ? "\u6B63\u5728\u4E3A\u300C".concat(S.currentTrip.name, "\u300D\u6DFB\u52A0\u7269\u54C1\uFF1B\u5DF2\u5728\u6E05\u5355\u4E2D\u7684\u7269\u54C1\u4F1A\u660E\u786E\u6807\u8BB0\u3002") : "";
+    }
+    if (searchInput) searchInput.value = S.itemSearch;
     renderItemFilters();
     const keyword = S.itemSearch.toLowerCase();
-    const hiddenCount = S.currentTrip ? allItems.filter((item) => currentTripNames.has(item.name)).length : 0;
+    const joinedCount = S.currentTrip ? allItems.filter(isOnCurrentTrip).length : 0;
     const items = allItems.filter((item) => {
       const filterMatch = S.itemFilter === "all" || item.category === S.itemFilter;
       const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-      const tripMatch = !S.currentTrip || !currentTripNames.has(item.name);
-      return filterMatch && searchMatch && tripMatch;
-    });
+      return filterMatch && searchMatch;
+    }).sort((a, b) => Number(isOnCurrentTrip(a)) - Number(isOnCurrentTrip(b)));
     const customCount = allItems.filter((item) => item.source === "user").length;
     if (summaryBox) {
-      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "") + (hiddenCount ? '<span class="qs-dot">\xB7</span><span>\u5DF2\u9690\u85CF ' + hiddenCount + "</span>" : "");
+      summaryBox.innerHTML = "<span>\u5171 " + allItems.length + " \u4EF6</span>" + (customCount ? '<span class="qs-dot">\xB7</span><span>\u81EA\u5EFA ' + customCount + "</span>" : "") + (S.currentTrip ? '<span class="qs-dot">\xB7</span><span>\u53EF\u6DFB\u52A0 ' + (allItems.length - joinedCount) + '</span><span class="qs-dot">\xB7</span><span class="summary-joined">\u5DF2\u52A0\u5165 ' + joinedCount + "</span>" : "");
     }
-    gridBox.innerHTML = items.length ? items.map(renderLibraryCard).join("") : '<div class="empty-panel full-span"><div class="empty-hint">' + (S.currentTrip ? "\u672C\u6B21\u6E05\u5355\u7269\u54C1\u5DF2\u5168\u90E8\u8865\u9F50\u3002" : "\u6CA1\u6709\u5339\u914D\u7684\u7269\u54C1\u3002") + "</div></div>";
+    if (!gridBox) return;
+    gridBox.innerHTML = items.length ? items.map((item) => renderLibraryCard(item, isOnCurrentTrip(item))).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u5339\u914D\u7684\u7269\u54C1\u3002</div></div>';
   }
   function renderItemFilters() {
     const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
-    document.getElementById("itemFilterRow").innerHTML = options.map(
-      (option) => '<button class="filter-chip ' + (S.itemFilter === option.id ? "active" : "") + `" onclick="setItemFilter('` + option.id + `')">` + esc(option.name) + "</button>"
+    const filterRow = document.getElementById("ilibraryFilterRow") || document.getElementById("itemFilterRow");
+    if (!filterRow) return;
+    filterRow.innerHTML = options.map(
+      (option) => '<button class="filter-chip ' + (S.itemFilter === option.id ? "active" : "") + '" data-action-click="setItemFilter(\'' + option.id + "')\">" + esc(option.name) + "</button>"
     ).join("");
   }
-  function renderLibraryCard(item) {
+  function renderLibraryCard(item, alreadyAdded = false) {
     const cat = catInfo(item.category);
-    const addButton = S.currentTrip ? `<button class="library-action primary" onclick="event.stopPropagation();addLibraryItemToCurrentTrip('` + item.id + `')">+ \u52A0\u5165</button>` : "";
-    const tagsHtml = (item.tags || []).map((tag) => '<span class="library-item-tag">' + esc(tag) + "</span>").join("");
-    return '<div class="library-card ' + (item.source === "user" ? "user-built" : "") + `" onclick="openLibraryItemModal('` + item.id + `')"><div class="library-card-body"><div class="library-name">` + esc(item.name) + '</div><div class="library-meta">' + esc(cat.name) + " \xB7 " + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \xD7" + item.defaultQty + "</div>" + (tagsHtml ? '<div class="library-item-tags">' + tagsHtml + "</div>" : "") + "</div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
+    const addButton = S.currentTrip ? alreadyAdded ? '<span class="library-action added">\u5DF2\u52A0\u5165 \u2713</span>' : '<button class="library-action primary" data-action-click="event.stopPropagation();addLibraryItemToCurrentTrip(\'' + item.id + "')\">\u52A0\u5165</button>" : "";
+    const cardAction = S.currentTrip ? alreadyAdded ? "" : "addLibraryItemToCurrentTrip('" + item.id + "')" : "openLibraryItemModal('" + item.id + "')";
+    return '<div class="library-card ' + (item.source === "user" ? "user-built " : "") + (alreadyAdded ? "on-trip" : "") + '"' + (cardAction ? ' data-action-click="' + cardAction + '" role="button" tabindex="0"' : "") + '><div class="library-card-body"><div class="library-card-top"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (item.source === "user" ? '<span class="mini-badge soft">\u81EA\u5EFA</span>' : "") + '</div><div class="library-name">' + esc(item.name) + '</div><div class="library-meta">' + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \u9ED8\u8BA4 \xD7" + item.defaultQty + "</div></div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
   }
   function parseBulkNames(text) {
     return uniqueStrings(
@@ -2144,30 +2809,32 @@
     );
   }
   function collectDraftNames(singleInputId, bulkInputId = null) {
-    const single = document.getElementById(singleInputId)?.value.trim() || "";
-    const bulk = bulkInputId ? parseBulkNames(document.getElementById(bulkInputId)?.value || "") : [];
+    var _a, _b;
+    const single = ((_a = document.getElementById(singleInputId)) == null ? void 0 : _a.value.trim()) || "";
+    const bulk = bulkInputId ? parseBulkNames(((_b = document.getElementById(bulkInputId)) == null ? void 0 : _b.value) || "") : [];
     return uniqueStrings([single, ...bulk].filter(Boolean));
   }
   function buildLibraryItemDraft(name, qty, category, bag, existing = null) {
-    const { smartRule, smartConfig } = resolveItemSmartPlan(name, category, existing?.smartRule, existing?.smartConfig);
+    const { smartRule, smartConfig } = resolveItemSmartPlan(name, category, existing == null ? void 0 : existing.smartRule, existing == null ? void 0 : existing.smartConfig);
     return normalizeLibraryItem({
       ...existing,
-      id: existing?.id || "asset-" + gid(),
+      id: (existing == null ? void 0 : existing.id) || "asset-" + gid(),
       name,
       defaultQty: qty,
       category,
       bag,
       smartRule,
       smartConfig,
-      source: existing?.source || "user"
+      source: (existing == null ? void 0 : existing.source) || "user"
     });
   }
   function openCreateTripModal(initialModuleKeys = []) {
+    var _a, _b, _c;
     S.tripBuilderSelection = new Set(initialModuleKeys);
     ensureTripBuilderBabyBaseSelection();
-    document.getElementById("createTripName").value = initialModuleKeys.length === 1 ? getModuleEntity(...splitModuleKey(initialModuleKeys[0]))?.name + " \u884C\u7A0B" : "\u65B0\u7684\u884C\u7A0B\u5355";
-    document.getElementById("tripDays").value = S.currentTrip?.days || 2;
-    document.getElementById("tripPeople").value = S.currentTrip?.people || 1;
+    document.getElementById("createTripName").value = initialModuleKeys.length === 1 ? ((_a = getModuleEntity(...splitModuleKey(initialModuleKeys[0]))) == null ? void 0 : _a.name) + " \u884C\u7A0B" : "\u65B0\u7684\u884C\u7A0B\u5355";
+    document.getElementById("tripDays").value = ((_b = S.currentTrip) == null ? void 0 : _b.days) || 2;
+    document.getElementById("tripPeople").value = ((_c = S.currentTrip) == null ? void 0 : _c.people) || 1;
     renderTripBuilderModules();
     syncTripBuilderSummary();
     showModal("createTripModal");
@@ -2187,16 +2854,18 @@
       const locked = forceBabyBase && source === "official" && module.id === BABY_MODULE_IDS.base;
       const preview = source === "official" ? resolveOfficialModuleItems(module, getTripBuilderDays(), getTripBuilderPeople()) : resolveCustomModuleItems(module, getTripBuilderDays(), getTripBuilderPeople());
       const smartCount = preview.filter((item) => item.smartRule !== "fixed").length;
-      const typeLabel = module.group === "baby" ? module.role === "base" ? "\u5B9D\u5B9D\u5E95\u76D8" : "\u5B9D\u5B9D\u63D2\u4EF6" : source === "official" ? "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305";
+      const previewNames = preview.slice(0, 3).map((item) => item.name).join("\u3001");
+      const isScenario = module.role === "scenario" || (module.tags || []).includes("\u573A\u666F\u8865\u5145");
+      const typeLabel = module.group === "baby" ? isScenario ? "\u573A\u666F\u8865\u5145" : "\u5B9D\u5B9D\u5C0F\u5305" : source === "official" ? isScenario ? "\u573A\u666F\u8865\u5145" : "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305";
       const stateLabel = locked ? "\u9ED8\u8BA4\u5F00\u542F" : selected ? "\u5DF2\u52FE\u9009" : "\u70B9\u9009";
-      return '<div class="picker-item module-choice ' + (selected ? "selected" : "") + `" onclick="toggleTripBuilderModule('` + source + "','" + module.id + `')"><div class="picker-item-top"><span class="item-pill">` + esc(typeLabel) + '</span><span class="mini-badge picker-tile-state">' + stateLabel + '</span></div><div class="picker-item-name">' + esc(module.icon || "\u{1F9F0}") + " " + esc(module.name) + '</div><div class="picker-item-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u4F1A\u53D8\u52A8</div></div>";
+      return '<div class="picker-item module-choice ' + (selected ? "selected" : "") + '" data-action-click="toggleTripBuilderModule(\'' + source + "','" + module.id + '\')"><div class="picker-item-top"><span class="item-pill">' + esc(typeLabel) + '</span><span class="mini-badge picker-tile-state">' + stateLabel + '</span></div><div class="picker-item-name">' + esc(module.icon || "\u{1F9F0}") + " " + esc(module.name) + '</div><div class="picker-item-meta">' + preview.length + " \u4EF6\u7269\u54C1 \xB7 " + smartCount + " \u9879\u4F1A\u53D8\u52A8</div>" + (previewNames ? '<div class="picker-item-preview">' + esc(previewNames) + (preview.length > 3 ? "\u2026" : "") + "</div>" : "") + "</div>";
     }).join("") : '<div class="empty-panel full-span"><div class="empty-title">\u8FD8\u6CA1\u6709\u53EF\u9009\u5C0F\u5305</div><div class="empty-hint">\u5148\u53BB\u521B\u5EFA\u4E00\u4E2A\u5427\u3002</div></div>';
   }
   function toggleTripBuilderModule(source, id) {
     const key = getModuleKey(source, id);
     const module = getModuleEntity(source, id);
     if (isBabyBaseModuleEntity(module) && tripBuilderHasBabyAddonSelection()) {
-      toast("\u5E26\u5A03\u884C\u7A0B\u4F1A\u9ED8\u8BA4\u5E26\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305");
+      toast("\u5B9D\u5B9D\u573A\u666F\u4F1A\u9ED8\u8BA4\u5E26\u4E0A\u65E5\u5E38\u51FA\u95E8\u5305");
       return;
     }
     if (S.tripBuilderSelection.has(key)) S.tripBuilderSelection.delete(key);
@@ -2223,8 +2892,8 @@
     applyTripSmartFill(previewTrip, false);
     const hasBabyAddon = modules.some((entry) => isBabyModuleEntity(entry.module) && !isBabyBaseModuleEntity(entry.module));
     const smartCount = previewTrip.items.filter((item) => item.smartRule !== "fixed").length;
-    document.getElementById("tripBuilderCount").textContent = `\u5DF2\u9009 ${modules.length} \u4E2A\u5C0F\u5305`;
-    document.getElementById("tripBuilderSummary").innerHTML = modules.length ? `\u5DF2\u9009 <strong>${modules.length}</strong> \u4E2A\u5C0F\u5305\uFF0C\u9884\u8BA1\u751F\u6210 <strong>${previewTrip.items.length}</strong> \u4EF6\u7269\u54C1\uFF0C\u5176\u4E2D <strong>${smartCount}</strong> \u9879\u4F1A\u6309 ${days} \u5929 / ${people} \u4EBA\u81EA\u52A8\u5EFA\u8BAE\u6570\u91CF\u3002${hasBabyAddon ? " \u5DF2\u81EA\u52A8\u5E26\u4E0A <strong>\u5B9D\u5B9D\u57FA\u7840\u5305</strong>\uFF0C\u5E76\u4F1A\u7ED9\u5C3F\u4E0D\u6E7F\u3001\u5907\u7528\u8863\u88E4\u8FD9\u7C7B\u7269\u54C1\u53E0\u52A0\u573A\u666F\u7CFB\u6570\u3002" : ""}` : "\u4F60\u4E5F\u53EF\u4EE5\u5148\u521B\u5EFA\u4E00\u5F20\u7A7A\u767D\u884C\u7A0B\uFF0C\u518D\u6162\u6162\u4ECE\u5C0F\u5305\u5E93\u6216\u7269\u54C1\u5E93\u5F80\u91CC\u52A0\u3002";
+    document.getElementById("tripBuilderCount").textContent = "\u5DF2\u9009 ".concat(modules.length, " \u4E2A\u5C0F\u5305");
+    document.getElementById("tripBuilderSummary").innerHTML = modules.length ? "\u5DF2\u9009 <strong>".concat(modules.length, "</strong> \u4E2A\u5C0F\u5305\uFF0C\u9884\u8BA1\u751F\u6210 <strong>").concat(previewTrip.items.length, "</strong> \u4EF6\u7269\u54C1\uFF0C\u5176\u4E2D <strong>").concat(smartCount, "</strong> \u9879\u4F1A\u6309 ").concat(days, " \u5929 / ").concat(people, " \u4EBA\u81EA\u52A8\u5EFA\u8BAE\u6570\u91CF\u3002").concat(hasBabyAddon ? " \u5DF2\u81EA\u52A8\u5E26\u4E0A <strong>\u5B9D\u5B9D\u57FA\u7840\u5305</strong>\uFF0C\u5E76\u4F1A\u7ED9\u5C3F\u4E0D\u6E7F\u3001\u5907\u7528\u8863\u88E4\u8FD9\u7C7B\u7269\u54C1\u53E0\u52A0\u573A\u666F\u7CFB\u6570\u3002" : "") : "\u4F60\u4E5F\u53EF\u4EE5\u5148\u521B\u5EFA\u4E00\u5F20\u7A7A\u767D\u884C\u7A0B\uFF0C\u518D\u6162\u6162\u4ECE\u5C0F\u5305\u5E93\u6216\u7269\u54C1\u5E93\u5F80\u91CC\u52A0\u3002";
   }
   function confirmCreateTrip() {
     const name = document.getElementById("createTripName").value.trim();
@@ -2253,7 +2922,10 @@
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
     applyTripSmartFill(trip, false);
-    saveRecord(trip);
+    if (!saveRecord(trip)) {
+      toast("\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u8BBE\u5907\u5B58\u50A8\u7A7A\u95F4\u540E\u91CD\u8BD5");
+      return;
+    }
     closeModal("createTripModal");
     openTrip(trip.id, "plan");
     toast(selected.some((entry) => isBabyModuleEntity(entry.module) && !isBabyBaseModuleEntity(entry.module)) ? "\u884C\u7A0B\u5DF2\u521B\u5EFA\uFF0C\u5DF2\u81EA\u52A8\u5E26\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305" : "\u884C\u7A0B\u5DF2\u521B\u5EFA");
@@ -2282,30 +2954,41 @@
     }
     const items = source === "official" ? resolveOfficialModuleItems(entity, S.currentTrip.days, S.currentTrip.people) : resolveCustomModuleItems(entity, S.currentTrip.days, S.currentTrip.people);
     mergeItemsIntoCurrentTrip(items, "module", { source, id: entity.id, name: entity.name });
+    if (S.currentPage === "kits") renderModuleLibrary();
     toast(isBabyModuleEntity(entity) && !isBabyBaseModuleEntity(entity) ? "\u5DF2\u52A0\u5165\u63D2\u4EF6\u5305\uFF0C\u5E76\u81EA\u52A8\u8865\u4E0A\u5B9D\u5B9D\u57FA\u7840\u5305" : "\u5DF2\u628A\u5C0F\u5305\u52A0\u5165\u5F53\u524D\u884C\u7A0B");
+  }
+  function addLibraryItemToCurrentTrip(itemId) {
+    if (!S.currentTrip) {
+      toast("\u8BF7\u5148\u6253\u5F00\u4E00\u5F20\u884C\u7A0B");
+      return;
+    }
+    const asset = getItemLibrary().find((item) => item.id === itemId);
+    if (!asset) return;
+    mergeItemsIntoCurrentTrip([createTripItemFromAsset(asset, S.currentTrip.days, S.currentTrip.people)], "manual");
+    toast("\u5DF2\u52A0\u5165\u5F53\u524D\u884C\u7A0B");
   }
   function mergeItemsIntoCurrentTrip(items, strategy = "manual", sourceModule = null) {
     if (!S.currentTrip) return;
     mergeTripItems(S.currentTrip.items, items, S.currentTrip, strategy);
     if (sourceModule) upsertTripSourceModule(S.currentTrip, sourceModule);
     if (strategy === "module") applyTripSmartFill(S.currentTrip, false);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
     renderItemLibrary();
-    renderHome();
+    refreshTripHub();
   }
   function openLibraryItemModal(itemId = null) {
     S.libraryModalEditId = itemId;
     const item = itemId ? getItemLibrary().find((entry) => entry.id === itemId) : null;
-    fillCatSelect("libraryItemCategory", item?.category || "misc");
-    fillBagSelect("libraryItemBag", item?.bag || (CATEGORY_BAG_MAP[item?.category || "misc"] || "bag-misc"), DEFAULT_BAGS);
+    fillCatSelect("libraryItemCategory", (item == null ? void 0 : item.category) || "misc");
+    fillBagSelect("libraryItemBag", (item == null ? void 0 : item.bag) || (CATEGORY_BAG_MAP[(item == null ? void 0 : item.category) || "misc"] || "bag-misc"), DEFAULT_BAGS);
     document.getElementById("libraryItemModalTitle").textContent = item ? "\u7F16\u8F91\u7269\u54C1" : "\u65B0\u589E\u7269\u54C1";
-    document.getElementById("libraryItemName").value = item?.name || "";
-    document.getElementById("libraryItemQty").value = item?.defaultQty || 1;
+    document.getElementById("libraryItemName").value = (item == null ? void 0 : item.name) || "";
+    document.getElementById("libraryItemQty").value = (item == null ? void 0 : item.defaultQty) || 1;
     document.getElementById("libraryItemBulkInput").value = "";
     document.getElementById("libraryBulkPanel").style.display = item ? "none" : "block";
-    document.getElementById("libraryDeleteBtn").style.visibility = item?.source === "user" ? "visible" : "hidden";
-    S.currentEditingTags = Array.isArray(item?.tags) ? [...item.tags] : [];
+    document.getElementById("libraryDeleteBtn").style.visibility = (item == null ? void 0 : item.source) === "user" ? "visible" : "hidden";
+    S.currentEditingTags = Array.isArray(item == null ? void 0 : item.tags) ? [...item.tags] : [];
     renderLibraryItemTags();
     document.getElementById("libraryItemTagInput").value = "";
     updateLibrarySmartHint();
@@ -2321,7 +3004,7 @@
   }
   function addLibraryItemTag() {
     const input = document.getElementById("libraryItemTagInput");
-    const val = input?.value.trim();
+    const val = input == null ? void 0 : input.value.trim();
     if (!val) return;
     if (S.currentEditingTags.includes(val)) {
       toast("\u8BE5\u6807\u7B7E\u5DF2\u5B58\u5728");
@@ -2331,28 +3014,39 @@
     renderLibraryItemTags();
     if (input) input.value = "";
   }
+  function toggleLibraryItemTagSection() {
+    toggleTagSection("libraryItemTagSection", "libraryItemTagToggle");
+  }
+  function toggleTagSection(sectionId, toggleId) {
+    const section = document.getElementById(sectionId);
+    const toggle = document.getElementById(toggleId);
+    if (!section) return;
+    const expanded = section.classList.toggle("expanded");
+    if (toggle) toggle.textContent = expanded ? "\u6536\u8D77\u6807\u7B7E" : "+ \u6DFB\u52A0\u6807\u7B7E";
+  }
   function removeLibraryItemTagByIndex(index) {
     if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
     S.currentEditingTags = S.currentEditingTags.filter((_, i) => i !== index);
     renderLibraryItemTags();
   }
   function updateLibrarySmartHint() {
+    var _a, _b;
     const hint = document.getElementById("libraryItemSmartHint");
     if (!hint) return;
     const names = S.libraryModalEditId ? collectDraftNames("libraryItemName") : collectDraftNames("libraryItemName", "libraryItemBulkInput");
-    const category = document.getElementById("libraryItemCategory")?.value || "misc";
-    const qty = Math.max(1, parseInt(document.getElementById("libraryItemQty")?.value) || 1);
+    const category = ((_a = document.getElementById("libraryItemCategory")) == null ? void 0 : _a.value) || "misc";
+    const qty = Math.max(1, parseInt((_b = document.getElementById("libraryItemQty")) == null ? void 0 : _b.value) || 1);
     if (!names.length) {
       hint.textContent = "\u8863\u7269\u7C7B\u548C\u5B9D\u5B9D\u9AD8\u9891\u6D88\u8017\u7269\u54C1\u4F1A\u9ED8\u8BA4\u53C2\u4E0E\u667A\u80FD\u586B\u5145\uFF1B\u6279\u91CF\u6DFB\u52A0\u65F6\u4F1A\u9ED8\u8BA4\u4F7F\u7528\u540C\u4E00\u5206\u7C7B\u548C\u9ED8\u8BA4\u6570\u91CF\u3002";
       return;
     }
     if (!S.libraryModalEditId && names.length > 1) {
-      hint.textContent = `\u5C06\u6279\u91CF\u4FDD\u5B58 ${names.length} \u4EF6\u7269\u54C1\uFF0C\u7EDF\u4E00\u4F7F\u7528\u5F53\u524D\u5206\u7C7B\u3001\u9ED8\u8BA4\u6570\u91CF\u548C\u5F52\u5C5E\u5C0F\u5305\uFF1B\u4FDD\u5B58\u540E\u4E5F\u53EF\u4EE5\u9010\u4E2A\u518D\u4FEE\u6539\u3002`;
+      hint.textContent = "\u5C06\u6279\u91CF\u4FDD\u5B58 ".concat(names.length, " \u4EF6\u7269\u54C1\uFF0C\u7EDF\u4E00\u4F7F\u7528\u5F53\u524D\u5206\u7C7B\u3001\u9ED8\u8BA4\u6570\u91CF\u548C\u5F52\u5C5E\u5C0F\u5305\uFF1B\u4FDD\u5B58\u540E\u4E5F\u53EF\u4EE5\u9010\u4E2A\u518D\u4FEE\u6539\u3002");
       return;
     }
     const name = names[0];
     const { smartRule, smartConfig } = resolveItemSmartPlan(name, category);
-    hint.textContent = smartRule === "fixed" ? `\u5F53\u524D\u4F1A\u6309\u56FA\u5B9A\u9ED8\u8BA4\u6570\u91CF \xD7${qty} \u4FDD\u5B58\u3002` : `\u5F53\u524D\u4F1A\u6309"${smartRuleLabel(smartRule, smartConfig)}"\u53C2\u4E0E\u667A\u80FD\u586B\u5145\uFF1B\u57FA\u7840\u6570\u91CF\u4E3A ${qty}\u3002`;
+    hint.textContent = smartRule === "fixed" ? "\u5F53\u524D\u4F1A\u6309\u56FA\u5B9A\u9ED8\u8BA4\u6570\u91CF \xD7".concat(qty, " \u4FDD\u5B58\u3002") : '\u5F53\u524D\u4F1A\u6309"'.concat(smartRuleLabel(smartRule, smartConfig), '"\u53C2\u4E0E\u667A\u80FD\u586B\u5145\uFF1B\u57FA\u7840\u6570\u91CF\u4E3A ').concat(qty, "\u3002");
   }
   function saveLibraryItem() {
     const names = S.libraryModalEditId ? collectDraftNames("libraryItemName") : collectDraftNames("libraryItemName", "libraryItemBulkInput");
@@ -2384,11 +3078,14 @@
       }
       if (S.libraryModalEditId && index === 0) return;
     });
-    saveItemLibrary(items);
+    if (!saveItemLibrary(items)) {
+      toast("\u7269\u54C1\u5E93\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
     closeModal("libraryItemModal");
     renderItemLibrary();
     renderModuleBuilderItems();
-    toast(names.length > 1 ? `\u5DF2\u6279\u91CF\u5904\u7406 ${names.length} \u4EF6\u7269\u54C1\uFF08\u65B0\u589E ${added}\uFF0C\u66F4\u65B0 ${updated}\uFF09` : "\u7269\u54C1\u5E93\u5DF2\u66F4\u65B0");
+    toast(names.length > 1 ? "\u5DF2\u6279\u91CF\u5904\u7406 ".concat(names.length, " \u4EF6\u7269\u54C1\uFF08\u65B0\u589E ").concat(added, "\uFF0C\u66F4\u65B0 ").concat(updated, "\uFF09") : "\u7269\u54C1\u5E93\u5DF2\u66F4\u65B0");
   }
   function deleteLibraryItem() {
     if (!S.libraryModalEditId) return;
@@ -2398,15 +3095,19 @@
       toast("\u7CFB\u7EDF\u7269\u54C1\u4E0D\u652F\u6301\u5220\u9664");
       return;
     }
-    saveItemLibrary(items.filter((item) => item.id !== S.libraryModalEditId));
+    if (!saveItemLibrary(items.filter((item) => item.id !== S.libraryModalEditId))) {
+      toast("\u5220\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
     closeModal("libraryItemModal");
     renderItemLibrary();
     renderModuleBuilderItems();
     toast("\u5DF2\u5220\u9664\u7269\u54C1");
   }
   function openManualItemModal() {
+    var _a;
     fillCatSelect("manualItemCategory", "misc");
-    fillBagSelect("manualItemBag", "bag-misc", S.currentTrip?.bags || DEFAULT_BAGS);
+    fillBagSelect("manualItemBag", "bag-misc", ((_a = S.currentTrip) == null ? void 0 : _a.bags) || DEFAULT_BAGS);
     document.getElementById("manualItemName").value = "";
     document.getElementById("manualItemBulkInput").value = "";
     document.getElementById("manualItemQty").value = 1;
@@ -2416,22 +3117,23 @@
     setTimeout(() => document.getElementById("manualItemName").focus(), 50);
   }
   function updateManualItemSmartHint() {
+    var _a, _b;
     const hint = document.getElementById("manualItemSmartHint");
     if (!hint) return;
     const names = collectDraftNames("manualItemName", "manualItemBulkInput");
-    const category = document.getElementById("manualItemCategory")?.value || "misc";
-    const qty = Math.max(1, parseInt(document.getElementById("manualItemQty")?.value) || 1);
+    const category = ((_a = document.getElementById("manualItemCategory")) == null ? void 0 : _a.value) || "misc";
+    const qty = Math.max(1, parseInt((_b = document.getElementById("manualItemQty")) == null ? void 0 : _b.value) || 1);
     if (!names.length) {
       hint.textContent = "\u652F\u6301\u4E00\u6B21\u7C98\u8D34\u591A\u4EF6\u7269\u54C1\uFF0C\u7CFB\u7EDF\u4F1A\u6309\u7A7A\u683C\u3001\u9017\u53F7\u6216\u6362\u884C\u62C6\u5206\uFF1B\u6BCF\u4EF6\u7269\u54C1\u90FD\u4F1A\u5355\u72EC\u5224\u65AD\u667A\u80FD\u6570\u91CF\u3002";
       return;
     }
     if (names.length > 1) {
-      hint.textContent = `\u5C06\u6309\u5F53\u524D\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305\u6279\u91CF\u6DFB\u52A0 ${names.length} \u4EF6\u7269\u54C1\uFF1B\u6BCF\u4EF6\u90FD\u4F1A\u5355\u72EC\u5224\u65AD\u667A\u80FD\u6570\u91CF\uFF0C\u4E4B\u540E\u4E5F\u53EF\u4EE5\u9010\u4E2A\u4FEE\u6539\u3002`;
+      hint.textContent = "\u5C06\u6309\u5F53\u524D\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305\u6279\u91CF\u6DFB\u52A0 ".concat(names.length, " \u4EF6\u7269\u54C1\uFF1B\u6BCF\u4EF6\u90FD\u4F1A\u5355\u72EC\u5224\u65AD\u667A\u80FD\u6570\u91CF\uFF0C\u4E4B\u540E\u4E5F\u53EF\u4EE5\u9010\u4E2A\u4FEE\u6539\u3002");
       return;
     }
     const { smartRule, smartConfig } = resolveItemSmartPlan(names[0], category);
     const currentSuggestion = S.currentTrip ? computeSmartQty(qty, smartRule, S.currentTrip.days, S.currentTrip.people, smartConfig, S.currentTrip) : qty;
-    hint.textContent = smartRule === "fixed" ? `\u8FD9\u4EF6\u7269\u54C1\u4F1A\u6309\u56FA\u5B9A\u6570\u91CF \xD7${qty} \u52A0\u5165\u5F53\u524D\u884C\u7A0B\u3002` : `\u8FD9\u4EF6\u7269\u54C1\u4F1A\u6309"${smartRuleLabel(smartRule, smartConfig)}"\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u884C\u7A0B\u9884\u8BA1\u6570\u91CF \xD7${currentSuggestion}\u3002`;
+    hint.textContent = smartRule === "fixed" ? "\u8FD9\u4EF6\u7269\u54C1\u4F1A\u6309\u56FA\u5B9A\u6570\u91CF \xD7".concat(qty, " \u52A0\u5165\u5F53\u524D\u884C\u7A0B\u3002") : '\u8FD9\u4EF6\u7269\u54C1\u4F1A\u6309"'.concat(smartRuleLabel(smartRule, smartConfig), '"\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u884C\u7A0B\u9884\u8BA1\u6570\u91CF \xD7').concat(currentSuggestion, "\u3002");
   }
   function saveManualTripItem() {
     if (!S.currentTrip) return;
@@ -2462,7 +3164,7 @@
     });
     mergeItemsIntoCurrentTrip(items, "manual");
     closeModal("manualItemModal");
-    toast(names.length > 1 ? `\u5DF2\u6279\u91CF\u6DFB\u52A0 ${names.length} \u4EF6\u7269\u54C1` : "\u5DF2\u6DFB\u52A0\u5230\u884C\u7A0B");
+    toast(names.length > 1 ? "\u5DF2\u6279\u91CF\u6DFB\u52A0 ".concat(names.length, " \u4EF6\u7269\u54C1") : "\u5DF2\u6DFB\u52A0\u5230\u884C\u7A0B");
   }
   function openTripItemModal(itemId) {
     if (!S.currentTrip) return;
@@ -2489,7 +3191,7 @@
   }
   function addTripItemTag() {
     const input = document.getElementById("tripItemTagInput");
-    const val = input?.value.trim();
+    const val = input == null ? void 0 : input.value.trim();
     if (!val) return;
     if (S.currentEditingTags.includes(val)) {
       toast("\u8BE5\u6807\u7B7E\u5DF2\u5B58\u5728");
@@ -2498,6 +3200,18 @@
     S.currentEditingTags.push(val);
     renderTripItemTags();
     if (input) input.value = "";
+  }
+  function toggleTripItemTagSection() {
+    toggleTagSection("tripItemTagSection", "tripItemTagToggle");
+  }
+  function updateItemPickerSearch(value) {
+    const query = String(value || "").trim().toLowerCase();
+    document.querySelectorAll("#itemPickerItems .picker-item").forEach((item) => {
+      item.style.display = !query || item.textContent.toLowerCase().includes(query) ? "" : "none";
+    });
+  }
+  function confirmItemPicker() {
+    closeModal("itemPickerModal");
   }
   function removeTripItemTagByIndex(index) {
     if (!Number.isFinite(index) || index < 0 || index >= S.currentEditingTags.length) return;
@@ -2523,7 +3237,7 @@
       S.currentTrip
     );
     meta.style.display = "block";
-    meta.textContent = qty === suggested ? `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule, item.smartConfig)}\u3002\u5F53\u524D\u5EFA\u8BAE\u6570\u91CF \xD7${suggested}\u3002` : `\u667A\u80FD\u586B\u5145\uFF1A${smartRuleLabel(item.smartRule, item.smartConfig)}\u3002\u5F53\u524D\u5EFA\u8BAE \xD7${suggested}\uFF1B\u4F60\u73B0\u5728\u586B\u5199\u7684\u662F \xD7${qty}\uFF0C\u4FDD\u5B58\u540E\u4F1A\u4F18\u5148\u6309\u4F60\u7684\u624B\u52A8\u6570\u91CF\u4FDD\u7559\u3002`;
+    meta.textContent = qty === suggested ? "\u667A\u80FD\u586B\u5145\uFF1A".concat(smartRuleLabel(item.smartRule, item.smartConfig), "\u3002\u5F53\u524D\u5EFA\u8BAE\u6570\u91CF \xD7").concat(suggested, "\u3002") : "\u667A\u80FD\u586B\u5145\uFF1A".concat(smartRuleLabel(item.smartRule, item.smartConfig), "\u3002\u5F53\u524D\u5EFA\u8BAE \xD7").concat(suggested, "\uFF1B\u4F60\u73B0\u5728\u586B\u5199\u7684\u662F \xD7").concat(qty, "\uFF0C\u4FDD\u5B58\u540E\u4F1A\u4F18\u5148\u6309\u4F60\u7684\u624B\u52A8\u6570\u91CF\u4FDD\u7559\u3002");
   }
   function saveCurrentTripItem() {
     if (!S.currentTrip || !S.tripItemEditId) return;
@@ -2545,19 +3259,19 @@
       );
       item.smartLocked = item.qty !== suggested;
     }
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     closeModal("tripItemModal");
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast("\u7269\u54C1\u5DF2\u66F4\u65B0");
   }
   function deleteCurrentTripItem() {
     if (!S.currentTrip || !S.tripItemEditId) return;
     S.currentTrip.items = S.currentTrip.items.filter((item) => item.id !== S.tripItemEditId);
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     closeModal("tripItemModal");
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast("\u5DF2\u5220\u9664\u7269\u54C1");
   }
   function togglePackItem(itemId) {
@@ -2565,18 +3279,18 @@
     const item = S.currentTrip.items.find((entry) => entry.id === itemId);
     if (!item) return;
     item.packed = !item.packed;
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
   }
   function markAllPacked() {
     if (!S.currentTrip) return;
     S.currentTrip.items.forEach((item) => {
       item.packed = true;
     });
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast("\u5DF2\u5168\u90E8\u6807\u8BB0\u5B8C\u6210");
   }
   function markAllUnpacked() {
@@ -2584,9 +3298,9 @@
     S.currentTrip.items.forEach((item) => {
       item.packed = false;
     });
-    persistCurrentTrip();
+    if (!persistCurrentTrip()) return;
     renderTripPage();
-    renderHome();
+    refreshTripHub();
     toast("\u5DF2\u6062\u590D\u4E3A\u672A\u6253\u5305");
   }
   function openCreateModuleModal(initialItems = null, options = {}) {
@@ -2594,215 +3308,85 @@
     const editModule = options.editId ? getModuleEntity(editSource, options.editId) : null;
     const baseItems = editModule ? editModule.items : initialItems || [];
     syncItemsIntoLibrary(baseItems);
-    S.moduleBuilderDraftId = editModule?.id || null;
+    S.moduleBuilderDraftId = (editModule == null ? void 0 : editModule.id) || null;
     S.moduleBuilderDraftSource = editModule ? editSource : "custom";
     S.moduleBuilderItems = (baseItems || []).map((item) => tripOrModuleItemToModuleItem(item));
     syncModuleBuilderSelectionFromItems();
     S.moduleBuilderSearch = "";
-    document.getElementById("moduleBuilderModalTitle").textContent = editModule ? editSource === "official" ? "\u7F16\u8F91\u5B98\u65B9\u5C0F\u5305" : "\u7F16\u8F91\u6211\u7684\u5C0F\u5305" : "\u65B0\u5EFA\u6211\u7684\u5C0F\u5305";
-    document.getElementById("moduleBuilderSaveBtn").textContent = editModule ? "\u4FDD\u5B58\u5C0F\u5305\u4FEE\u6539" : "\u4FDD\u5B58\u5230\u6211\u7684\u5C0F\u5305";
+    S.moduleAddPanelOpen = false;
+    document.getElementById("moduleBuilderModalTitle").textContent = editModule ? "\u7F16\u8F91\u5C0F\u5305" : "\u65B0\u5EFA\u5C0F\u5305";
+    document.getElementById("moduleBuilderSaveBtn").textContent = "\u4FDD\u5B58";
     document.getElementById("moduleBuilderDeleteBtn").style.visibility = editModule ? "visible" : "hidden";
-    document.getElementById("moduleBuilderHint").textContent = editModule ? "\u4E0A\u65B9\u300C\u5C0F\u5305\u5185\u7269\u54C1\u300D\u53EF\u70B9\u51FB\u9010\u9879\u8C03\u6574\uFF1B\u4E0B\u65B9\u7269\u54C1\u5E93\u53EF\u7EE7\u7EED\u6ED1\u9009\u8865\u8D27\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u751F\u6210\u3002" : "\u4ECE\u7269\u54C1\u5E93\u6ED1\u9009\u52A0\u5165\u5C0F\u5305\uFF1B\u52A0\u5165\u540E\u53EF\u5728\u4E0A\u65B9\u300C\u5C0F\u5305\u5185\u7269\u54C1\u300D\u70B9\u51FB\u8C03\u6574\u9ED8\u8BA4\u6570\u91CF\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u4E9B\u8BBE\u7F6E\u3002";
-    document.getElementById("moduleBuilderName").value = editModule?.name || "";
-    document.getElementById("moduleBuilderIcon").value = editModule?.icon || "\u{1F9F0}";
-    document.getElementById("moduleBuilderDesc").value = editModule?.desc || "";
+    document.getElementById("moduleBuilderName").value = (editModule == null ? void 0 : editModule.name) || "";
     document.getElementById("moduleBuilderSearch").value = "";
-    document.getElementById("moduleQuickItemName").value = "";
-    document.getElementById("moduleQuickItemQty").value = 1;
-    document.getElementById("moduleQuickItemCategory").value = "misc";
+    const panel = document.getElementById("moduleAddPanel");
+    if (panel) panel.hidden = true;
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
     showModal("createModuleModal");
     setTimeout(() => document.getElementById("moduleBuilderName").focus(), 50);
   }
+  function toggleModuleAddPanel() {
+    S.moduleAddPanelOpen = !S.moduleAddPanelOpen;
+    const panel = document.getElementById("moduleAddPanel");
+    if (panel) panel.hidden = !S.moduleAddPanelOpen;
+    if (S.moduleAddPanelOpen) {
+      renderModuleBuilderItems();
+      setTimeout(() => {
+        var _a;
+        return (_a = document.getElementById("moduleBuilderSearch")) == null ? void 0 : _a.focus();
+      }, 50);
+    }
+  }
   function updateModuleBuilderSearch(value) {
     S.moduleBuilderSearch = value.trim();
     renderModuleBuilderItems();
   }
-  function clearModuleBuilderSelection() {
-    S.moduleBuilderSelection = /* @__PURE__ */ new Set();
-    S.moduleBuilderItems = [];
+  function removeModuleBuilderItem(itemId) {
+    var _a;
+    const target = S.moduleBuilderItems.find((item) => item.id === itemId);
+    S.moduleBuilderItems = S.moduleBuilderItems.filter((item) => item.id !== itemId);
+    if (target) {
+      const library = getItemLibrary();
+      const assetId = (_a = library.find((asset) => asset.name === target.name)) == null ? void 0 : _a.id;
+      if (assetId) S.moduleBuilderSelection.delete(assetId);
+    }
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
   }
-  function updateModuleQuickItemCategory() {
-    const input = document.getElementById("moduleQuickItemName");
-    const select = document.getElementById("moduleQuickItemCategory");
-    if (!input || !select) return;
-    const current = select.value;
-    if (current && current !== "misc") return;
-    select.value = guessCat(input.value.trim());
-  }
-  function addBuilderCustomItem() {
-    const name = document.getElementById("moduleQuickItemName").value.trim();
-    if (!name) {
-      toast("\u8BF7\u5148\u586B\u5199\u7269\u54C1\u540D\u79F0");
+  function addModuleBuilderItemByAssetId(itemId) {
+    const library = getItemLibrary();
+    const asset = library.find((entry) => entry.id === itemId);
+    if (!asset) return;
+    if (S.moduleBuilderItems.some((item) => item.name === asset.name)) {
+      toast("\u5DF2\u5728\u5305\u5185");
       return;
     }
-    const qty = Math.max(1, parseInt(document.getElementById("moduleQuickItemQty").value) || 1);
-    const category = document.getElementById("moduleQuickItemCategory").value || guessCat(name);
-    const bag = category === "misc" && name.includes("\u5B9D\u5B9D") ? "bag-baby" : CATEGORY_BAG_MAP[category] || "bag-misc";
-    const { smartRule, smartConfig } = resolveItemSmartPlan(name, category);
-    const library = getItemLibrary();
-    let target = library.find((item) => item.name === name) || null;
-    if (!target) {
-      target = normalizeLibraryItem({
-        id: "asset-" + gid(),
-        name,
-        defaultQty: qty,
-        category,
-        bag,
-        smartRule,
-        smartConfig,
-        source: "user"
-      });
-      library.unshift(target);
-      saveItemLibrary(library);
-    } else {
-      target = normalizeLibraryItem({
-        ...target,
-        defaultQty: qty,
-        category,
-        bag,
-        smartRule,
-        smartConfig
-      });
-      const idx = library.findIndex((item) => item.id === target.id);
-      if (idx >= 0) library[idx] = target;
-      saveItemLibrary(library);
-    }
-    S.moduleBuilderSelection.add(target.id);
-    if (!S.moduleBuilderItems.some((item) => item.name === target.name)) {
-      S.moduleBuilderItems.push(createModuleItemFromAsset(target));
-    }
-    document.getElementById("moduleQuickItemName").value = "";
-    document.getElementById("moduleQuickItemQty").value = 1;
-    document.getElementById("moduleQuickItemCategory").value = "misc";
+    S.moduleBuilderSelection.add(itemId);
+    S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
     renderModuleBuilderSelectedItems();
     renderModuleBuilderItems();
-    renderItemLibrary();
-    toast("\u65B0\u7269\u54C1\u5DF2\u52A0\u5165\u7269\u54C1\u5E93\uFF0C\u5E76\u9009\u5165\u5F53\u524D\u5C0F\u5305");
   }
   function renderModuleBuilderSelectedItems() {
     const box = document.getElementById("moduleBuilderSelectedItems");
-    const section = document.getElementById("moduleBuilderSelectedSection");
-    const meta = document.getElementById("moduleBuilderSelectedMeta");
-    if (!box || !section) return;
+    if (!box) return;
     const items = S.moduleBuilderItems || [];
-    section.style.display = items.length ? "block" : "none";
-    if (meta) meta.textContent = items.length ? `\u5171 ${items.length} \u4EF6 \xB7 \u70B9\u51FB\u53EF\u6539\u9ED8\u8BA4\u6570\u91CF\u3001\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305` : "\u70B9\u51FB\u7269\u54C1\u53EF\u6539\u9ED8\u8BA4\u6570\u91CF\u3001\u5206\u7C7B\u548C\u5F52\u5C5E\u5C0F\u5305";
-    box.innerHTML = items.length ? items.map((item) => {
-      const cat = catInfo(item.category);
-      const smart = item.smartRule !== "fixed" ? '<span class="item-pill smart-pill">' + esc(smartRuleShort(item.smartRule)) + "</span>" : "";
-      return `<div class="list-item-card editable compact" onclick="openModuleItemModal('builder', null, null, '` + item.id + `')"><div class="list-item-main"><div class="list-item-name">` + esc(item.name) + '</div><div class="item-subline"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="item-pill">' + esc(bagName(item.bag, DEFAULT_BAGS)) + "</span>" + smart + '</div></div><div class="item-qty">\xD7' + item.defaultQty + "</div></div>";
-    }).join("") : "";
+    box.innerHTML = items.length ? items.map(
+      (item) => '<div class="module-edit-row"><span class="module-edit-name">' + esc(item.name) + '</span><span class="module-edit-qty">\xD7' + item.defaultQty + '</span><button type="button" class="chip-remove" data-remove-module-item="' + item.id + '" aria-label="\u79FB\u9664">\xD7</button></div>'
+    ).join("") : '<div class="empty-hint">\u8FD8\u6CA1\u6709\u7269\u54C1\uFF0C\u70B9\u300C+ \u6DFB\u52A0\u300D\u4ECE\u7269\u54C1\u5E93\u6311\u9009\u3002</div>';
   }
   function renderModuleBuilderItems() {
     const box = document.getElementById("moduleBuilderItems");
     if (!box) return;
+    const selectedNames = new Set((S.moduleBuilderItems || []).map((item) => item.name));
     const keyword = S.moduleBuilderSearch.toLowerCase();
-    const items = getItemLibrary().filter((item) => !keyword || item.name.toLowerCase().includes(keyword)).sort((a, b) => {
-      const selectedDiff = Number(S.moduleBuilderSelection.has(b.id)) - Number(S.moduleBuilderSelection.has(a.id));
-      if (selectedDiff !== 0) return selectedDiff;
-      const userDiff = Number(b.source === "user") - Number(a.source === "user");
-      if (userDiff !== 0) return userDiff;
-      return a.name.localeCompare(b.name, "zh-Hans-CN");
-    });
-    box.innerHTML = items.length ? items.map((item) => {
-      const selected = S.moduleBuilderSelection.has(item.id);
-      const cat = catInfo(item.category);
-      return '<div class="picker-item ' + (selected ? "selected" : "") + '" data-item-id="' + item.id + '"><div class="picker-item-top"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span><span class="mini-badge picker-tile-state">' + (selected ? "\u5DF2\u9009" : "\u6ED1\u9009") + '</span></div><div class="picker-item-name">' + esc(item.name) + '</div><div class="picker-item-meta">\u9ED8\u8BA4 \xD7' + item.defaultQty + " \xB7 " + esc(smartRuleShort(item.smartRule)) + "</div></div>";
-    }).join("") : '<div class="empty-panel full-span"><div class="empty-title">\u6CA1\u6709\u627E\u5230\u7269\u54C1</div><div class="empty-hint">\u6362\u4E2A\u5173\u952E\u8BCD\u8BD5\u8BD5\u3002</div></div>';
-    syncModuleBuilderMeta();
-  }
-  function syncModuleBuilderMeta() {
-    const meta = document.getElementById("moduleBuilderCount");
-    const clearBtn = document.getElementById("moduleBuilderClearBtn");
-    const count = S.moduleBuilderItems?.length || 0;
-    if (meta) meta.textContent = `\u5DF2\u9009 ${count} \u4EF6`;
-    if (clearBtn) clearBtn.textContent = count ? `\u6E05\u7A7A\uFF08${count}\uFF09` : "\u6E05\u7A7A\u9009\u62E9";
-  }
-  function setupModuleBuilderGesture() {
-    const box = document.getElementById("moduleBuilderItems");
-    if (!box || box.dataset.gestureReady === "true") return;
-    box.dataset.gestureReady = "true";
-    box.addEventListener("pointerdown", handleModuleBuilderPointerDown);
-    box.addEventListener("pointermove", handleModuleBuilderPointerMove);
-    document.addEventListener("pointerup", endModuleBuilderGesture);
-    document.addEventListener("pointercancel", endModuleBuilderGesture);
-  }
-  function handleModuleBuilderPointerDown(event) {
-    const box = document.getElementById("moduleBuilderItems");
-    const tile = event.target.closest(".picker-item");
-    if (!box || !tile || !box.contains(tile)) return;
-    const itemId = tile.dataset.itemId;
-    const shouldSelect = !S.moduleBuilderSelection.has(itemId);
-    S.moduleBuilderGesture = {
-      active: true,
-      pointerId: event.pointerId,
-      mode: shouldSelect ? "add" : "remove",
-      visited: /* @__PURE__ */ new Set()
-    };
-    try {
-      box.setPointerCapture(event.pointerId);
-    } catch {
-    }
-    applyModuleBuilderGesture(itemId);
-    event.preventDefault();
-  }
-  function handleModuleBuilderPointerMove(event) {
-    if (!S.moduleBuilderGesture.active || S.moduleBuilderGesture.pointerId !== event.pointerId) return;
-    const box = document.getElementById("moduleBuilderItems");
-    if (!box) return;
-    const node = document.elementFromPoint(event.clientX, event.clientY);
-    const tile = node && node.closest ? node.closest(".picker-item") : null;
-    if (!tile || !box.contains(tile)) return;
-    applyModuleBuilderGesture(tile.dataset.itemId);
-    event.preventDefault();
-  }
-  function applyModuleBuilderGesture(itemId) {
-    if (!itemId || S.moduleBuilderGesture.visited.has(itemId)) return;
-    S.moduleBuilderGesture.visited.add(itemId);
-    setModuleBuilderItemSelected(itemId, S.moduleBuilderGesture.mode === "add");
-  }
-  function setModuleBuilderItemSelected(itemId, selected) {
-    const library = getItemLibrary();
-    const asset = library.find((entry) => entry.id === itemId);
-    if (!asset) return;
-    if (selected) {
-      S.moduleBuilderSelection.add(itemId);
-      if (!S.moduleBuilderItems.some((item) => item.name === asset.name)) {
-        S.moduleBuilderItems.push(createModuleItemFromAsset(asset));
-      }
-    } else {
-      S.moduleBuilderSelection.delete(itemId);
-      S.moduleBuilderItems = S.moduleBuilderItems.filter((item) => item.name !== asset.name);
-    }
-    const tile = document.querySelector('.picker-item[data-item-id="' + itemId + '"]');
-    if (tile) {
-      tile.classList.toggle("selected", selected);
-      const state = tile.querySelector(".picker-tile-state");
-      if (state) state.textContent = selected ? "\u5DF2\u9009" : "\u6ED1\u9009";
-    }
-    renderModuleBuilderSelectedItems();
-    syncModuleBuilderMeta();
-  }
-  function endModuleBuilderGesture(event) {
-    if (!S.moduleBuilderGesture.active) return;
-    if (event?.pointerId != null && event.pointerId !== S.moduleBuilderGesture.pointerId) return;
-    const box = document.getElementById("moduleBuilderItems");
-    try {
-      box?.releasePointerCapture?.(S.moduleBuilderGesture.pointerId);
-    } catch {
-    }
-    S.moduleBuilderGesture = {
-      active: false,
-      pointerId: null,
-      mode: "add",
-      visited: /* @__PURE__ */ new Set()
-    };
+    const items = getItemLibrary().filter((item) => !selectedNames.has(item.name)).filter((item) => !keyword || item.name.toLowerCase().includes(keyword)).sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+    box.innerHTML = items.length ? items.map(
+      (item) => '<div class="picker-item addable" data-item-id="' + item.id + '"><div class="picker-item-name">' + esc(item.name) + "</div></div>"
+    ).join("") : '<div class="empty-panel full-span"><div class="empty-hint">' + (keyword ? "\u6CA1\u6709\u5339\u914D\u7684\u7269\u54C1" : "\u7269\u54C1\u5E93\u91CC\u7684\u90FD\u5DF2\u52A0\u5165") + "</div></div>";
   }
   function saveCustomModule() {
+    var _a;
     const name = document.getElementById("moduleBuilderName").value.trim();
     if (!name) {
       toast("\u8BF7\u586B\u5199\u5C0F\u5305\u540D\u79F0");
@@ -2818,59 +3402,68 @@
       const existing2 = S.moduleBuilderDraftId ? officialModules.find((item) => item.id === S.moduleBuilderDraftId) : null;
       const nextModule = normalizeOfficialModule({
         ...existing2,
-        id: existing2?.id || "official-module-" + gid(),
+        id: (existing2 == null ? void 0 : existing2.id) || "official-module-" + gid(),
         name,
-        icon: document.getElementById("moduleBuilderIcon").value.trim() || "\u{1F9F0}",
-        desc: document.getElementById("moduleBuilderDesc").value.trim(),
-        purpose: existing2?.purpose || "starter",
-        group: existing2?.group || "",
-        role: existing2?.role || "",
-        defaultOn: existing2?.defaultOn || false,
-        tags: existing2?.tags?.length ? existing2.tags : ["\u5B98\u65B9\u5C0F\u5305"],
+        icon: (existing2 == null ? void 0 : existing2.icon) || "\xB7",
+        desc: (existing2 == null ? void 0 : existing2.desc) || "",
+        purpose: (existing2 == null ? void 0 : existing2.purpose) || "starter",
+        group: (existing2 == null ? void 0 : existing2.group) || "",
+        role: (existing2 == null ? void 0 : existing2.role) || "",
+        defaultOn: (existing2 == null ? void 0 : existing2.defaultOn) || false,
+        tags: ((_a = existing2 == null ? void 0 : existing2.tags) == null ? void 0 : _a.length) ? existing2.tags : ["\u5B98\u65B9\u5C0F\u5305"],
         items
       });
       const idx = officialModules.findIndex((item) => item.id === nextModule.id);
       if (idx >= 0) officialModules[idx] = nextModule;
       else officialModules.unshift(nextModule);
       items.forEach(upsertLibraryFromModuleItem);
-      saveOfficialModules(officialModules);
+      if (!saveOfficialModules(officialModules)) {
+        toast("\u5C0F\u5305\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+        return;
+      }
       closeModal("createModuleModal");
       renderModuleLibrary();
-      renderHome();
+      refreshTripHub();
       toast("\u5B98\u65B9\u5C0F\u5305\u5DF2\u66F4\u65B0\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u65B0\u8BBE\u7F6E\u751F\u6210");
       return;
     }
     const existing = S.moduleBuilderDraftId ? getMyModules().find((item) => item.id === S.moduleBuilderDraftId) : null;
     const module = normalizeModuleRecord({
-      id: existing?.id || "module-" + gid(),
+      id: (existing == null ? void 0 : existing.id) || "module-" + gid(),
       recordType: "module",
       name,
-      icon: document.getElementById("moduleBuilderIcon").value.trim() || "\u{1F9F0}",
-      desc: document.getElementById("moduleBuilderDesc").value.trim(),
+      icon: (existing == null ? void 0 : existing.icon) || "\xB7",
+      desc: (existing == null ? void 0 : existing.desc) || "",
       purpose: "custom",
-      tags: existing?.tags || ["\u6211\u7684\u5C0F\u5305"],
+      tags: (existing == null ? void 0 : existing.tags) || ["\u6211\u7684\u5C0F\u5305"],
       items,
-      createdAt: existing?.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+      createdAt: (existing == null ? void 0 : existing.createdAt) || (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
     items.forEach(upsertLibraryFromModuleItem);
-    saveRecord(module);
+    if (!saveRecord(module)) {
+      toast("\u5C0F\u5305\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
     closeModal("createModuleModal");
     renderModuleLibrary();
-    renderHome();
+    refreshTripHub();
     toast(existing ? "\u5C0F\u5305\u5DF2\u66F4\u65B0\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u65B0\u8BBE\u7F6E\u751F\u6210" : "\u5DF2\u4FDD\u5B58\u5230\u6211\u7684\u5C0F\u5305");
   }
   function deleteCurrentModuleDraft() {
     if (!S.moduleBuilderDraftId) return;
     if (!confirm(S.moduleBuilderDraftSource === "official" ? "\u786E\u5B9A\u5220\u9664\u8FD9\u4E2A\u5B98\u65B9\u5C0F\u5305\u5417\uFF1F" : "\u786E\u5B9A\u5220\u9664\u8FD9\u4E2A\u5C0F\u5305\u5417\uFF1F")) return;
     if (S.moduleBuilderDraftSource === "official") {
-      saveOfficialModules(getOfficialModules().filter((item) => item.id !== S.moduleBuilderDraftId));
+      if (!markOfficialModuleDeleted(S.moduleBuilderDraftId)) {
+        toast("\u5220\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+        return;
+      }
     } else {
-      deleteRecord(S.moduleBuilderDraftId, { silent: true });
+      if (!deleteRecord(S.moduleBuilderDraftId, { silent: true })) return;
     }
     closeModal("createModuleModal");
     renderModuleLibrary();
-    renderHome();
+    refreshTripHub();
     toast(S.moduleBuilderDraftSource === "official" ? "\u5DF2\u5220\u9664\u5B98\u65B9\u5C0F\u5305" : "\u5DF2\u5220\u9664\u5C0F\u5305");
   }
   function saveCurrentTripAsModule() {
@@ -2880,12 +3473,11 @@
     }
     openCreateModuleModal(S.currentTrip.items);
     document.getElementById("moduleBuilderName").value = S.currentTrip.name + " \u5C0F\u5305";
-    document.getElementById("moduleBuilderDesc").value = `\u7531\u884C\u7A0B\u300C${S.currentTrip.name}\u300D\u6C89\u6DC0\u800C\u6765\uFF0C\u53EF\u5728\u540E\u7EED Trips \u4E2D\u590D\u7528\u3002`;
   }
   function deleteTrip(id) {
     const target = getTrips().find((trip) => trip.id === id);
     if (!target) return;
-    if (!confirm(`\u786E\u5B9A\u5220\u9664\u884C\u7A0B\u300C${target.name}\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002`)) return;
+    if (!confirm("\u786E\u5B9A\u5220\u9664\u884C\u7A0B\u300C".concat(target.name, "\u300D\u5417\uFF1F\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002"))) return;
     deleteRecord(id);
   }
   function duplicateTrip(id) {
@@ -2897,32 +3489,47 @@
     copy.recordType = "trip";
     copy.createdAt = (/* @__PURE__ */ new Date()).toISOString();
     copy.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    saveRecord(copy);
-    renderHome();
+    if (!saveRecord(copy)) {
+      toast("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return;
+    }
+    refreshTripHub();
     toast("\u5DF2\u590D\u5236\u884C\u7A0B");
   }
   function deleteRecord(id, options = {}) {
+    var _a;
     const records = getRecords().filter((record) => record.id !== id);
-    saveRecords(records);
+    if (!saveRecords(records)) {
+      toast("\u5220\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
+      return false;
+    }
     if (S.currentTripId === id) {
       S.currentTripId = null;
       S.currentTrip = null;
     }
-    if (S.currentModule?.id === id) {
+    if (((_a = S.currentModule) == null ? void 0 : _a.id) === id) {
       S.currentModule = null;
       closeModal("moduleDetailModal");
     }
     if (!options.silent) {
-      if (S.currentPage === "list") nav("home");
-      renderHome();
+      if (S.currentPage === "list") nav("list");
+      refreshTripHub();
       renderModuleLibrary();
       toast("\u5DF2\u5220\u9664");
     }
+    return true;
   }
   function persistCurrentTrip() {
-    if (!S.currentTrip?.id) return;
+    var _a;
+    if (!((_a = S.currentTrip) == null ? void 0 : _a.id)) return false;
     S.currentTrip.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    saveRecord(S.currentTrip);
+    const saved = saveRecord(S.currentTrip);
+    if (!saved) {
+      const stored = getTrips().find((trip) => trip.id === S.currentTripId);
+      if (stored) S.currentTrip = deepClone(stored);
+      toast("\u884C\u7A0B\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u8BBE\u5907\u5B58\u50A8\u7A7A\u95F4\u540E\u91CD\u8BD5");
+    }
+    return saved;
   }
   function stepValue(id, delta) {
     const input = document.getElementById(id);
@@ -2939,22 +3546,26 @@
     }
   }
   function getTripBuilderDays() {
-    return Math.max(1, parseInt(document.getElementById("tripDays")?.value) || 1);
+    var _a;
+    return Math.max(1, parseInt((_a = document.getElementById("tripDays")) == null ? void 0 : _a.value) || 1);
   }
   function getTripBuilderPeople() {
-    return Math.max(1, parseInt(document.getElementById("tripPeople")?.value) || 1);
+    var _a;
+    return Math.max(1, parseInt((_a = document.getElementById("tripPeople")) == null ? void 0 : _a.value) || 1);
   }
   function getPreviewDays() {
-    return S.currentTrip?.days || 2;
+    var _a;
+    return ((_a = S.currentTrip) == null ? void 0 : _a.days) || 2;
   }
   function getPreviewPeople() {
-    return S.currentTrip?.people || 1;
+    var _a;
+    return ((_a = S.currentTrip) == null ? void 0 : _a.people) || 1;
   }
   function tripBuilderHasBabyAddonSelection() {
     return Array.from(S.tripBuilderSelection).some((key) => {
       const [source, id] = splitModuleKey(key);
       const module = getModuleEntity(source, id);
-      return isBabyModuleEntity(module) && !isBabyBaseModuleEntity(module);
+      return isBabyModuleEntity(module) && (module == null ? void 0 : module.role) === "scenario";
     });
   }
   function ensureTripBuilderBabyBaseSelection() {
@@ -2970,11 +3581,12 @@
     }).filter(Boolean);
   }
   function syncBagWithCategory(catSelectId, bagSelectId, bags) {
-    const category = document.getElementById(catSelectId)?.value;
+    var _a, _b;
+    const category = (_a = document.getElementById(catSelectId)) == null ? void 0 : _a.value;
     const select = document.getElementById(bagSelectId);
     if (!category || !select) return;
     const preferred = suggestBagForItem(
-      document.getElementById(catSelectId.replace("Category", "Name"))?.value || "",
+      ((_b = document.getElementById(catSelectId.replace("Category", "Name"))) == null ? void 0 : _b.value) || "",
       category
     );
     fillBagSelect(bagSelectId, preferred, bags);
@@ -2987,7 +3599,7 @@
   function fillBagSelect(id, selected, bags = DEFAULT_BAGS) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = (bags || DEFAULT_BAGS).map((bag) => '<option value="' + bag.id + '"' + (bag.id === selected ? " selected" : "") + ">" + bag.icon + " " + bag.name + "</option>").join("");
+    el.innerHTML = (bags || DEFAULT_BAGS).map((bag) => '<option value="' + bag.id + '"' + (bag.id === selected ? " selected" : "") + ">" + esc(bag.name) + "</option>").join("");
   }
   function esc(value) {
     const div = document.createElement("div");
@@ -2996,20 +3608,41 @@
   }
   function setupModalOverlays() {
     document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+      const dialog = overlay.querySelector(".modal");
+      if (dialog) {
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("tabindex", "-1");
+      }
       overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) overlay.classList.remove("active");
+        if (event.target === overlay) closeModal(overlay.id);
       });
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const activeOverlay = document.querySelector(".modal-overlay.active");
+      if (activeOverlay) closeModal(activeOverlay.id);
     });
   }
   function showModal(id) {
-    document.getElementById(id)?.classList.add("active");
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    modalReturnFocus = document.activeElement;
+    overlay.classList.add("active");
+    setTimeout(() => {
+      const target = overlay.querySelector('input:not([type="hidden"]), textarea, select, button, [tabindex="0"]');
+      target == null ? void 0 : target.focus();
+    }, 0);
   }
   function closeModal(id) {
+    var _a;
     if (id === "createModuleModal") {
       S.moduleBuilderDraftId = null;
-      endModuleBuilderGesture();
+      S.moduleAddPanelOpen = false;
     }
-    document.getElementById(id)?.classList.remove("active");
+    (_a = document.getElementById(id)) == null ? void 0 : _a.classList.remove("active");
+    if (modalReturnFocus instanceof HTMLElement) modalReturnFocus.focus();
+    modalReturnFocus = null;
   }
   function toast(message) {
     const el = document.createElement("div");
@@ -3020,19 +3653,16 @@
   }
   var ONBOARDING_STEPS = [
     {
-      icon: "\u{1F9F0}",
-      title: "\u7B2C\u4E00\u6B65\uFF1A\u6574\u7406\u5C0F\u5305",
-      desc: "\u628A\u4F60\u5E38\u5E26\u7684\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3001\u8BC1\u4EF6\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E\u4E86\u4E00\u6279\u5B98\u65B9\u5C0F\u5305\uFF0C\u4F60\u4E5F\u53EF\u4EE5\u65B0\u5EFA\u81EA\u5DF1\u7684\u3002"
+      title: "\u6574\u7406\u5C0F\u5305",
+      desc: "\u628A\u5E38\u5E26\u7269\u54C1\u6309\u7528\u9014\u5206\u7EC4\uFF0C\u6BD4\u5982\u6D17\u6F31\u5305\u3001\u5316\u5986\u5305\u3002\u7CFB\u7EDF\u5DF2\u9884\u7F6E\u5B98\u65B9\u5C0F\u5305\uFF0C\u4F60\u4E5F\u53EF\u4EE5\u65B0\u5EFA\u81EA\u5DF1\u7684\u3002"
     },
     {
-      icon: "\u{1F4DD}",
-      title: "\u7B2C\u4E8C\u6B65\uFF1A\u65B0\u5EFA\u884C\u7A0B",
-      desc: "\u6BCF\u6B21\u51FA\u95E8\u524D\uFF0C\u65B0\u5EFA\u4E00\u4E2A\u884C\u7A0B\uFF0C\u52FE\u9009\u8FD9\u6B21\u9700\u8981\u5E26\u7684\u5C0F\u5305\u3002\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002"
+      title: "\u65B0\u5EFA\u884C\u7A0B",
+      desc: "\u6BCF\u6B21\u51FA\u95E8\u524D\u65B0\u5EFA\u884C\u7A0B\uFF0C\u52FE\u9009\u9700\u8981\u7684\u5C0F\u5305\uFF0C\u7CFB\u7EDF\u81EA\u52A8\u5408\u5E76\u7269\u54C1\u5E76\u6309\u5929\u6570\u3001\u4EBA\u6570\u5EFA\u8BAE\u6570\u91CF\u3002"
     },
     {
-      icon: "\u{1F392}",
-      title: "\u7B2C\u4E09\u6B65\uFF1A\u6253\u5305\u51FA\u53D1",
-      desc: '\u6253\u5F00\u884C\u7A0B\u540E\u5207\u6362\u5230"\u6253\u5305\u6A21\u5F0F"\uFF0C\u5B9E\u7269\u6253\u5305\u65F6\u9010\u4E00\u52FE\u9009\uFF0C\u518D\u4E5F\u4E0D\u6015\u843D\u4E1C\u897F\u3002'
+      title: "\u6253\u5305\u51FA\u53D1",
+      desc: "\u6253\u5F00\u884C\u7A0B\u540E\u5207\u6362\u5230\u6253\u5305\u6A21\u5F0F\uFF0C\u5B9E\u7269\u6253\u5305\u65F6\u9010\u4E00\u52FE\u9009\u3002"
     }
   ];
   var onboardingIndex = 0;
@@ -3048,7 +3678,7 @@
     const nextBtn = document.getElementById("onboardingNext");
     const skipBtn = document.getElementById("onboardingSkip");
     if (!stepEl || !step) return;
-    stepEl.innerHTML = '<div class="onboarding-icon">' + step.icon + '</div><div class="onboarding-title">' + step.title + '</div><div class="onboarding-desc">' + step.desc + "</div>";
+    stepEl.innerHTML = '<div class="onboarding-title">' + step.title + '</div><div class="onboarding-desc">' + step.desc + "</div>";
     dotsEl.innerHTML = ONBOARDING_STEPS.map(
       (_, i) => '<span class="onboarding-dot ' + (i === onboardingIndex ? "active" : "") + '"></span>'
     ).join("");
@@ -3065,7 +3695,7 @@
     renderOnboardingStep();
   }
   function finishOnboarding() {
-    localStorage.setItem(STORAGE_KEYS.onboarded, "1");
+    safeStorageSet(STORAGE_KEYS.onboarded, "1");
     closeModal("onboardingModal");
   }
   function renderMePage() {
@@ -3073,20 +3703,22 @@
     const modules = getMyModules();
     const library = getItemLibrary();
     const officialCount = getOfficialModules().length;
+    const activeCount = trips.filter((trip) => getTripStatus(trip).key !== "done").length;
+    document.getElementById("meName").textContent = "\u884C\u7406";
     document.getElementById("meStats").innerHTML = [
+      { label: "\u8FDB\u884C\u4E2D", value: activeCount },
       { label: "\u884C\u7A0B", value: trips.length },
       { label: "\u5C0F\u5305", value: modules.length + officialCount },
       { label: "\u7269\u54C1", value: library.length }
-    ].map((stat) => `
-        <div class="me-stat">
-            <div class="me-stat-value">${stat.value}</div>
-            <div class="me-stat-label">${stat.label}</div>
-        </div>
-    `).join("");
+    ].map(
+      (stat) => '<div class="me-stat"><div class="me-stat-value">' + stat.value + '</div><div class="me-stat-label">' + stat.label + "</div></div>"
+    ).join("");
   }
   function resetOfficialModules() {
     if (!confirm("\u786E\u5B9A\u6062\u590D\u6240\u6709\u5B98\u65B9\u5C0F\u5305\u5230\u521D\u59CB\u72B6\u6001\uFF1F\u4F60\u81EA\u5EFA\u7684\u5C0F\u5305\u4E0D\u4F1A\u53D7\u5F71\u54CD\u3002")) return;
-    localStorage.removeItem(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.deletedOfficialModules);
+    safeStorageRemove(STORAGE_KEYS.officialSeedVersion);
     ensureItemLibrarySeeded();
     renderModuleLibrary();
     renderMePage();
@@ -3094,19 +3726,21 @@
   }
   function clearAllData() {
     if (!confirm("\u786E\u5B9A\u6E05\u9664\u6240\u6709\u6570\u636E\uFF1F\u5305\u62EC\u884C\u7A0B\u3001\u5C0F\u5305\u548C\u7269\u54C1\u5E93\uFF0C\u6B64\u64CD\u4F5C\u4E0D\u53EF\u64A4\u9500\u3002")) return;
-    localStorage.removeItem(STORAGE_KEYS.records);
-    localStorage.removeItem(STORAGE_KEYS.itemLibrary);
-    localStorage.removeItem(STORAGE_KEYS.officialModules);
-    localStorage.removeItem(STORAGE_KEYS.onboarded);
+    safeStorageRemove(STORAGE_KEYS.records);
+    safeStorageRemove(STORAGE_KEYS.itemLibrary);
+    safeStorageRemove(STORAGE_KEYS.officialModules);
+    safeStorageRemove(STORAGE_KEYS.deletedOfficialModules);
+    safeStorageRemove(STORAGE_KEYS.onboarded);
     S.currentTrip = null;
     S.currentTripId = null;
     ensureItemLibrarySeeded();
-    nav("home");
+    nav("list");
     toast("\u6570\u636E\u5DF2\u6E05\u9664");
   }
   Object.assign(window, {
     // nav & pages
     openMainPage,
+    openSubPage,
     openTripPage,
     goBack,
     nav,
@@ -3116,6 +3750,7 @@
     stepValue,
     toggleTripBuilderModule,
     changeCurrentTripSetting,
+    updateCurrentTripSetting,
     // trip page
     openTrip,
     setTripMode,
@@ -3136,24 +3771,28 @@
     openCreateModuleModal,
     saveCustomModule,
     deleteCurrentModuleDraft,
-    clearModuleBuilderSelection,
-    addBuilderCustomItem,
+    deleteCurrentModuleFromDetail,
+    toggleModuleAddPanel,
+    updateModuleBuilderSearch,
     useCurrentModule,
     openEditCurrentModule,
+    openEditModuleModal,
     openModuleDetail,
     openModuleItemModal,
     saveModuleItemEdit,
     deleteModuleItemEdit,
     setModuleFilter,
     updateModuleSearch,
-    updateModuleBuilderSearch,
     // library
     saveLibraryItem,
     deleteLibraryItem,
     openLibraryItemModal,
+    addLibraryItemToCurrentTrip,
     addLibraryItemTag,
+    toggleLibraryItemTagSection,
     setItemFilter,
     updateItemSearch,
+    updateILibrarySearch,
     // manual item
     openManualItemModal,
     saveManualTripItem,
@@ -3162,9 +3801,12 @@
     saveCurrentTripItem,
     deleteCurrentTripItem,
     addTripItemTag,
+    toggleTripItemTagSection,
     // modals
     showModal,
     closeModal,
+    updateItemPickerSearch,
+    confirmItemPicker,
     // onboarding
     startOnboarding,
     nextOnboardingStep,
@@ -3176,8 +3818,18 @@
     toggleHomeHistory,
     duplicateTrip,
     deleteTrip,
-    // kit view
-    setKitView
+    openTripActionsSheet,
+    closeTripActionsSheet,
+    duplicateTripFromSheet,
+    deleteTripFromSheet
   });
-  init();
+  try {
+    init();
+  } catch (error) {
+    console.error("[xingli] init failed", error);
+    const content = document.getElementById("listContent");
+    if (content) {
+      content.innerHTML = '<div class="empty-panel"><div class="empty-title">\u9875\u9762\u52A0\u8F7D\u5931\u8D25</div><div class="empty-hint">\u8BF7\u5173\u95ED\u540E\u91CD\u65B0\u6253\u5F00\uFF1B\u5982\u679C\u4ECD\u7136\u5931\u8D25\uFF0C\u8BF7\u66F4\u65B0\u5230\u6700\u65B0\u7248\u672C\u3002</div></div>';
+    }
+  }
 })();

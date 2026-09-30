@@ -14,8 +14,10 @@ export class LocalStorageAdapter {
     write(key, value) {
         try {
             localStorage.setItem(key, value);
+            return true;
         } catch (e) {
             console.warn('[LocalStorageAdapter] write failed:', e);
+            return false;
         }
     }
 

@@ -49,11 +49,14 @@ export function bagIcon(id, bags = DEFAULT_BAGS) {
 
 export function suggestBagForItem(name, category) {
     const n = String(name || '');
-    if (['疫苗本', '退烧贴', '退热贴', '医保卡'].some(keyword => n.includes(keyword))) return 'bag-baby-vaccine';
-    if (['奶瓶', '奶粉', '奶粉格', '辅食碗', '围兜', '围嘴', '保温杯'].some(keyword => n.includes(keyword))) return 'bag-baby-feeding';
-    if (['便携烧水壶', '奶瓶刷', '折叠澡盆'].some(keyword => n.includes(keyword))) return 'bag-baby-overnight';
-    if (['驱蚊液', '防晒霜', '便携马桶', '大量零食'].some(keyword => n.includes(keyword))) return 'bag-baby-outdoor';
-    if (n.includes('宝宝') || ['尿不湿', '纸尿裤', '隔尿垫', '棉柔巾', '湿巾（婴儿专用）', '备用衣裤', '安抚奶嘴', '口水巾'].some(keyword => n.includes(keyword))) return 'bag-baby';
+    if (['疫苗本', '医保卡'].some(keyword => n.includes(keyword))) return 'bag-baby-vaccine';
+    if (['奶瓶', '奶粉', '储奶袋', '辅食碗', '辅食剪', '保温杯', '水温计'].some(keyword => n.includes(keyword))) return 'bag-baby-feeding';
+    if (['烧水壶', '奶瓶刷', '奶瓶清洁剂', '洗碗海绵', '护臀膏', '浴缸套', '泡澡袋', '宝宝浴巾', '宝宝沐浴露', '折叠澡盆'].some(keyword => n.includes(keyword))) return 'bag-baby-bath';
+    if (['宝宝退烧药', '退热贴', '体温计', 'D3', 'AD', '宝宝止痒膏'].some(keyword => n.includes(keyword))) return 'bag-baby-medicine';
+    if (['婴儿车', '宝宝背带', '游泳圈'].some(keyword => n.includes(keyword))) return 'bag-baby-gear';
+    if (['宝宝衣服', '宝宝裤子', '宝宝袜子', '口水兜', '围兜', '罩衣', '盖毯', '睡袋'].some(keyword => n.includes(keyword))) return 'bag-baby-clothing';
+    if (['宝宝驱蚊水', '防蚊贴', '宝宝防晒霜', '便携马桶'].some(keyword => n.includes(keyword))) return 'bag-baby-outdoor';
+    if (n.includes('宝宝') || ['尿不湿', '纸尿裤', '隔尿垫', '棉柔巾', '云柔巾', '婴儿湿巾', '即食粥', '果泥', '泡芙', '小馒头', '绘本', '便携小玩具', '安抚奶嘴'].some(keyword => n.includes(keyword))) return 'bag-baby';
     return CATEGORY_BAG_MAP[category] || 'bag-misc';
 }
 

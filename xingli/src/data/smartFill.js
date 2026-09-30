@@ -187,6 +187,7 @@ export function mergeTripItems(targetItems, incomingItems, tripContext, strategy
         }
 
         existing.sourceModules = uniqueStrings([...(existing.sourceModules || []), ...(candidate.sourceModules || [])]);
+        existing.sourceModuleKeys = uniqueStrings([...(existing.sourceModuleKeys || []), ...(candidate.sourceModuleKeys || [])]);
         existing.notes = existing.notes || candidate.notes || '';
 
         if (strategy === 'module') {

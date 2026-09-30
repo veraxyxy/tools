@@ -3,6 +3,48 @@ import { OFFICIAL_MODULES } from './seeds.js';
 import { normalizeRecord, normalizeOfficialModule, normalizeLibraryItem } from './models.js';
 import { LocalStorageAdapter } from './adapters/localStorageAdapter.js';
 
+const RETIRED_OFFICIAL_MODULE_IDS = new Set([
+    'module-baby-comfort',
+    'module-baby-snacks',
+]);
+const OFFICIAL_SEED_VERSION = 5;
+const REVISED_OFFICIAL_MODULE_IDS = new Set([
+    'module-hygiene',
+    'module-makeup',
+    'module-docs',
+    'module-skincare',
+    'module-clothing',
+    'module-baby-base',
+    'module-baby-feeding',
+    'module-baby-clothing',
+    'module-baby-overnight',
+    'module-baby-medicine',
+    'module-baby-gear',
+    'module-baby-vaccine',
+    'module-baby-outdoor',
+    'module-electronics',
+    'module-international',
+    'module-long-haul-flight',
+]);
+const LEGACY_OFFICIAL_MODULE_NAMES = {
+    'module-hygiene': ['洗漱包'],
+    'module-makeup': ['化妆包'],
+    'module-docs': ['证件包'],
+    'module-skincare': ['护肤包'],
+    'module-clothing': ['衣服包'],
+    'module-baby-base': ['宝宝基础包', '宝宝换洗护理包', '宝宝日常出门包'],
+    'module-baby-feeding': ['喂养插件包', '宝宝喂养包'],
+    'module-baby-clothing': ['宝宝衣物包'],
+    'module-baby-overnight': ['过夜插件包', '宝宝洗澡包', '宝宝过夜补充包'],
+    'module-baby-medicine': ['宝宝药品包'],
+    'module-baby-gear': ['宝宝出行装备包'],
+    'module-baby-vaccine': ['疫苗插件包', '宝宝疫苗场景'],
+    'module-baby-outdoor': ['户外插件包', '宝宝户外场景'],
+    'module-electronics': ['电子包'],
+    'module-international': ['海外出行包'],
+    'module-long-haul-flight': ['长途飞机场景'],
+};
+
 /**
  * DataStore
  * 数据存储核心类。接受一个 adapter 实例，所有存储操作通过 adapter 完成。
@@ -26,7 +68,7 @@ export class DataStore {
     }
 
     writeJson(key, value) {
-        this._adapter.write(key, JSON.stringify(value));
+        return this._adapter.write(key, JSON.stringify(value)) !== false;
     }
 
     // ===== 记录（Trip + Module 混存）=====
@@ -38,7 +80,7 @@ export class DataStore {
     }
 
     saveRecords(records) {
-        this.writeJson(STORAGE_KEYS.records, records);
+        return this.writeJson(STORAGE_KEYS.records, records);
     }
 
     saveRecord(record) {
@@ -47,18 +89,56 @@ export class DataStore {
         const normalized = normalizeRecord(record);
         if (idx >= 0) records[idx] = normalized;
         else records.unshift(normalized);
-        this.saveRecords(records);
+        return this.saveRecords(records);
     }
 
     // ===== 官方小包 =====
 
     getOfficialModules() {
-        return this.readJson(STORAGE_KEYS.officialModules, OFFICIAL_MODULES)
-            .map(normalizeOfficialModule);
+        const stored = this.readJson(STORAGE_KEYS.officialModules, null);
+        const deletedIds = new Set(this.readJson(STORAGE_KEYS.deletedOfficialModules, []));
+        const storedSeedVersion = Number(this.readJson(STORAGE_KEYS.officialSeedVersion, 0)) || 0;
+        const shouldRefreshOfficialSeeds = storedSeedVersion < OFFICIAL_SEED_VERSION;
+        if (!stored) {
+            this.writeJson(STORAGE_KEYS.officialSeedVersion, OFFICIAL_SEED_VERSION);
+            return OFFICIAL_MODULES
+                .filter(module => !deletedIds.has(module.id))
+                .map(normalizeOfficialModule);
+        }
+
+        const storedModules = (stored || [])
+            .map(normalizeOfficialModule)
+            .filter(module => !RETIRED_OFFICIAL_MODULE_IDS.has(module.id));
+        const storedById = new Map(storedModules.map(module => [module.id, module]));
+        const seedIds = new Set(OFFICIAL_MODULES.map(module => module.id));
+        const seeded = OFFICIAL_MODULES
+            .filter(module => !deletedIds.has(module.id))
+            .map(module => {
+                const storedModule = storedById.get(module.id);
+                const legacyNames = LEGACY_OFFICIAL_MODULE_NAMES[module.id] || [];
+                const canRefreshSeed = !storedModule || legacyNames.includes(storedModule.name);
+                return shouldRefreshOfficialSeeds
+                    && REVISED_OFFICIAL_MODULE_IDS.has(module.id)
+                    && canRefreshSeed
+                    ? normalizeOfficialModule(module)
+                    : (storedModule || normalizeOfficialModule(module));
+            });
+        const extra = storedModules.filter(module => !seedIds.has(module.id) && !deletedIds.has(module.id));
+        if (shouldRefreshOfficialSeeds) {
+            this.writeJson(STORAGE_KEYS.officialSeedVersion, OFFICIAL_SEED_VERSION);
+            this.saveOfficialModules([...seeded, ...extra]);
+        }
+        return [...seeded, ...extra];
     }
 
     saveOfficialModules(modules) {
-        this.writeJson(STORAGE_KEYS.officialModules, (modules || []).map(normalizeOfficialModule));
+        return this.writeJson(STORAGE_KEYS.officialModules, (modules || []).map(normalizeOfficialModule));
+    }
+
+    markOfficialModuleDeleted(moduleId) {
+        const deleted = new Set(this.readJson(STORAGE_KEYS.deletedOfficialModules, []));
+        deleted.add(moduleId);
+        return this.writeJson(STORAGE_KEYS.deletedOfficialModules, [...deleted]);
     }
 
     // ===== 便捷访问 =====
@@ -95,7 +175,7 @@ export function readJson(key, fallback) {
 }
 
 export function writeJson(key, value) {
-    _store.writeJson(key, value);
+    return _store.writeJson(key, value);
 }
 
 export function getRecords() {
@@ -103,11 +183,11 @@ export function getRecords() {
 }
 
 export function saveRecords(records) {
-    _store.saveRecords(records);
+    return _store.saveRecords(records);
 }
 
 export function saveRecord(record) {
-    _store.saveRecord(record);
+    return _store.saveRecord(record);
 }
 
 export function getOfficialModules() {
@@ -115,7 +195,11 @@ export function getOfficialModules() {
 }
 
 export function saveOfficialModules(modules) {
-    _store.saveOfficialModules(modules);
+    return _store.saveOfficialModules(modules);
+}
+
+export function markOfficialModuleDeleted(moduleId) {
+    return _store.markOfficialModuleDeleted(moduleId);
 }
 
 export function getTrips() {

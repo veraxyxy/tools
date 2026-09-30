@@ -10,11 +10,13 @@ export function getModuleEntity(source, id) {
 }
 
 export function resolveOfficialModuleItems(module, days, people) {
-    return (module.items || []).map(item => createTripItemFromModuleItem(normalizeModuleItem(item), days, people, module.name));
+    const sourceModule = { source: 'official', id: module.id, name: module.name };
+    return (module.items || []).map(item => createTripItemFromModuleItem(normalizeModuleItem(item), days, people, sourceModule));
 }
 
 export function resolveCustomModuleItems(module, days, people) {
-    return (module.items || []).map(item => createTripItemFromModuleItem(item, days, people, module.name));
+    const sourceModule = { source: 'custom', id: module.id, name: module.name };
+    return (module.items || []).map(item => createTripItemFromModuleItem(item, days, people, sourceModule));
 }
 
 export function createTripItemFromDef(def, days, people, sourceModuleName) {
@@ -37,8 +39,12 @@ export function createTripItemFromDef(def, days, people, sourceModuleName) {
     });
 }
 
-export function createTripItemFromModuleItem(item, days, people, sourceModuleName) {
+export function createTripItemFromModuleItem(item, days, people, sourceModule) {
     const { smartRule, smartConfig } = resolveItemSmartPlan(item.name, item.category, item.smartRule, item.smartConfig);
+    const sourceModuleName = typeof sourceModule === 'string' ? sourceModule : sourceModule?.name;
+    const sourceModuleKey = typeof sourceModule === 'object' && sourceModule?.id
+        ? getModuleKey(sourceModule.source || 'custom', sourceModule.id)
+        : '';
     return normalizeTripItem({
         id: 'item-' + gid(),
         name: item.name,
@@ -51,6 +57,7 @@ export function createTripItemFromModuleItem(item, days, people, sourceModuleNam
         packed: false,
         notes: '',
         sourceModules: sourceModuleName ? [sourceModuleName] : [],
+        sourceModuleKeys: sourceModuleKey ? [sourceModuleKey] : [],
         tags: Array.isArray(item.tags) ? [...item.tags] : [],
     });
 }
@@ -86,9 +93,9 @@ export function getTripProgress(trip) {
 
 export function getTripStatus(trip) {
     const progress = getTripProgress(trip);
-    if (progress.total > 0 && progress.packed >= progress.total) return { key: 'done', label: '已完成', icon: '✅' };
-    if (progress.packed > 0) return { key: 'packing', label: '打包中', icon: '🎒' };
-    return { key: 'planning', label: '规划中', icon: '📝' };
+    if (progress.total > 0 && progress.packed >= progress.total) return { key: 'done', label: '已完成', icon: '' };
+    if (progress.packed > 0) return { key: 'packing', label: '打包中', icon: '' };
+    return { key: 'planning', label: '规划中', icon: '' };
 }
 
 export function formatTripMeta(trip) {
@@ -104,9 +111,10 @@ export function formatTripSourceSummary(trip) {
 }
 
 export function formatItemSource(item) {
-    if (!item.sourceModules?.length) return '';
-    if (item.sourceModules.length === 1) return '来自 ' + item.sourceModules[0];
-    return `来自 ${item.sourceModules.length} 个小包`;
+    const sourceCount = item.sourceModuleKeys?.length || item.sourceModules?.length || 0;
+    if (!sourceCount) return '';
+    if (sourceCount === 1) return '来自 ' + (item.sourceModules?.[0] || '小包');
+    return `来自 ${sourceCount} 个小包`;
 }
 
 export function getModuleKey(source, id) {
@@ -150,7 +158,12 @@ export function removeModuleFromTrip(trip, source, moduleId) {
     const entity = getModuleEntity(source, moduleId);
     if (!entity || !trip) return { changed: false, trip, moduleName: '', removedItems: 0 };
 
-    const moduleName = entity.name;
+    const allSourceModules = [...(trip.sourceModules || [])];
+    const sourceMeta = allSourceModules.find(
+        module => module.source === source && module.id === moduleId
+    );
+    const moduleName = sourceMeta?.name || entity.name;
+    const moduleKey = getModuleKey(source, moduleId);
     if (!isModuleOnTrip(trip, source, moduleId)) {
         return { changed: false, trip, moduleName, removedItems: 0 };
     }
@@ -163,22 +176,36 @@ export function removeModuleFromTrip(trip, source, moduleId) {
     const nextItems = [];
     (trip.items || []).forEach(item => {
         const sources = [...(item.sourceModules || [])];
+        const sourceKeys = [...(item.sourceModuleKeys || [])];
         if (!sources.length) {
             nextItems.push(item);
             return;
         }
-        if (!sources.includes(moduleName)) {
+        const hasStableSource = sourceKeys.includes(moduleKey);
+        const legacyIndex = sources.indexOf(moduleName);
+        if (sourceKeys.length ? !hasStableSource : legacyIndex < 0) {
             nextItems.push(item);
             return;
         }
-        const remaining = sources.filter(name => name !== moduleName);
-        if (!remaining.length) {
+        const remainingKeys = sourceKeys.filter(key => key !== moduleKey);
+        if (sourceKeys.length && !remainingKeys.length) {
+            removedItems += 1;
+            return;
+        }
+        const remaining = sourceKeys.length
+            ? uniqueStrings(remainingKeys.map(key => {
+                const [entrySource, entryId] = splitModuleKey(key);
+                return allSourceModules.find(meta => meta.source === entrySource && meta.id === entryId)?.name;
+            }).filter(Boolean))
+            : sources.filter((_, index) => index !== legacyIndex);
+        if (!sourceKeys.length && !remaining.length) {
             removedItems += 1;
             return;
         }
         nextItems.push({
             ...item,
             sourceModules: uniqueStrings(remaining),
+            sourceModuleKeys: uniqueStrings(remainingKeys),
         });
     });
 

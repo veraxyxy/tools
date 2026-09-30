@@ -1,21 +1,38 @@
 {
-  "name": "pack-helper",
+  "name": "xingli",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "build": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser",
-    "dev": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser --watch",
+    "build": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser --target=chrome61",
+    "build:www": "npm run build && node scripts/prepare-www.mjs",
+    "validate:actions": "node scripts/validate-action-handlers.mjs",
+    "build:minitool": "npm run validate:actions && npm run build && node scripts/prepare-minitool.mjs",
+    "dev": "esbuild app.js --bundle --outfile=bundle.js --format=iife --platform=browser --target=chrome61 --watch",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "cap:copy": "npm run build:www && npx cap copy ios",
+    "cap:sync": "npm run build:www && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "ios:setup": "bash scripts/setup-ios.sh"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "行理 · 小包行程助手",
   "devDependencies": {
     "@jest/globals": "^30.3.0",
     "esbuild": "^0.28.0",
     "esbuild-jest": "^0.5.0",
     "jest": "^30.3.0"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/ios": "^7.4.2"
+  },
+  "capacitor": {
+    "platforms": [
+      "ios"
+    ]
   }
 }

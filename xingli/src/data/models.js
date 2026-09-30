@@ -73,6 +73,9 @@ export function normalizeTripItem(item) {
         smartBaseQty: Math.max(1, parseInt(item.smartBaseQty) || parseInt(item.defaultQty) || parseInt(item.qty) || 1),
         smartLocked: Boolean(item.smartLocked),
         sourceModules: Array.isArray(item.sourceModules) ? uniqueStrings(item.sourceModules) : (item.sourceModule ? [item.sourceModule] : []),
+        // Stable module identities. `sourceModules` remains the human-readable
+        // snapshot for display and backward compatibility with existing data.
+        sourceModuleKeys: Array.isArray(item.sourceModuleKeys) ? uniqueStrings(item.sourceModuleKeys) : [],
         tags: Array.isArray(item?.tags) ? uniqueStrings(item.tags) : [],
     };
 }
