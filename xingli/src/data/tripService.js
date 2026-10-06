@@ -284,6 +284,7 @@ export function resyncTripFromSourceModules(trip, options = {}) {
     const preservePacked = options.preservePacked !== false;
     const preserveLocked = options.preserveLocked !== false;
     const preserveManualFields = options.preserveManualFields !== false;
+    const preserveRemovedModuleItems = options.preserveRemovedModuleItems === true;
 
     const manualItems = (trip.items || []).filter(item => !(item.sourceModules || []).length);
     const oldModuleSnapshots = new Map();
@@ -351,15 +352,27 @@ export function resyncTripFromSourceModules(trip, options = {}) {
         }
     });
 
+    const preservedRemovedItems = preserveRemovedModuleItems
+        ? [...oldModuleSnapshots.entries()]
+            .filter(([key]) => !afterKeys.has(key))
+            .map(([, item]) => normalizeTripItem(item))
+        : [];
+
     trip.sourceModules = sourceModules;
-    trip.items = [...moduleItems.map(normalizeTripItem), ...keptManual.map(normalizeTripItem)];
+    trip.items = [
+        ...moduleItems.map(normalizeTripItem),
+        ...preservedRemovedItems,
+        ...keptManual.map(normalizeTripItem),
+    ];
     applyTripSmartFill(trip, false);
 
     let added = 0;
     let removed = 0;
     let updated = 0;
     afterKeys.forEach(key => { if (!beforeKeys.has(key)) added += 1; });
-    beforeKeys.forEach(key => { if (!afterKeys.has(key)) removed += 1; });
+    if (!preserveRemovedModuleItems) {
+        beforeKeys.forEach(key => { if (!afterKeys.has(key)) removed += 1; });
+    }
     moduleItems.forEach(item => {
         const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
         if (!old) return;

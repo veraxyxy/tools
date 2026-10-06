@@ -1,6 +1,6 @@
-import { STORAGE_KEYS } from './constants.js';
+import { STORAGE_KEYS, DEFAULT_BAGS } from './constants.js';
 import { BASE_LIBRARY_ITEMS } from './seeds.js';
-import { gid, guessCat, catInfo, suggestBagForItem } from './utils.js';
+import { gid, guessCat, bagName, suggestBagForItem } from './utils.js';
 import { normalizeLibraryItem, normalizeModuleItem } from './models.js';
 import { resolveItemSmartPlan, inferSmartRule } from './smartFill.js';
 import { readJson, writeJson, getOfficialModules } from './store.js';
@@ -9,8 +9,8 @@ export function sortLibraryItems(items) {
     return [...items].sort((a, b) => {
         const sourceDiff = Number(b.source === 'user') - Number(a.source === 'user');
         if (sourceDiff !== 0) return sourceDiff;
-        const categoryDiff = catInfo(a.category).name.localeCompare(catInfo(b.category).name, 'zh-Hans-CN');
-        if (categoryDiff !== 0) return categoryDiff;
+        const bagDiff = bagName(a.bag, DEFAULT_BAGS).localeCompare(bagName(b.bag, DEFAULT_BAGS), 'zh-Hans-CN');
+        if (bagDiff !== 0) return bagDiff;
         return a.name.localeCompare(b.name, 'zh-Hans-CN');
     });
 }

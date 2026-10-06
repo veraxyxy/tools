@@ -115,6 +115,10 @@
     const bag = (bags || []).find((entry) => entry.id === id);
     return bag ? bag.name : "\u672A\u5206\u914D";
   }
+  function bagIcon(id, bags = DEFAULT_BAGS) {
+    const bag = (bags || []).find((entry) => entry.id === id);
+    return bag ? bag.icon : "\u{1F4E6}";
+  }
   function suggestBagForItem(name, category) {
     const n = String(name || "");
     if (["\u75AB\u82D7\u672C", "\u533B\u4FDD\u5361"].some((keyword) => n.includes(keyword))) return "bag-baby-vaccine";
@@ -1388,8 +1392,8 @@
     return [...items].sort((a, b) => {
       const sourceDiff = Number(b.source === "user") - Number(a.source === "user");
       if (sourceDiff !== 0) return sourceDiff;
-      const categoryDiff = catInfo(a.category).name.localeCompare(catInfo(b.category).name, "zh-Hans-CN");
-      if (categoryDiff !== 0) return categoryDiff;
+      const bagDiff = bagName(a.bag, DEFAULT_BAGS).localeCompare(bagName(b.bag, DEFAULT_BAGS), "zh-Hans-CN");
+      if (bagDiff !== 0) return bagDiff;
       return a.name.localeCompare(b.name, "zh-Hans-CN");
     });
   }
@@ -1697,6 +1701,7 @@
     const preservePacked = options.preservePacked !== false;
     const preserveLocked = options.preserveLocked !== false;
     const preserveManualFields = options.preserveManualFields !== false;
+    const preserveRemovedModuleItems = options.preserveRemovedModuleItems === true;
     const manualItems = (trip.items || []).filter((item) => !(item.sourceModules || []).length);
     const oldModuleSnapshots = /* @__PURE__ */ new Map();
     (trip.items || []).filter((item) => (item.sourceModules || []).length).forEach((item) => oldModuleSnapshots.set(tripItemSnapshotKey(item), normalizeTripItem(item)));
@@ -1758,8 +1763,13 @@
         moduleItem.qty = item.qty;
       }
     });
+    const preservedRemovedItems = preserveRemovedModuleItems ? [...oldModuleSnapshots.entries()].filter(([key]) => !afterKeys.has(key)).map(([, item]) => normalizeTripItem(item)) : [];
     trip.sourceModules = sourceModules;
-    trip.items = [...moduleItems.map(normalizeTripItem), ...keptManual.map(normalizeTripItem)];
+    trip.items = [
+      ...moduleItems.map(normalizeTripItem),
+      ...preservedRemovedItems,
+      ...keptManual.map(normalizeTripItem)
+    ];
     applyTripSmartFill(trip, false);
     let added = 0;
     let removed = 0;
@@ -1767,9 +1777,11 @@
     afterKeys.forEach((key) => {
       if (!beforeKeys.has(key)) added += 1;
     });
-    beforeKeys.forEach((key) => {
-      if (!afterKeys.has(key)) removed += 1;
-    });
+    if (!preserveRemovedModuleItems) {
+      beforeKeys.forEach((key) => {
+        if (!afterKeys.has(key)) removed += 1;
+      });
+    }
     moduleItems.forEach((item) => {
       const old = oldModuleSnapshots.get(tripItemSnapshotKey(item));
       if (!old) return;
@@ -1823,7 +1835,10 @@
     collapsedBags: /* @__PURE__ */ new Set(),
     tripInfoCollapsed: true,
     moduleAddPanelOpen: false,
-    currentEditingTags: []
+    currentEditingTags: [],
+    lastModuleSyncSummary: null,
+    libraryCategoryManuallySelected: false,
+    libraryBagManuallySelected: false
   };
   var modalReturnFocus = null;
   function init() {
@@ -1952,81 +1967,90 @@
     return value;
   }
   function bindFormEvents() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     (_a = document.getElementById("tripDays")) == null ? void 0 : _a.addEventListener("input", syncTripBuilderSummary);
     (_b = document.getElementById("tripPeople")) == null ? void 0 : _b.addEventListener("input", syncTripBuilderSummary);
     (_c = document.getElementById("libraryItemCategory")) == null ? void 0 : _c.addEventListener("change", () => {
-      syncBagWithCategory("libraryItemCategory", "libraryItemBag", DEFAULT_BAGS);
+      S.libraryCategoryManuallySelected = true;
+      if (!S.libraryBagManuallySelected) {
+        syncBagWithCategory("libraryItemCategory", "libraryItemBag", DEFAULT_BAGS);
+      }
       updateLibrarySmartHint();
     });
-    (_d = document.getElementById("libraryItemName")) == null ? void 0 : _d.addEventListener("input", updateLibrarySmartHint);
-    (_e = document.getElementById("libraryItemBulkInput")) == null ? void 0 : _e.addEventListener("input", updateLibrarySmartHint);
-    (_f = document.getElementById("libraryItemQty")) == null ? void 0 : _f.addEventListener("input", updateLibrarySmartHint);
-    (_g = document.getElementById("manualItemCategory")) == null ? void 0 : _g.addEventListener("change", () => {
+    (_d = document.getElementById("libraryItemBag")) == null ? void 0 : _d.addEventListener("change", () => {
+      S.libraryBagManuallySelected = true;
+    });
+    (_e = document.getElementById("libraryItemName")) == null ? void 0 : _e.addEventListener("input", () => {
+      syncLibraryItemInference();
+      updateLibrarySmartHint();
+    });
+    (_f = document.getElementById("libraryItemBulkInput")) == null ? void 0 : _f.addEventListener("input", updateLibrarySmartHint);
+    (_g = document.getElementById("libraryItemQty")) == null ? void 0 : _g.addEventListener("input", updateLibrarySmartHint);
+    (_h = document.getElementById("manualItemCategory")) == null ? void 0 : _h.addEventListener("change", () => {
       var _a2;
       syncBagWithCategory("manualItemCategory", "manualItemBag", ((_a2 = S.currentTrip) == null ? void 0 : _a2.bags) || DEFAULT_BAGS);
       updateManualItemSmartHint();
     });
-    (_h = document.getElementById("manualItemName")) == null ? void 0 : _h.addEventListener("input", updateManualItemSmartHint);
-    (_i = document.getElementById("manualItemBulkInput")) == null ? void 0 : _i.addEventListener("input", updateManualItemSmartHint);
-    (_j = document.getElementById("manualItemQty")) == null ? void 0 : _j.addEventListener("input", updateManualItemSmartHint);
-    (_k = document.getElementById("tripItemQty")) == null ? void 0 : _k.addEventListener("input", updateTripItemSmartMeta);
-    (_l = document.getElementById("tripItemCategory")) == null ? void 0 : _l.addEventListener("change", () => {
+    (_i = document.getElementById("manualItemName")) == null ? void 0 : _i.addEventListener("input", updateManualItemSmartHint);
+    (_j = document.getElementById("manualItemBulkInput")) == null ? void 0 : _j.addEventListener("input", updateManualItemSmartHint);
+    (_k = document.getElementById("manualItemQty")) == null ? void 0 : _k.addEventListener("input", updateManualItemSmartHint);
+    (_l = document.getElementById("tripItemQty")) == null ? void 0 : _l.addEventListener("input", updateTripItemSmartMeta);
+    (_m = document.getElementById("tripItemCategory")) == null ? void 0 : _m.addEventListener("change", () => {
       var _a2;
       syncBagWithCategory("tripItemCategory", "tripItemBag", ((_a2 = S.currentTrip) == null ? void 0 : _a2.bags) || DEFAULT_BAGS);
       updateTripItemSmartMeta();
     });
-    (_m = document.getElementById("moduleItemQty")) == null ? void 0 : _m.addEventListener("input", updateModuleItemSmartHint);
-    (_n = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _n.addEventListener("keydown", (event) => {
+    (_n = document.getElementById("moduleItemQty")) == null ? void 0 : _n.addEventListener("input", updateModuleItemSmartHint);
+    (_o = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _o.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       quickAddItemToCurrentModule();
     });
-    (_o = document.getElementById("moduleDetailItems")) == null ? void 0 : _o.addEventListener("click", (event) => {
+    (_p = document.getElementById("moduleDetailItems")) == null ? void 0 : _p.addEventListener("click", (event) => {
       const button = event.target.closest("[data-remove-detail-item]");
       if (!button) return;
       removeItemFromCurrentModule(Number(button.dataset.removeDetailItem));
     });
-    (_p = document.getElementById("moduleBuilderItems")) == null ? void 0 : _p.addEventListener("click", (e) => {
+    (_q = document.getElementById("moduleBuilderItems")) == null ? void 0 : _q.addEventListener("click", (e) => {
       const tile = e.target.closest(".picker-item");
       if (!(tile == null ? void 0 : tile.dataset.itemId)) return;
       addModuleBuilderItemByAssetId(tile.dataset.itemId);
     });
-    (_q = document.getElementById("moduleBuilderSelectedItems")) == null ? void 0 : _q.addEventListener("click", (e) => {
+    (_r = document.getElementById("moduleBuilderSelectedItems")) == null ? void 0 : _r.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-remove-module-item]");
       if (!btn) return;
       removeModuleBuilderItem(btn.dataset.removeModuleItem);
     });
-    (_r = document.getElementById("libraryItemTagsDisplay")) == null ? void 0 : _r.addEventListener("click", (e) => {
+    (_s = document.getElementById("libraryItemTagsDisplay")) == null ? void 0 : _s.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeLibraryItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
-    (_s = document.getElementById("tripItemTagsDisplay")) == null ? void 0 : _s.addEventListener("click", (e) => {
+    (_t = document.getElementById("tripItemTagsDisplay")) == null ? void 0 : _t.addEventListener("click", (e) => {
       const btn = e.target.closest(".item-tag-remove");
       if (!btn) return;
       e.preventDefault();
       removeTripItemTagByIndex(parseInt(btn.dataset.tagIndex, 10));
     });
-    (_t = document.getElementById("listContent")) == null ? void 0 : _t.addEventListener("click", (e) => {
+    (_u = document.getElementById("listContent")) == null ? void 0 : _u.addEventListener("click", (e) => {
       const card = e.target.closest("[data-trip-item-id]");
       if (!card || S.tripMode !== "plan") return;
       openTripItemModal(card.dataset.tripItemId);
     });
-    (_u = document.getElementById("libraryItemTagInput")) == null ? void 0 : _u.addEventListener("keydown", (e) => {
+    (_v = document.getElementById("libraryItemTagInput")) == null ? void 0 : _v.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         addLibraryItemTag();
       }
     });
-    (_v = document.getElementById("tripItemTagInput")) == null ? void 0 : _v.addEventListener("keydown", (e) => {
+    (_w = document.getElementById("tripItemTagInput")) == null ? void 0 : _w.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         addTripItemTag();
       }
     });
-    (_w = document.getElementById("moduleItemCategory")) == null ? void 0 : _w.addEventListener("change", () => {
+    (_x = document.getElementById("moduleItemCategory")) == null ? void 0 : _x.addEventListener("change", () => {
       syncBagWithCategory("moduleItemCategory", "moduleItemBag", DEFAULT_BAGS);
       updateModuleItemSmartHint();
     });
@@ -2516,7 +2540,8 @@
     const moduleItems = (entity.items || []).map(normalizeModuleItem);
     const smartCount = moduleItems.filter((item) => item.smartRule !== "fixed").length;
     document.getElementById("moduleDetailTitle").textContent = entity.name;
-    document.getElementById("moduleDetailSummary").innerHTML = '<div class="module-detail-badges"><span class="mini-badge">' + (source === "official" ? "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305") + '</span><span class="mini-badge soft">' + moduleItems.length + " \u4EF6</span>" + (smartCount ? '<span class="mini-badge soft">' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF</span>" : "") + '</div><p class="module-detail-desc">' + esc(entity.desc || "\u53EF\u590D\u7528\u7684\u6253\u5305\u6A21\u5757\uFF0C\u521B\u5EFA\u884C\u7A0B\u65F6\u53EF\u4E00\u952E\u52A0\u5165\u3002") + "</p>";
+    const linkedTripCount = getLinkedTripCount(source, id);
+    document.getElementById("moduleDetailSummary").innerHTML = '<div class="module-detail-badges"><span class="mini-badge">' + (source === "official" ? "\u5B98\u65B9\u5C0F\u5305" : "\u6211\u7684\u5C0F\u5305") + '</span><span class="mini-badge soft">' + moduleItems.length + " \u4EF6</span>" + (smartCount ? '<span class="mini-badge soft">' + smartCount + " \u9879\u53EF\u53D8\u6570\u91CF</span>" : "") + '</div><p class="module-detail-desc">' + esc(entity.desc || "\u53EF\u590D\u7528\u7684\u6253\u5305\u6A21\u5757\uFF0C\u521B\u5EFA\u884C\u7A0B\u65F6\u53EF\u4E00\u952E\u52A0\u5165\u3002") + "</p>" + (linkedTripCount ? '<p class="module-sync-note">\u65B0\u589E\u7269\u54C1\u548C\u6570\u91CF\u8C03\u6574\u4F1A\u81EA\u52A8\u540C\u6B65\u5230 ' + linkedTripCount + " \u4E2A\u5DF2\u6709\u884C\u7A0B</p>" : "");
     document.getElementById("moduleDetailItems").innerHTML = moduleItems.length ? moduleItems.map((item, index) => renderModuleDetailItemRow(item, index)).join("") : '<div class="empty-panel"><div class="empty-hint">\u8FD9\u4E2A\u5305\u8FD8\u662F\u7A7A\u7684\uFF0C\u5728\u4E0B\u65B9\u76F4\u63A5\u8F93\u5165\u7269\u54C1\u540D\u79F0\u3002</div></div>';
     document.getElementById("moduleEditBtn").style.display = "inline-flex";
     document.getElementById("moduleEditBtn").textContent = "\u8C03\u6574\u6570\u91CF";
@@ -2557,6 +2582,7 @@
     return '<div class="module-detail-row"><div class="module-detail-main"><span class="module-detail-name">' + esc(item.name) + '</span><span class="module-detail-sub">' + esc(cat.name) + (item.smartRule !== "fixed" ? " \xB7 \u667A\u80FD\u6570\u91CF" : "") + '</span></div><span class="module-detail-qty">\xD7' + item.defaultQty + '</span><button type="button" class="module-item-remove" data-remove-detail-item="' + index + '" aria-label="\u4ECE\u5C0F\u5305\u79FB\u9664 ' + esc(item.name) + '">\xD7</button></div>';
   }
   function quickAddItemToCurrentModule() {
+    var _a;
     if (!S.currentModule) return;
     const input = document.getElementById("moduleQuickAddInput");
     const name = input == null ? void 0 : input.value.trim();
@@ -2582,10 +2608,11 @@
     upsertLibraryFromModuleItem(moduleItem);
     renderModuleDetailModal(source, id);
     renderModuleLibrary();
-    toast("\u5DF2\u52A0\u5165\u300C" + entity.name + "\u300D");
+    const synced = ((_a = S.lastModuleSyncSummary) == null ? void 0 : _a.changedTrips) || 0;
+    toast("\u5DF2\u52A0\u5165\u300C" + entity.name + "\u300D" + (synced ? "\uFF0C\u5E76\u540C\u6B65\u5230 ".concat(synced, " \u4E2A\u884C\u7A0B") : ""));
     setTimeout(() => {
-      var _a;
-      return (_a = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _a.focus();
+      var _a2;
+      return (_a2 = document.getElementById("moduleQuickAddInput")) == null ? void 0 : _a2.focus();
     }, 0);
   }
   function removeItemFromCurrentModule(index) {
@@ -2595,14 +2622,14 @@
     if (!entity || index < 0 || index >= (entity.items || []).length) return;
     const items = [...entity.items];
     const [removed] = items.splice(index, 1);
-    const saved = saveModuleEntityItems(source, id, items);
+    const saved = saveModuleEntityItems(source, id, items, { syncExistingTrips: false });
     if (!saved) {
       toast("\u79FB\u9664\u5931\u8D25\uFF0C\u8BF7\u91CD\u8BD5");
       return;
     }
     renderModuleDetailModal(source, id);
     renderModuleLibrary();
-    toast("\u5DF2\u79FB\u9664\u300C" + removed.name + "\u300D");
+    toast("\u5DF2\u4ECE\u5C0F\u5305\u79FB\u9664\u300C" + removed.name + "\u300D\uFF1B\u5DF2\u6709\u884C\u7A0B\u4E2D\u7684\u7269\u54C1\u4F1A\u4FDD\u7559");
   }
   function tripOrModuleItemToModuleItem(item) {
     return normalizeModuleItem({
@@ -2642,27 +2669,54 @@
     else library.unshift(next);
     saveItemLibrary(library);
   }
-  function saveModuleEntityItems(source, moduleId, items) {
+  function saveModuleEntityItems(source, moduleId, items, options = {}) {
+    let savedEntity = null;
     if (source === "official") {
       const modules = getOfficialModules();
-      const idx = modules.findIndex((module2) => module2.id === moduleId);
+      const idx = modules.findIndex((module) => module.id === moduleId);
       if (idx < 0) return null;
       modules[idx] = normalizeOfficialModule({
         ...modules[idx],
         items: items.map(normalizeModuleItem)
       });
-      saveOfficialModules(modules);
-      return modules[idx];
+      if (!saveOfficialModules(modules)) return null;
+      savedEntity = modules[idx];
+    } else {
+      const module = getMyModules().find((entry) => entry.id === moduleId);
+      if (!module) return null;
+      const next = normalizeModuleRecord({
+        ...module,
+        items: items.map(normalizeModuleItem),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      if (!saveRecord(next)) return null;
+      savedEntity = next;
     }
-    const module = getMyModules().find((entry) => entry.id === moduleId);
-    if (!module) return null;
-    const next = normalizeModuleRecord({
-      ...module,
-      items: items.map(normalizeModuleItem),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    S.lastModuleSyncSummary = options.syncExistingTrips === false ? { linkedTrips: getLinkedTripCount(source, moduleId), changedTrips: 0, added: 0, removed: 0, updated: 0 } : syncLinkedTripsAfterModuleChange(source, moduleId);
+    return savedEntity;
+  }
+  function getLinkedTripCount(source, moduleId) {
+    return getTrips().filter((trip) => isModuleOnTrip(trip, source, moduleId)).length;
+  }
+  function syncLinkedTripsAfterModuleChange(source, moduleId) {
+    const summary = { linkedTrips: 0, changedTrips: 0, added: 0, removed: 0, updated: 0 };
+    getTrips().forEach((trip) => {
+      if (!isModuleOnTrip(trip, source, moduleId)) return;
+      summary.linkedTrips += 1;
+      const result = resyncTripFromSourceModules(trip, { preserveRemovedModuleItems: true });
+      if (!result.changed) return;
+      result.trip.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      if (!saveRecord(result.trip)) return;
+      summary.changedTrips += 1;
+      summary.added += result.added || 0;
+      summary.removed += result.removed || 0;
+      summary.updated += result.updated || 0;
     });
-    saveRecord(next);
-    return next;
+    if (S.currentTripId) {
+      const refreshed = getTrips().find((trip) => trip.id === S.currentTripId);
+      if (refreshed) S.currentTrip = deepClone(refreshed);
+    }
+    return summary;
   }
   function findModuleItemContext(itemId) {
     const ctx = S.moduleItemEditContext;
@@ -2712,7 +2766,7 @@
     hint.textContent = smartRule === "fixed" ? "\u9ED8\u8BA4\u56FA\u5B9A\u6570\u91CF \xD7".concat(qty, "\u3002\u4FDD\u5B58\u540E\uFF0C\u4E4B\u540E\u7528\u8FD9\u4E2A\u5305\u521B\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u91CF\u751F\u6210\u3002") : "\u9ED8\u8BA4\u57FA\u7840\u91CF \xD7".concat(qty, "\uFF0C\u6309\u300C").concat(smartRuleLabel(smartRule, smartConfig), "\u300D\u667A\u80FD\u5EFA\u8BAE\uFF1B\u5F53\u524D\u9884\u89C8\u7EA6 \xD7").concat(previewQty, "\u3002\u4FDD\u5B58\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6CBF\u7528\u8FD9\u91CC\u7684\u9ED8\u8BA4\u8BBE\u7F6E\u3002");
   }
   function saveModuleItemEdit() {
-    var _a, _b;
+    var _a, _b, _c;
     const ctx = S.moduleItemEditContext;
     if (!ctx) return;
     const found = findModuleItemContext(ctx.itemId);
@@ -2747,7 +2801,8 @@
       renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
-    toast("\u5DF2\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC\uFF0C\u4E4B\u540E\u65B0\u5EFA\u884C\u7A0B\u90FD\u4F1A\u6309\u6B64\u9ED8\u8BA4\u8BBE\u7F6E\u751F\u6210");
+    const synced = ((_c = S.lastModuleSyncSummary) == null ? void 0 : _c.changedTrips) || 0;
+    toast("\u5DF2\u4FDD\u5B58\u5230\u5C0F\u5305\u91CC" + (synced ? "\uFF0C\u5E76\u540C\u6B65\u5230 ".concat(synced, " \u4E2A\u884C\u7A0B") : ""));
   }
   function deleteModuleItemEdit() {
     var _a, _b, _c;
@@ -2770,13 +2825,13 @@
     const entity = getModuleEntity(ctx.source, ctx.moduleId);
     if (!entity) return;
     const items = (entity.items || []).filter((item) => item.id !== ctx.itemId);
-    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items, { syncExistingTrips: false });
     closeModal("moduleItemModal");
     if (((_b = S.currentModule) == null ? void 0 : _b.source) === ctx.source && ((_c = S.currentModule) == null ? void 0 : _c.id) === ctx.moduleId) {
       renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
-    toast("\u5DF2\u4ECE\u5C0F\u5305\u4E2D\u79FB\u9664");
+    toast("\u5DF2\u4ECE\u5C0F\u5305\u4E2D\u79FB\u9664\uFF1B\u5DF2\u6709\u884C\u7A0B\u4E2D\u7684\u7269\u54C1\u4F1A\u4FDD\u7559");
   }
   function useCurrentModule() {
     if (!S.currentModule) return;
@@ -2827,13 +2882,11 @@
       banner.textContent = S.currentTrip ? "\u6B63\u5728\u4E3A\u300C".concat(S.currentTrip.name, "\u300D\u6DFB\u52A0\u7269\u54C1\uFF1B\u5DF2\u5728\u6E05\u5355\u4E2D\u7684\u7269\u54C1\u4F1A\u660E\u786E\u6807\u8BB0\u3002") : "";
     }
     if (searchInput) searchInput.value = S.itemSearch;
-    renderItemFilters();
     const keyword = S.itemSearch.toLowerCase();
     const joinedCount = S.currentTrip ? allItems.filter(isOnCurrentTrip).length : 0;
     const items = allItems.filter((item) => {
-      const filterMatch = S.itemFilter === "all" || item.category === S.itemFilter;
       const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-      return filterMatch && searchMatch;
+      return searchMatch;
     }).sort((a, b) => Number(isOnCurrentTrip(a)) - Number(isOnCurrentTrip(b)));
     const customCount = allItems.filter((item) => item.source === "user").length;
     if (summaryBox) {
@@ -2842,19 +2895,10 @@
     if (!gridBox) return;
     gridBox.innerHTML = items.length ? items.map((item) => renderLibraryCard(item, isOnCurrentTrip(item))).join("") : '<div class="empty-panel full-span"><div class="empty-hint">\u6CA1\u6709\u5339\u914D\u7684\u7269\u54C1\u3002</div></div>';
   }
-  function renderItemFilters() {
-    const options = [{ id: "all", name: "\u5168\u90E8" }, ...DEFAULT_CATEGORIES.map((cat) => ({ id: cat.id, name: cat.name }))];
-    const filterRow = document.getElementById("ilibraryFilterRow") || document.getElementById("itemFilterRow");
-    if (!filterRow) return;
-    filterRow.innerHTML = options.map(
-      (option) => '<button class="filter-chip ' + (S.itemFilter === option.id ? "active" : "") + '" data-action-click="setItemFilter(\'' + option.id + "')\">" + esc(option.name) + "</button>"
-    ).join("");
-  }
   function renderLibraryCard(item, alreadyAdded = false) {
-    const cat = catInfo(item.category);
     const addButton = S.currentTrip ? alreadyAdded ? '<span class="library-action added">\u5DF2\u52A0\u5165 \u2713</span>' : '<button class="library-action primary" data-action-click="event.stopPropagation();addLibraryItemToCurrentTrip(\'' + item.id + "')\">\u52A0\u5165</button>" : "";
     const cardAction = S.currentTrip ? alreadyAdded ? "" : "addLibraryItemToCurrentTrip('" + item.id + "')" : "openLibraryItemModal('" + item.id + "')";
-    return '<div class="library-card ' + (item.source === "user" ? "user-built " : "") + (alreadyAdded ? "on-trip" : "") + '"' + (cardAction ? ' data-action-click="' + cardAction + '" role="button" tabindex="0"' : "") + '><div class="library-card-body"><div class="library-card-top"><span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + "</span>" + (item.source === "user" ? '<span class="mini-badge soft">\u81EA\u5EFA</span>' : "") + '</div><div class="library-name">' + esc(item.name) + '</div><div class="library-meta">' + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \u9ED8\u8BA4 \xD7" + item.defaultQty + "</div></div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
+    return '<div class="library-card ' + (item.source === "user" ? "user-built " : "") + (alreadyAdded ? "on-trip" : "") + '"' + (cardAction ? ' data-action-click="' + cardAction + '" role="button" tabindex="0"' : "") + '><div class="library-card-body">' + (item.source === "user" ? '<div class="library-card-top"><span class="mini-badge soft">\u81EA\u5EFA</span></div>' : "") + '<div class="library-name">' + esc(item.name) + '</div><div class="library-meta">' + esc(bagIcon(item.bag, DEFAULT_BAGS)) + " " + esc(bagName(item.bag, DEFAULT_BAGS)) + " \xB7 \u9ED8\u8BA4 \xD7" + item.defaultQty + "</div></div>" + (addButton ? '<div class="library-actions">' + addButton + "</div>" : "") + "</div>";
   }
   function parseBulkNames(text) {
     return uniqueStrings(
@@ -3035,6 +3079,10 @@
     const item = itemId ? getItemLibrary().find((entry) => entry.id === itemId) : null;
     fillCatSelect("libraryItemCategory", (item == null ? void 0 : item.category) || "misc");
     fillBagSelect("libraryItemBag", (item == null ? void 0 : item.bag) || (CATEGORY_BAG_MAP[(item == null ? void 0 : item.category) || "misc"] || "bag-misc"), DEFAULT_BAGS);
+    S.libraryCategoryManuallySelected = !!item;
+    S.libraryBagManuallySelected = !!item;
+    const advanced = document.getElementById("libraryItemAdvanced");
+    if (advanced) advanced.open = false;
     document.getElementById("libraryItemModalTitle").textContent = item ? "\u7F16\u8F91\u7269\u54C1" : "\u65B0\u589E\u7269\u54C1";
     document.getElementById("libraryItemName").value = (item == null ? void 0 : item.name) || "";
     document.getElementById("libraryItemQty").value = (item == null ? void 0 : item.defaultQty) || 1;
@@ -3047,6 +3095,20 @@
     updateLibrarySmartHint();
     showModal("libraryItemModal");
     setTimeout(() => document.getElementById("libraryItemName").focus(), 50);
+  }
+  function syncLibraryItemInference() {
+    var _a;
+    if (S.libraryModalEditId) return;
+    const name = (_a = document.getElementById("libraryItemName")) == null ? void 0 : _a.value.trim();
+    if (!name) return;
+    const inferredCategory = guessCat(name);
+    if (!S.libraryCategoryManuallySelected) {
+      document.getElementById("libraryItemCategory").value = inferredCategory;
+    }
+    if (!S.libraryBagManuallySelected) {
+      const category = S.libraryCategoryManuallySelected ? document.getElementById("libraryItemCategory").value : inferredCategory;
+      document.getElementById("libraryItemBag").value = suggestBagForItem(name, category);
+    }
   }
   function renderLibraryItemTags() {
     const el = document.getElementById("libraryItemTagsDisplay");
@@ -3087,14 +3149,15 @@
     const hint = document.getElementById("libraryItemSmartHint");
     if (!hint) return;
     const names = S.libraryModalEditId ? collectDraftNames("libraryItemName") : collectDraftNames("libraryItemName", "libraryItemBulkInput");
-    const category = ((_a = document.getElementById("libraryItemCategory")) == null ? void 0 : _a.value) || "misc";
+    const firstName = names[0] || "";
+    const category = S.libraryCategoryManuallySelected ? ((_a = document.getElementById("libraryItemCategory")) == null ? void 0 : _a.value) || "misc" : guessCat(firstName);
     const qty = Math.max(1, parseInt((_b = document.getElementById("libraryItemQty")) == null ? void 0 : _b.value) || 1);
     if (!names.length) {
-      hint.textContent = "\u8863\u7269\u7C7B\u548C\u5B9D\u5B9D\u9AD8\u9891\u6D88\u8017\u7269\u54C1\u4F1A\u9ED8\u8BA4\u53C2\u4E0E\u667A\u80FD\u586B\u5145\uFF1B\u6279\u91CF\u6DFB\u52A0\u65F6\u4F1A\u9ED8\u8BA4\u4F7F\u7528\u540C\u4E00\u5206\u7C7B\u548C\u9ED8\u8BA4\u6570\u91CF\u3002";
+      hint.textContent = "\u8F93\u5165\u540D\u79F0\u540E\uFF0C\u7CFB\u7EDF\u4F1A\u81EA\u52A8\u5224\u65AD\u7C7B\u578B\u3001\u5C0F\u5305\u548C\u667A\u80FD\u6570\u91CF\u3002";
       return;
     }
     if (!S.libraryModalEditId && names.length > 1) {
-      hint.textContent = "\u5C06\u6279\u91CF\u4FDD\u5B58 ".concat(names.length, " \u4EF6\u7269\u54C1\uFF0C\u7EDF\u4E00\u4F7F\u7528\u5F53\u524D\u5206\u7C7B\u3001\u9ED8\u8BA4\u6570\u91CF\u548C\u5F52\u5C5E\u5C0F\u5305\uFF1B\u4FDD\u5B58\u540E\u4E5F\u53EF\u4EE5\u9010\u4E2A\u518D\u4FEE\u6539\u3002");
+      hint.textContent = "\u5C06\u6279\u91CF\u4FDD\u5B58 ".concat(names.length, " \u4EF6\u7269\u54C1\uFF0C\u5E76\u5206\u522B\u81EA\u52A8\u5224\u65AD\u7C7B\u578B\u548C\u5EFA\u8BAE\u5C0F\u5305\u3002");
       return;
     }
     const name = names[0];
@@ -3108,13 +3171,15 @@
       return;
     }
     const qty = Math.max(1, parseInt(document.getElementById("libraryItemQty").value) || 1);
-    const category = document.getElementById("libraryItemCategory").value;
-    const bag = document.getElementById("libraryItemBag").value;
+    const selectedCategory = document.getElementById("libraryItemCategory").value;
+    const selectedBag = document.getElementById("libraryItemBag").value;
     const items = getItemLibrary();
     let added = 0;
     let updated = 0;
     names.forEach((name, index) => {
       const existing = S.libraryModalEditId ? items.find((item) => item.id === S.libraryModalEditId) : items.find((item) => item.name === name);
+      const category = S.libraryCategoryManuallySelected ? selectedCategory : guessCat(name);
+      const bag = S.libraryBagManuallySelected ? selectedBag : suggestBagForItem(name, category);
       const nextItem = buildLibraryItemDraft(name, qty, category, bag, existing);
       if (S.libraryModalEditId && index === 0) {
         nextItem.tags = [...S.currentEditingTags];

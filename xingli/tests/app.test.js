@@ -638,6 +638,52 @@ describe('resyncTripFromSourceModules 按小包重新同步', () => {
         expect(trip.items.filter(item => item.name === '牙刷')).toHaveLength(1);
         expect(trip.items.find(item => item.name === '牙刷').qty).toBe(2);
     });
+
+    test('增量同步新增物品时不删除旧行程已有内容', () => {
+        saveOfficialModules([
+            {
+                id: 'module-safe-sync',
+                name: '随身包',
+                icon: '👜',
+                purpose: 'daily',
+                items: [
+                    { name: '纸巾', category: 'misc', defaultQty: 1 },
+                    { name: '充电线', category: 'electronics', defaultQty: 2 },
+                ],
+            },
+        ]);
+
+        const trip = normalizeTripRecord({
+            id: 'trip-safe-sync',
+            name: '旧行程',
+            days: 1,
+            people: 1,
+            sourceModules: [{ source: 'official', id: 'module-safe-sync', name: '随身包' }],
+            items: [
+                normalizeTripItem({
+                    id: 'old-tissue',
+                    name: '纸巾',
+                    category: 'misc',
+                    qty: 1,
+                    sourceModules: ['随身包'],
+                }),
+                normalizeTripItem({
+                    id: 'old-umbrella',
+                    name: '雨伞',
+                    category: 'misc',
+                    qty: 1,
+                    packed: true,
+                    sourceModules: ['随身包'],
+                }),
+            ],
+        });
+
+        const result = resyncTripFromSourceModules(trip, { preserveRemovedModuleItems: true });
+        expect(result.added).toBe(1);
+        expect(result.removed).toBe(0);
+        expect(trip.items.find(item => item.name === '充电线')?.qty).toBe(2);
+        expect(trip.items.find(item => item.name === '雨伞')?.packed).toBe(true);
+    });
 });
 
 // ===== 深拷贝逻辑 =====

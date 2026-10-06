@@ -10,7 +10,7 @@
     <title>行理 · 小包行程助手</title>
     <link rel="icon" type="image/png" href="./assets/xingli-app-icon.png">
     <link rel="apple-touch-icon" href="./assets/xingli-app-icon.png">
-    <link rel="stylesheet" href="./style.css?v=20260925-13">
+    <link rel="stylesheet" href="./style.css?v=20261006-2">
 </head>
 <body>
     <div class="app-shell">
@@ -58,7 +58,6 @@
                 <div class="search-bar search-bar-large">
                     <input id="ilibrarySearchInput" type="text" placeholder="搜索物品名称" data-action-input="updateILibrarySearch(this.value)">
                 </div>
-                <div class="filter-row" id="ilibraryFilterRow"></div>
                 <div class="library-summary-row" id="ilibrarySummary"></div>
                 <div class="item-library-grid" id="ilibraryGrid"></div>
             </section>
@@ -210,7 +209,7 @@
                         <input id="moduleQuickAddInput" type="text" placeholder="输入名称，例如：充电线">
                         <button type="button" class="btn-primary" data-action-click="quickAddItemToCurrentModule()">添加</button>
                     </div>
-                    <div class="module-quick-add-hint">输入后直接加入这个小包，也会同步进物品库。</div>
+                    <div class="module-quick-add-hint">默认按 1 件加入；若已有行程使用这个小包，新物品会自动同步。</div>
                 </div>
             </div>
             <div class="modal-footer between footer-tight">
@@ -239,20 +238,24 @@
                 <div class="form-row vertical" id="libraryBulkPanel">
                     <label for="libraryItemBulkInput">批量添加（可选）</label>
                     <textarea id="libraryItemBulkInput" rows="4" placeholder="可直接粘贴多件物品，支持空格、逗号、换行分隔，例如：身份证 护照&#10;牙刷，牙膏"></textarea>
-                    <div class="field-hint">批量添加会默认使用同一分类、同一默认数量和同一归属小包；保存后你也可以再逐个单独修改。</div>
+                    <div class="field-hint">系统会自动识别每件物品的类型和建议小包；保存后也可以再逐个修改。</div>
                 </div>
                 <div class="form-row vertical">
                     <label for="libraryItemQty">默认数量</label>
                     <input id="libraryItemQty" type="number" min="1" value="1">
                 </div>
                 <div class="form-row vertical">
-                    <label for="libraryItemCategory">分类</label>
-                    <select id="libraryItemCategory"></select>
-                </div>
-                <div class="form-row vertical">
                     <label for="libraryItemBag">默认归属小包</label>
                     <select id="libraryItemBag"></select>
                 </div>
+                <details class="library-advanced" id="libraryItemAdvanced">
+                    <summary>更多设置</summary>
+                    <div class="form-row vertical">
+                        <label for="libraryItemCategory">系统分类</label>
+                        <select id="libraryItemCategory"></select>
+                        <div class="field-hint">通常不需要调整，仅用于智能数量与自动整理。</div>
+                    </div>
+                </details>
                 <div class="form-row vertical">
                     <label>物品标签</label>
                     <div class="item-tags" id="libraryItemTagsDisplay"></div>
@@ -440,6 +443,6 @@
         </div>
     </div>
 
-    <script src="./bundle.js?v=20260925-13"></script>
+    <script src="./bundle.js?v=20261006-2"></script>
 </body>
 </html>

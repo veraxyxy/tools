@@ -62,6 +62,9 @@ let S = {
     tripInfoCollapsed: true,
     moduleAddPanelOpen: false,
     currentEditingTags: [],
+    lastModuleSyncSummary: null,
+    libraryCategoryManuallySelected: false,
+    libraryBagManuallySelected: false,
 };
 let modalReturnFocus = null;
 
@@ -208,10 +211,19 @@ function bindFormEvents() {
     document.getElementById('tripPeople')?.addEventListener('input', syncTripBuilderSummary);
 
     document.getElementById('libraryItemCategory')?.addEventListener('change', () => {
-        syncBagWithCategory('libraryItemCategory', 'libraryItemBag', DEFAULT_BAGS);
+        S.libraryCategoryManuallySelected = true;
+        if (!S.libraryBagManuallySelected) {
+            syncBagWithCategory('libraryItemCategory', 'libraryItemBag', DEFAULT_BAGS);
+        }
         updateLibrarySmartHint();
     });
-    document.getElementById('libraryItemName')?.addEventListener('input', updateLibrarySmartHint);
+    document.getElementById('libraryItemBag')?.addEventListener('change', () => {
+        S.libraryBagManuallySelected = true;
+    });
+    document.getElementById('libraryItemName')?.addEventListener('input', () => {
+        syncLibraryItemInference();
+        updateLibrarySmartHint();
+    });
     document.getElementById('libraryItemBulkInput')?.addEventListener('input', updateLibrarySmartHint);
     document.getElementById('libraryItemQty')?.addEventListener('input', updateLibrarySmartHint);
 
@@ -1063,13 +1075,17 @@ function renderModuleDetailModal(source, id) {
     const smartCount = moduleItems.filter(item => item.smartRule !== 'fixed').length;
 
     document.getElementById('moduleDetailTitle').textContent = entity.name;
+    const linkedTripCount = getLinkedTripCount(source, id);
     document.getElementById('moduleDetailSummary').innerHTML =
         '<div class="module-detail-badges">' +
         '<span class="mini-badge">' + (source === 'official' ? '官方小包' : '我的小包') + '</span>' +
         '<span class="mini-badge soft">' + moduleItems.length + ' 件</span>' +
         (smartCount ? '<span class="mini-badge soft">' + smartCount + ' 项可变数量</span>' : '') +
         '</div>' +
-        '<p class="module-detail-desc">' + esc(entity.desc || '可复用的打包模块，创建行程时可一键加入。') + '</p>';
+        '<p class="module-detail-desc">' + esc(entity.desc || '可复用的打包模块，创建行程时可一键加入。') + '</p>' +
+        (linkedTripCount
+            ? '<p class="module-sync-note">新增物品和数量调整会自动同步到 ' + linkedTripCount + ' 个已有行程</p>'
+            : '');
     document.getElementById('moduleDetailItems').innerHTML = moduleItems.length
         ? moduleItems.map((item, index) => renderModuleDetailItemRow(item, index)).join('')
         : '<div class="empty-panel"><div class="empty-hint">这个包还是空的，在下方直接输入物品名称。</div></div>';
@@ -1155,7 +1171,8 @@ function quickAddItemToCurrentModule() {
     upsertLibraryFromModuleItem(moduleItem);
     renderModuleDetailModal(source, id);
     renderModuleLibrary();
-    toast('已加入「' + entity.name + '」');
+    const synced = S.lastModuleSyncSummary?.changedTrips || 0;
+    toast('已加入「' + entity.name + '」' + (synced ? `，并同步到 ${synced} 个行程` : ''));
     setTimeout(() => document.getElementById('moduleQuickAddInput')?.focus(), 0);
 }
 
@@ -1166,14 +1183,14 @@ function removeItemFromCurrentModule(index) {
     if (!entity || index < 0 || index >= (entity.items || []).length) return;
     const items = [...entity.items];
     const [removed] = items.splice(index, 1);
-    const saved = saveModuleEntityItems(source, id, items);
+    const saved = saveModuleEntityItems(source, id, items, { syncExistingTrips: false });
     if (!saved) {
         toast('移除失败，请重试');
         return;
     }
     renderModuleDetailModal(source, id);
     renderModuleLibrary();
-    toast('已移除「' + removed.name + '」');
+    toast('已从小包移除「' + removed.name + '」；已有行程中的物品会保留');
 }
 
 function tripOrModuleItemToModuleItem(item) {
@@ -1216,7 +1233,8 @@ function upsertLibraryFromModuleItem(moduleItem) {
     saveItemLibrary(library);
 }
 
-function saveModuleEntityItems(source, moduleId, items) {
+function saveModuleEntityItems(source, moduleId, items, options = {}) {
+    let savedEntity = null;
     if (source === 'official') {
         const modules = getOfficialModules();
         const idx = modules.findIndex(module => module.id === moduleId);
@@ -1225,19 +1243,50 @@ function saveModuleEntityItems(source, moduleId, items) {
             ...modules[idx],
             items: items.map(normalizeModuleItem),
         });
-        saveOfficialModules(modules);
-        return modules[idx];
+        if (!saveOfficialModules(modules)) return null;
+        savedEntity = modules[idx];
+    } else {
+        const module = getMyModules().find(entry => entry.id === moduleId);
+        if (!module) return null;
+        const next = normalizeModuleRecord({
+            ...module,
+            items: items.map(normalizeModuleItem),
+            updatedAt: new Date().toISOString(),
+        });
+        if (!saveRecord(next)) return null;
+        savedEntity = next;
     }
 
-    const module = getMyModules().find(entry => entry.id === moduleId);
-    if (!module) return null;
-    const next = normalizeModuleRecord({
-        ...module,
-        items: items.map(normalizeModuleItem),
-        updatedAt: new Date().toISOString(),
+    S.lastModuleSyncSummary = options.syncExistingTrips === false
+        ? { linkedTrips: getLinkedTripCount(source, moduleId), changedTrips: 0, added: 0, removed: 0, updated: 0 }
+        : syncLinkedTripsAfterModuleChange(source, moduleId);
+    return savedEntity;
+}
+
+function getLinkedTripCount(source, moduleId) {
+    return getTrips().filter(trip => isModuleOnTrip(trip, source, moduleId)).length;
+}
+
+function syncLinkedTripsAfterModuleChange(source, moduleId) {
+    const summary = { linkedTrips: 0, changedTrips: 0, added: 0, removed: 0, updated: 0 };
+    getTrips().forEach(trip => {
+        if (!isModuleOnTrip(trip, source, moduleId)) return;
+        summary.linkedTrips += 1;
+        const result = resyncTripFromSourceModules(trip, { preserveRemovedModuleItems: true });
+        if (!result.changed) return;
+        result.trip.updatedAt = new Date().toISOString();
+        if (!saveRecord(result.trip)) return;
+        summary.changedTrips += 1;
+        summary.added += result.added || 0;
+        summary.removed += result.removed || 0;
+        summary.updated += result.updated || 0;
     });
-    saveRecord(next);
-    return next;
+
+    if (S.currentTripId) {
+        const refreshed = getTrips().find(trip => trip.id === S.currentTripId);
+        if (refreshed) S.currentTrip = deepClone(refreshed);
+    }
+    return summary;
 }
 
 function findModuleItemContext(itemId) {
@@ -1340,7 +1389,8 @@ function saveModuleItemEdit() {
         renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
-    toast('已保存到小包里，之后新建行程都会按此默认设置生成');
+    const synced = S.lastModuleSyncSummary?.changedTrips || 0;
+    toast('已保存到小包里' + (synced ? `，并同步到 ${synced} 个行程` : ''));
 }
 
 function deleteModuleItemEdit() {
@@ -1365,13 +1415,13 @@ function deleteModuleItemEdit() {
     const entity = getModuleEntity(ctx.source, ctx.moduleId);
     if (!entity) return;
     const items = (entity.items || []).filter(item => item.id !== ctx.itemId);
-    saveModuleEntityItems(ctx.source, ctx.moduleId, items);
+    saveModuleEntityItems(ctx.source, ctx.moduleId, items, { syncExistingTrips: false });
     closeModal('moduleItemModal');
     if (S.currentModule?.source === ctx.source && S.currentModule?.id === ctx.moduleId) {
         renderModuleDetailModal(ctx.source, ctx.moduleId);
     }
     renderModuleLibrary();
-    toast('已从小包中移除');
+    toast('已从小包中移除；已有行程中的物品会保留');
 }
 
 function useCurrentModule() {
@@ -1432,14 +1482,11 @@ function renderItemLibrary() {
     }
 
     if (searchInput) searchInput.value = S.itemSearch;
-    renderItemFilters();
-
     const keyword = S.itemSearch.toLowerCase();
     const joinedCount = S.currentTrip ? allItems.filter(isOnCurrentTrip).length : 0;
     const items = allItems.filter(item => {
-        const filterMatch = S.itemFilter === 'all' || item.category === S.itemFilter;
         const searchMatch = !keyword || item.name.toLowerCase().includes(keyword);
-        return filterMatch && searchMatch;
+        return searchMatch;
     }).sort((a, b) => Number(isOnCurrentTrip(a)) - Number(isOnCurrentTrip(b)));
 
     const customCount = allItems.filter(item => item.source === 'user').length;
@@ -1467,7 +1514,6 @@ function renderItemFilters() {
 }
 
 function renderLibraryCard(item, alreadyAdded = false) {
-    const cat = catInfo(item.category);
     const addButton = S.currentTrip
         ? (alreadyAdded
             ? '<span class="library-action added">已加入 ✓</span>'
@@ -1479,12 +1525,9 @@ function renderLibraryCard(item, alreadyAdded = false) {
     return '<div class="library-card ' + (item.source === 'user' ? 'user-built ' : '') + (alreadyAdded ? 'on-trip' : '') + '"' +
         (cardAction ? ' data-action-click="' + cardAction + '" role="button" tabindex="0"' : '') + '>' +
         '<div class="library-card-body">' +
-        '<div class="library-card-top">' +
-        '<span class="item-pill ' + cat.cssClass + '">' + esc(cat.name) + '</span>' +
-        (item.source === 'user' ? '<span class="mini-badge soft">自建</span>' : '') +
-        '</div>' +
+        (item.source === 'user' ? '<div class="library-card-top"><span class="mini-badge soft">自建</span></div>' : '') +
         '<div class="library-name">' + esc(item.name) + '</div>' +
-        '<div class="library-meta">' + esc(bagName(item.bag, DEFAULT_BAGS)) + ' · 默认 ×' + item.defaultQty + '</div>' +
+        '<div class="library-meta">' + esc(bagIcon(item.bag, DEFAULT_BAGS)) + ' ' + esc(bagName(item.bag, DEFAULT_BAGS)) + ' · 默认 ×' + item.defaultQty + '</div>' +
         '</div>' +
         (addButton ? '<div class="library-actions">' + addButton + '</div>' : '') +
         '</div>';
@@ -1716,6 +1759,10 @@ function openLibraryItemModal(itemId = null) {
 
     fillCatSelect('libraryItemCategory', item?.category || 'misc');
     fillBagSelect('libraryItemBag', item?.bag || (CATEGORY_BAG_MAP[item?.category || 'misc'] || 'bag-misc'), DEFAULT_BAGS);
+    S.libraryCategoryManuallySelected = !!item;
+    S.libraryBagManuallySelected = !!item;
+    const advanced = document.getElementById('libraryItemAdvanced');
+    if (advanced) advanced.open = false;
 
     document.getElementById('libraryItemModalTitle').textContent = item ? '编辑物品' : '新增物品';
     document.getElementById('libraryItemName').value = item?.name || '';
@@ -1731,6 +1778,22 @@ function openLibraryItemModal(itemId = null) {
     updateLibrarySmartHint();
     showModal('libraryItemModal');
     setTimeout(() => document.getElementById('libraryItemName').focus(), 50);
+}
+
+function syncLibraryItemInference() {
+    if (S.libraryModalEditId) return;
+    const name = document.getElementById('libraryItemName')?.value.trim();
+    if (!name) return;
+    const inferredCategory = guessCat(name);
+    if (!S.libraryCategoryManuallySelected) {
+        document.getElementById('libraryItemCategory').value = inferredCategory;
+    }
+    if (!S.libraryBagManuallySelected) {
+        const category = S.libraryCategoryManuallySelected
+            ? document.getElementById('libraryItemCategory').value
+            : inferredCategory;
+        document.getElementById('libraryItemBag').value = suggestBagForItem(name, category);
+    }
 }
 
 function renderLibraryItemTags() {
@@ -1777,16 +1840,19 @@ function updateLibrarySmartHint() {
     const names = S.libraryModalEditId
         ? collectDraftNames('libraryItemName')
         : collectDraftNames('libraryItemName', 'libraryItemBulkInput');
-    const category = document.getElementById('libraryItemCategory')?.value || 'misc';
+    const firstName = names[0] || '';
+    const category = S.libraryCategoryManuallySelected
+        ? (document.getElementById('libraryItemCategory')?.value || 'misc')
+        : guessCat(firstName);
     const qty = Math.max(1, parseInt(document.getElementById('libraryItemQty')?.value) || 1);
 
     if (!names.length) {
-        hint.textContent = '衣物类和宝宝高频消耗物品会默认参与智能填充；批量添加时会默认使用同一分类和默认数量。';
+        hint.textContent = '输入名称后，系统会自动判断类型、小包和智能数量。';
         return;
     }
 
     if (!S.libraryModalEditId && names.length > 1) {
-        hint.textContent = `将批量保存 ${names.length} 件物品，统一使用当前分类、默认数量和归属小包；保存后也可以逐个再修改。`;
+        hint.textContent = `将批量保存 ${names.length} 件物品，并分别自动判断类型和建议小包。`;
         return;
     }
 
@@ -1807,8 +1873,8 @@ function saveLibraryItem() {
     }
 
     const qty = Math.max(1, parseInt(document.getElementById('libraryItemQty').value) || 1);
-    const category = document.getElementById('libraryItemCategory').value;
-    const bag = document.getElementById('libraryItemBag').value;
+    const selectedCategory = document.getElementById('libraryItemCategory').value;
+    const selectedBag = document.getElementById('libraryItemBag').value;
     const items = getItemLibrary();
     let added = 0;
     let updated = 0;
@@ -1817,6 +1883,8 @@ function saveLibraryItem() {
         const existing = S.libraryModalEditId
             ? items.find(item => item.id === S.libraryModalEditId)
             : items.find(item => item.name === name);
+        const category = S.libraryCategoryManuallySelected ? selectedCategory : guessCat(name);
+        const bag = S.libraryBagManuallySelected ? selectedBag : suggestBagForItem(name, category);
         const nextItem = buildLibraryItemDraft(name, qty, category, bag, existing);
         // Carry tags over from editing session for the primary edited item
         if (S.libraryModalEditId && index === 0) {
